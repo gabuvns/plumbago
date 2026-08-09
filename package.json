@@ -1,7 +1,14 @@
 {
   "name": "plum-hugo-ui",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Plum: a friendly Hugo UI manager for Windows and WSL",
+  "author": "Plum contributors",
+  "license": "GPL-3.0-only",
+  "homepage": "https://gabuvns.github.io/plumbago/",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/gabuvns/plumbago.git"
+  },
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -11,7 +18,9 @@
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
     "check": "eslint . && vite build",
-    "package:win": "npm run build && electron-builder --win nsis"
+    "package:win": "npm run build && electron-builder --win nsis",
+    "package:linux": "npm run build && electron-builder --linux AppImage",
+    "package:mac": "npm run build && electron-builder --mac dmg"
   },
   "dependencies": {
     "gray-matter": "4.0.3",
@@ -38,6 +47,7 @@
   "build": {
     "appId": "art.plum.hugo",
     "productName": "Plum",
+    "copyright": "Copyright © 2026 Plum contributors",
     "directories": {
       "output": "release"
     },
@@ -47,7 +57,22 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}-windows-${arch}-setup.${ext}"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.png",
+      "category": "public.app-category.developer-tools",
+      "artifactName": "${productName}-${version}-macos-${arch}.${ext}"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png",
+      "category": "Development",
+      "synopsis": "A friendly Hugo UI manager",
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
