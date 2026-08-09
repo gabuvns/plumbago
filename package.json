@@ -4,7 +4,7 @@
   "description": "Plum: a friendly Hugo UI manager for Windows and WSL",
   "author": "Plum contributors",
   "license": "GPL-3.0-only",
-  "homepage": "https://gabuvns.github.io/plumbago/",
+  "homepage": "https://gabu.dev.br/plumbago/",
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/gabuvns/plumbago.git"
