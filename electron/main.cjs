@@ -2,6 +2,7 @@ const { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } = r
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const service = require('./plumbago-service.cjs')
+const updater = require('./core/updater.cjs')
 
 app.setName('Plumbago')
 
@@ -85,6 +86,7 @@ function registerIpc() {
   })
   ipcMain.handle('plumbago:list-themes', () => service.listThemes())
   ipcMain.handle('plumbago:install-theme', (_event, slug) => service.installTheme(requireBlog(), slug))
+  ipcMain.handle('plumbago:deactivate-theme', () => service.deactivateTheme(requireBlog()))
   ipcMain.handle('plumbago:site-settings', () => service.siteSettings(requireBlog()))
   ipcMain.handle('plumbago:save-site-settings', (_event, input) => service.saveSiteSettings(requireBlog(), input))
   ipcMain.handle('plumbago:open-theme', async (_event, slug) => {
@@ -108,6 +110,12 @@ function registerIpc() {
     try { url = new URL(String(value || '')) } catch { throw new Error('Invalid publishing URL.') }
     if (url.protocol !== 'https:') throw new Error('Publishing links must use HTTPS.')
     await shell.openExternal(url.href)
+    return true
+  })
+  ipcMain.handle('plumbago:copy-text', (_event, value) => {
+    const text = String(value || '').slice(0, 20_000)
+    if (!text) throw new Error('There is no diagnostic information to copy.')
+    clipboard.writeText(text)
     return true
   })
   ipcMain.handle('plumbago:github-status', async () => {
@@ -158,6 +166,10 @@ function registerIpc() {
   ipcMain.handle('plumbago:github-connect-repository', async (_event, fullName, protocol) => service.connectGitHubRepository(requireBlog(), await ensureGitHubToken(), fullName, protocol))
   ipcMain.handle('plumbago:github-configure-pages', async () => service.configureGitHubPages(requireBlog(), await ensureGitHubToken()))
   ipcMain.handle('plumbago:publishing-health', () => service.publishingHealth(requireBlog()))
+  ipcMain.handle('plumbago:update-status', () => updater.updateStatus())
+  ipcMain.handle('plumbago:check-for-updates', () => updater.checkForUpdates())
+  ipcMain.handle('plumbago:download-update', () => updater.downloadUpdate())
+  ipcMain.handle('plumbago:install-update', () => updater.installUpdate())
   ipcMain.handle('plumbago:choose-blogger-export', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],

@@ -39,7 +39,22 @@ export function createDemoBridge() {
     installTheme: async (slug) => {
       const theme = demoThemes.find((item) => item.slug === slug)
       context = { ...context, theme: slug }
-      return { ...theme, folder: slug, context }
+      return {
+        ok: true,
+        ...theme,
+        folder: slug,
+        context,
+        compatibility: {
+          current: { version: '0.158.0', extended: true, raw: 'hugo v0.158.0+extended' },
+          requirements: { min: '0.120.0', max: '', extended: false, sources: ['theme.toml'] },
+          compatible: true,
+          issues: [],
+        },
+      }
+    },
+    deactivateTheme: async () => {
+      context = { ...context, theme: '' }
+      return context
     },
     siteSettings: async () => ({ title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', languageCode: 'pt-BR', copyright: '© 2026 Você', theme: context.theme, config: 'hugo.toml' }),
     saveSiteSettings: async (input) => ({ ...input, theme: context.theme, config: 'hugo.toml' }),
@@ -59,6 +74,7 @@ export function createDemoBridge() {
     publishingStatus: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [' M content/posts/cores-do-inverno/index.pt-br.md'], repository: { owner: 'voce', repository: 'blog', fullName: 'voce/blog', url: 'https://github.com/voce/blog' }, site: { title: 'Meu blog', baseURL: 'https://voce.github.io/blog/' }, liveUrl: 'https://voce.github.io/blog/', deployment: { state: 'live', conclusion: 'success', runUrl: 'https://github.com/voce/blog/actions', updatedAt: new Date().toISOString(), name: 'Deploy Hugo site' } }),
     publishBlog: async () => ({ log: ['Hugo build completed successfully.', 'Conteúdo enviado ao repositório remoto.'], status: { branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [], repository: { owner: 'voce', repository: 'blog', fullName: 'voce/blog', url: 'https://github.com/voce/blog' }, site: { title: 'Meu blog', baseURL: 'https://voce.github.io/blog/' }, liveUrl: 'https://voce.github.io/blog/', deployment: { state: 'deploying', conclusion: '', runUrl: 'https://github.com/voce/blog/actions', updatedAt: new Date().toISOString(), name: 'Deploy Hugo site' } } }),
     openPublishingUrl: async () => true,
+    copyText: async () => true,
     githubStatus: async () => ({ configured: true, connected: true, persistent: true, account: { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } }),
     beginGitHubSignIn: async () => ({ deviceCode: 'demo-device', userCode: 'PLUM-BAGO', verificationUri: 'https://github.com/login/device', expiresIn: 900, interval: 5 }),
     completeGitHubSignIn: async () => ({ state: 'complete', persistent: true, account: { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } }),
@@ -69,6 +85,10 @@ export function createDemoBridge() {
     connectGitHubRepository: async (fullName) => ({ repository: { fullName, url: `https://github.com/${fullName}` }, config: { branch: 'main', remote: `git@github.com:${fullName}.git` } }),
     configureGitHubPages: async () => ({ branch: 'main', hugoVersion: '0.148.2', liveUrl: 'https://voce.github.io/blog/', repository: { fullName: 'voce/blog' }, warning: '', workflow: '.github/workflows/plumbago-pages.yml' }),
     publishingHealth: async () => ({ ready: true, score: 8, total: 8, publishing: { liveUrl: 'https://voce.github.io/blog/' }, checks: ['hugo', 'git', 'identity', 'remote', 'github', 'workflow', 'build', 'deployment'].map((id) => ({ id, state: 'ok', detail: `${id} está pronto.`, action: id === 'workflow' ? 'github' : id === 'deployment' ? 'publish' : 'settings' })) }),
+    updateStatus: async () => ({ state: 'idle', currentVersion: '0.5.0', version: '', releaseUrl: 'https://github.com/gabuvns/plumbago/releases/latest', canAutoUpdate: true, reason: '', progress: 0, error: '' }),
+    checkForUpdates: async () => ({ state: 'available', currentVersion: '0.5.0', version: '0.6.0', name: 'Plumbago 0.6.0', notes: 'A smoother theme workflow and guided application updates.', publishedAt: '2026-08-09T12:00:00Z', releaseUrl: 'https://github.com/gabuvns/plumbago/releases/latest', canAutoUpdate: true, reason: '', progress: 0, error: '' }),
+    downloadUpdate: async () => ({ state: 'downloaded', currentVersion: '0.5.0', version: '0.6.0', releaseUrl: 'https://github.com/gabuvns/plumbago/releases/latest', canAutoUpdate: true, progress: 100, error: '' }),
+    installUpdate: async () => true,
     chooseBloggerExport: async () => ({ labels: ['Arte', 'Processo'], imageCount: 4, posts: [{ id: 'blogger-1', title: 'Meu primeiro post no Blogger', slug: 'meu-primeiro-post', date: '2021-04-12', draft: false, labels: ['Arte'], originalUrl: 'https://example.blogspot.com/2021/04/meu-primeiro-post.html', imageCount: 2, selected: true, contentLength: 1200 }, { id: 'blogger-2', title: 'Um rascunho antigo', slug: 'um-rascunho-antigo', date: '2022-01-08', draft: true, labels: ['Processo'], originalUrl: '', imageCount: 2, selected: true, contentLength: 600 }] }),
     importBloggerExport: async (options) => ({ posts: (options.selectedIds || []).map((id, index) => ({ id: `content/posts/importado-${index + 1}/index.${options.language}.md`, title: id, draft: false })), importedImages: 4, failures: [] }),
     openPreview: async () => true,

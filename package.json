@@ -23,6 +23,7 @@
     "package:mac": "npm run build && electron-builder --mac dmg"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "fast-xml-parser": "^5.10.1",
     "gray-matter": "4.0.3",
     "turndown": "7.2.4",
@@ -49,6 +50,7 @@
   "build": {
     "appId": "dev.gabu.plumbago",
     "productName": "Plumbago",
+    "electronUpdaterCompatibility": ">= 2.16",
     "copyright": "Copyright © 2026 Plumbago contributors",
     "directories": {
       "output": "release"
@@ -79,6 +81,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "gabuvns",
+      "repo": "plumbago",
+      "releaseType": "release"
     }
   }
 }

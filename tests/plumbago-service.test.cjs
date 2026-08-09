@@ -7,15 +7,49 @@ const { execFile } = require('node:child_process')
 const { promisify } = require('node:util')
 const YAML = require('yaml')
 const service = require('../electron/plumbago-service.cjs')
+const themeCompatibility = require('../electron/services/theme-compatibility.cjs')
 
 const execFileAsync = promisify(execFile)
 
+function makeTemporaryDirectory(prefix) {
+  // Strictly confined Hugo Snap builds cannot access /tmp, but can work in a
+  // regular (non-hidden) directory below the user's home folder.
+  return fs.mkdtemp(path.join(os.homedir(), `${prefix}-`))
+}
+
 test('identifica blogs em pastas do WSL abertas pelo Windows', () => {
-  assert.deepEqual(service.runtimeFor(String.raw`\\wsl.localhost\Ubuntu-24.04\home\ana\blog`), {
+  const runtime = service.runtimeFor(String.raw`\\wsl.localhost\Ubuntu-24.04\home\ana\blog`)
+  assert.deepEqual(runtime, {
     kind: 'wsl',
     distro: 'Ubuntu-24.04',
     workingDirectory: '/home/ana/blog',
   })
+  assert.deepEqual(service.wslCommandArgs(runtime, 'hugo', ['new', "post/it's-ready.md"]), [
+    '-d',
+    'Ubuntu-24.04',
+    '--cd',
+    '/home/ana/blog',
+    '--',
+    '/bin/bash',
+    '-lc',
+    `exec 'hugo' 'new' 'post/it'"'"'s-ready.md'`,
+  ])
+})
+
+test('direciona a ajuda do Hugo para o ambiente correto', async () => {
+  const { hugoDiagnostics, hugoInstallUrl } = await import('../src/lib/hugo.js')
+  assert.equal(hugoInstallUrl({ kind: 'wsl', distro: 'Ubuntu-24.04' }), 'https://gohugo.io/installation/linux/')
+  assert.equal(hugoInstallUrl({ kind: 'native', platform: 'darwin' }), 'https://gohugo.io/installation/macos/')
+  assert.equal(hugoInstallUrl({ kind: 'native', platform: 'win32' }), 'https://gohugo.io/installation/windows/')
+  assert.match(hugoDiagnostics({ root: '/home/ana/blog', runtime: { kind: 'wsl', distro: 'Ubuntu-24.04' }, hugo: null, git: 'git version 2.43.0' }), /WSL \(Ubuntu-24\.04\)[\s\S]*Hugo: Not found/)
+})
+
+test('compara a versão instalada com a release mais recente do Plumbago', () => {
+  const release = { tag_name: 'v0.6.0', name: 'Plumbago 0.6.0', body: 'Release notes', published_at: '2026-08-09T12:00:00Z', html_url: 'https://github.com/gabuvns/plumbago/releases/tag/v0.6.0' }
+  assert.equal(service.releaseSummary('0.5.0', release).state, 'available')
+  assert.equal(service.releaseSummary('0.6.0', release).state, 'up-to-date')
+  assert.equal(service.releaseSummary('0.7.0', release).state, 'up-to-date')
+  assert.equal(service.releaseSummary('0.5.0', release).version, '0.6.0')
 })
 
 test('normaliza títulos em slugs seguros', () => {
@@ -37,6 +71,108 @@ test('lê temas e repositórios publicados no catálogo oficial do Hugo', () => 
     service.parseThemeRepository('<a href="https://github.com/example/hugo-plum" rel="nofollow external">Download</a>'),
     'https://github.com/example/hugo-plum.git',
   )
+})
+
+test('interpreta e compara os requisitos de versão dos temas', async (t) => {
+  const themeRoot = await makeTemporaryDirectory('plumbago-theme-requirements')
+  t.after(() => fs.rm(themeRoot, { recursive: true, force: true }))
+  await fs.writeFile(path.join(themeRoot, 'theme.toml'), 'min_version = "0.150.0"\n')
+  await fs.writeFile(path.join(themeRoot, 'hugo.toml'), '[module.hugoVersion]\nmin = "0.158.0"\nmax = "0.164.0"\nextended = true\n')
+
+  const current = themeCompatibility.parseHugoVersion('hugo v0.123.7+extended linux/amd64')
+  const requirements = await themeCompatibility.readThemeRequirements(themeRoot)
+  const report = themeCompatibility.evaluateThemeCompatibility(current, requirements)
+
+  assert.deepEqual(current, {
+    version: '0.123.7',
+    extended: true,
+    raw: 'hugo v0.123.7+extended linux/amd64',
+  })
+  assert.equal(requirements.min, '0.158.0')
+  assert.equal(requirements.max, '0.164.0')
+  assert.equal(requirements.extended, true)
+  assert.equal(report.compatible, false)
+  assert.deepEqual(report.issues[0], { code: 'minimum', required: '0.158.0', current: '0.123.7' })
+  assert.equal(themeCompatibility.compareVersions('0.164.1', '0.164.0'), 1)
+})
+
+test('desfaz a instalação de um tema incompatível sem quebrar o blog', async (t) => {
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-theme-rollback')
+  const blogRoot = path.join(temporaryRoot, 'blog')
+  const themeRoot = path.join(temporaryRoot, 'future-theme')
+  const previousProtocol = process.env.GIT_ALLOW_PROTOCOL
+  process.env.GIT_ALLOW_PROTOCOL = 'file'
+  t.after(() => {
+    if (previousProtocol === undefined) delete process.env.GIT_ALLOW_PROTOCOL
+    else process.env.GIT_ALLOW_PROTOCOL = previousProtocol
+    return fs.rm(temporaryRoot, { recursive: true, force: true })
+  })
+
+  await execFileAsync('hugo', ['new', 'site', blogRoot])
+  await execFileAsync('git', ['init', '-b', 'main'], { cwd: blogRoot })
+  await fs.mkdir(themeRoot)
+  await fs.writeFile(path.join(themeRoot, 'theme.toml'), 'name = "Future"\nmin_version = "99.0.0"\n')
+  await execFileAsync('git', ['init', '-b', 'main'], { cwd: themeRoot })
+  await execFileAsync('git', ['config', 'user.name', 'Plumbago Tests'], { cwd: themeRoot })
+  await execFileAsync('git', ['config', 'user.email', 'tests@plumbago.local'], { cwd: themeRoot })
+  await execFileAsync('git', ['add', '.'], { cwd: themeRoot })
+  await execFileAsync('git', ['commit', '-m', 'Theme fixture'], { cwd: themeRoot })
+  const configPath = path.join(blogRoot, 'hugo.toml')
+  const originalConfig = await fs.readFile(configPath, 'utf8')
+
+  const result = await service.installResolvedTheme(blogRoot, {
+    slug: 'future-theme',
+    folder: 'future-theme',
+    repository: themeRoot,
+    details: '',
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.stage, 'compatibility')
+  assert.equal(result.compatibility.issues[0].code, 'minimum')
+  assert.equal(await fs.readFile(configPath, 'utf8'), originalConfig)
+  assert.equal(await fs.stat(path.join(blogRoot, 'themes', 'future-theme')).catch(() => null), null)
+})
+
+test('restaura o blog quando o tema falha na compilação de validação', async (t) => {
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-theme-build-rollback')
+  const blogRoot = path.join(temporaryRoot, 'blog')
+  const themeRoot = path.join(temporaryRoot, 'broken-theme')
+  const previousProtocol = process.env.GIT_ALLOW_PROTOCOL
+  process.env.GIT_ALLOW_PROTOCOL = 'file'
+  t.after(() => {
+    if (previousProtocol === undefined) delete process.env.GIT_ALLOW_PROTOCOL
+    else process.env.GIT_ALLOW_PROTOCOL = previousProtocol
+    return fs.rm(temporaryRoot, { recursive: true, force: true })
+  })
+
+  await execFileAsync('hugo', ['new', 'site', blogRoot])
+  await execFileAsync('git', ['init', '-b', 'main'], { cwd: blogRoot })
+  await fs.mkdir(path.join(themeRoot, 'layouts', 'shortcodes'), { recursive: true })
+  await fs.writeFile(path.join(themeRoot, 'theme.toml'), 'name = "Broken"\nmin_version = "0.100.0"\n')
+  await fs.writeFile(path.join(themeRoot, 'layouts', 'shortcodes', 'broken.html'), '{{ if }}\n')
+  await fs.mkdir(path.join(blogRoot, 'content', 'posts'), { recursive: true })
+  await fs.writeFile(path.join(blogRoot, 'content', 'posts', 'test.md'), '---\ntitle: Test\n---\n\n{{< broken >}}\n')
+  await execFileAsync('git', ['init', '-b', 'main'], { cwd: themeRoot })
+  await execFileAsync('git', ['config', 'user.name', 'Plumbago Tests'], { cwd: themeRoot })
+  await execFileAsync('git', ['config', 'user.email', 'tests@plumbago.local'], { cwd: themeRoot })
+  await execFileAsync('git', ['add', '.'], { cwd: themeRoot })
+  await execFileAsync('git', ['commit', '-m', 'Broken theme fixture'], { cwd: themeRoot })
+  const configPath = path.join(blogRoot, 'hugo.toml')
+  const originalConfig = await fs.readFile(configPath, 'utf8')
+
+  const result = await service.installResolvedTheme(blogRoot, {
+    slug: 'broken-theme',
+    folder: 'broken-theme',
+    repository: themeRoot,
+    details: '',
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.stage, 'build')
+  assert.match(result.details, /parse|template|unexpected/i)
+  assert.equal(await fs.readFile(configPath, 'utf8'), originalConfig)
+  assert.equal(await fs.stat(path.join(blogRoot, 'themes', 'broken-theme')).catch(() => null), null)
 })
 
 test('identifica repositórios GitHub e calcula a URL padrão do Pages', () => {
@@ -64,7 +200,7 @@ test('identifica repositórios GitHub e calcula a URL padrão do Pages', () => {
 })
 
 test('cria um novo site Hugo com configuração e repositório Git', async (t) => {
-  const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'plumbago-new-site-'))
+  const parent = await makeTemporaryDirectory('plumbago-new-site')
   t.after(() => fs.rm(parent, { recursive: true, force: true }))
   const context = await service.createSite(parent, {
     title: 'Caderno de Ideias',
@@ -87,7 +223,7 @@ test('cria um novo site Hugo com configuração e repositório Git', async (t) =
 })
 
 test('cria, edita, lista e adiciona imagens a um page bundle Hugo', async (t) => {
-  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'plumbago-test-'))
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-test')
   t.after(() => fs.rm(temporaryRoot, { recursive: true, force: true }))
   await execFileAsync('hugo', ['new', 'site', temporaryRoot, '--force'])
   await execFileAsync('git', ['init', '-b', 'main'], { cwd: temporaryRoot })
@@ -140,7 +276,7 @@ test('inspeciona e importa um backup do Blogger como Markdown', async (t) => {
     () => service.parseBloggerExport('<!DOCTYPE feed [<!ENTITY payload "unsafe">]><feed />'),
     /DOCTYPE/,
   )
-  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'plumbago-blogger-'))
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-blogger')
   t.after(() => fs.rm(temporaryRoot, { recursive: true, force: true }))
   await execFileAsync('hugo', ['new', 'site', temporaryRoot, '--force'])
   await execFileAsync('git', ['init', '-b', 'main'], { cwd: temporaryRoot })
@@ -172,7 +308,7 @@ test('inspeciona e importa um backup do Blogger como Markdown', async (t) => {
 })
 
 test('sincroniza commits com um remoto Git e reutiliza o upstream', async (t) => {
-  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'plumbago-sync-'))
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-sync')
   t.after(() => fs.rm(temporaryRoot, { recursive: true, force: true }))
   const blogRoot = path.join(temporaryRoot, 'blog')
   const remoteRoot = path.join(temporaryRoot, 'remote.git')

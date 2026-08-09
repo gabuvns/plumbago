@@ -19,12 +19,17 @@ jobs:
             os: ubuntu-latest
             command: npx electron-builder --linux AppImage --x64 --publish never
             artifact: linux-x64
-            files: release/*.AppImage
+            files: |
+              release/*.AppImage
+              release/latest-linux.yml
           - name: Windows x64
             os: windows-latest
             command: npx electron-builder --win nsis --x64 --publish never
             artifact: windows-x64
-            files: release/*.exe
+            files: |
+              release/*.exe
+              release/*.exe.blockmap
+              release/latest.yml
           - name: macOS Apple Silicon
             os: macos-latest
             command: npx electron-builder --mac dmg --arm64 --publish never

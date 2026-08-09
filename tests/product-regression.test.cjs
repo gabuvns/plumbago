@@ -78,3 +78,41 @@ test('executa o CI em todo push e pull request', () => {
   assert.ok(Object.hasOwn(workflow.on, 'pull_request'))
   assert.match(workflow.jobs.test.steps.at(-1).run, /npm test/)
 })
+
+test('publica os metadados necessários para atualizações automáticas', () => {
+  const packageJson = JSON.parse(read('package.json'))
+  const workflow = YAML.parse(read('.github/workflows/release.yml'))
+  const targets = workflow.jobs.build.strategy.matrix.include
+  const linux = targets.find((target) => target.artifact === 'linux-x64')
+  const windows = targets.find((target) => target.artifact === 'windows-x64')
+  assert.equal(packageJson.build.publish.provider, 'github')
+  assert.equal(packageJson.build.publish.owner, 'gabuvns')
+  assert.equal(packageJson.build.publish.repo, 'plumbago')
+  assert.match(windows.files, /latest\.yml/)
+  assert.match(windows.files, /\.exe\.blockmap/)
+  assert.match(linux.files, /latest-linux\.yml/)
+})
+
+test('mantém as entradas principais como fachadas modulares', () => {
+  const rendererEntry = read('src/App.jsx')
+  const electronEntry = read('electron/plumbago-service.cjs')
+  const expectedModules = [
+    'src/app/App.jsx',
+    'src/components/ui/Modal.jsx',
+    'src/features/editor/Editor.jsx',
+    'src/features/publishing/GitHubSetupModal.jsx',
+    'electron/core/runtime.cjs',
+    'electron/services/content.cjs',
+    'electron/services/github.cjs',
+    'electron/services/publishing.cjs',
+    'electron/services/site.cjs',
+    'electron/services/updates.cjs',
+    'src/features/settings/UpdatePanel.jsx',
+  ]
+
+  assert.match(rendererEntry, /export \{ default \} from '.\/app\/App'/)
+  assert.ok(rendererEntry.split('\n').length <= 5, 'src/App.jsx deve continuar sendo apenas uma entrada estável')
+  assert.match(electronEntry, /services\/content\.cjs/)
+  assert.ok(electronEntry.split('\n').length <= 30, 'o serviço Electron deve continuar sendo apenas uma fachada')
+  for (const file of expectedModules) assert.ok(fs.existsSync(path.join(root, file)), `${file} não encontrado`)
+})

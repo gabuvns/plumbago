@@ -12,7 +12,9 @@ Plumbago was designed first for Windows + WSL. It opens the blog folder through 
 
 - open an existing Hugo site without changing its structure;
 - create a new Hugo site, initialize its Git repository, and configure its title and language;
-- search the official Hugo theme gallery and install themes as Git submodules;
+- search the official Hugo theme gallery, verify each theme’s Hugo version requirements, test a real build, and roll back failed installations automatically;
+- detect the Hugo runtime, open the correct official installation guide, and copy a safe diagnostic summary for support;
+- check GitHub Releases for new Plumbago versions, verify their update metadata, and install updates from the settings screen;
 - find Markdown posts inside `content/posts`;
 - create page bundles with the `hugo new content` command;
 - edit the title, description, date, tags, draft state, and Markdown content;
@@ -65,6 +67,24 @@ The tests create temporary Hugo sites and Git repositories to exercise site crea
 
 The CI workflow runs these tests and the production build on every push and every pull request.
 
+## Architecture
+
+The renderer is organized by product feature. `src/app/` owns application state and orchestration, `src/features/` contains the editor and user workflows, `src/components/` contains reusable UI, and `src/lib/` contains framework-independent helpers. `src/App.jsx` remains a small compatibility entry point.
+
+The Electron side follows the same boundary. `electron/core/` contains low-level HTTP and native/WSL process execution. `electron/services/` contains the content, GitHub, publishing, site, and theme domains. `electron/plumbago-service.cjs` is a stable public facade used by the main process and tests.
+
+```text
+src/
+├── app/                 application orchestration and bridge selection
+├── components/          shared layout and UI primitives
+├── features/            blog, editor, media, posts, publishing, and settings
+└── lib/                 date and error helpers
+electron/
+├── core/                HTTP and native/WSL command execution
+├── services/            content, GitHub, publishing, site, and themes
+└── plumbago-service.cjs stable service facade
+```
+
 ## Local packages
 
 Use the command for the platform where the package is being built:
@@ -85,7 +105,7 @@ When a GitHub Release is published with a tag matching the `package.json` versio
 - an AppImage for Linux x64;
 - DMGs for Intel and Apple Silicon Macs.
 
-All four packages are attached to the same release. To publish from the command line:
+All four packages are attached to the same release. Windows and Linux builds also publish the checksummed metadata used by the in-app updater. The macOS application links to the release page until signed builds are available. To publish from the command line:
 
 ```bash
 gh release create v0.5.0 --generate-notes
@@ -99,14 +119,14 @@ The contents of `site/` are automatically published by the GitHub Pages workflow
 
 ## How WSL integration works
 
-When the selected folder starts with `\\wsl.localhost\<distro>\...`, Plumbago extracts the distribution name and Linux path. Hugo and Git run through `wsl.exe -d <distro> --cd <folder> -- <program> <arguments>`. Arguments never pass through an intermediate shell.
+When the selected folder starts with `\\wsl.localhost\<distro>\...`, Plumbago extracts the distribution name and Linux path. Hugo and Git run through a login shell in that distribution so tools installed through APT, Snap, or the user's own environment can be found. Every command and argument is quoted individually before execution.
 
 ## Roadmap
 
 1. Custom domains and guided DNS checks.
 2. Configurable content sections and front matter formats.
 3. Version history and guided conflict resolution.
-4. Signed installers, automatic updates, and Hugo/Git onboarding.
+4. Signed macOS installers, automatic macOS updates, and Hugo/Git onboarding.
 5. Optional analytics and newsletter integrations.
 
 ## License

@@ -1,0 +1,55 @@
+const { execFile, spawn } = require('node:child_process')
+const { promisify } = require('node:util')
+
+const execFileAsync = promisify(execFile)
+
+function runtimeFor(root) {
+  const normalized = root.replaceAll('/', '\\')
+  const match = normalized.match(/^\\\\(?:wsl\.localhost|wsl\$)\\([^\\]+)\\(.*)$/i)
+  if (match) {
+    return { kind: 'wsl', distro: match[1], workingDirectory: `/${match[2].replaceAll('\\', '/')}` }
+  }
+  return { kind: 'native', platform: process.platform, workingDirectory: root }
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", `'"'"'`)}'`
+}
+
+function wslCommandArgs(runtime, command, args = []) {
+  const commandLine = `exec ${[command, ...args].map(shellQuote).join(' ')}`
+  return ['-d', runtime.distro, '--cd', runtime.workingDirectory, '--', '/bin/bash', '-lc', commandLine]
+}
+
+async function run(root, command, args = [], options = {}) {
+  const runtime = runtimeFor(root)
+  const commandOptions = { maxBuffer: 8 * 1024 * 1024, windowsHide: true, ...options }
+  try {
+    if (runtime.kind === 'wsl' && process.platform === 'win32') {
+      const result = await execFileAsync(
+        'wsl.exe',
+        wslCommandArgs(runtime, command, args),
+        commandOptions,
+      )
+      return { stdout: result.stdout.trim(), stderr: result.stderr.trim() }
+    }
+    const result = await execFileAsync(command, args, { ...commandOptions, cwd: root })
+    return { stdout: result.stdout.trim(), stderr: result.stderr.trim() }
+  } catch (error) {
+    const detail = [error.stderr, error.stdout, error.message].filter(Boolean).join('\n').trim()
+    throw new Error(detail || `Não foi possível executar ${command}.`)
+  }
+}
+
+function spawnLongRunning(root, command, args = []) {
+  const runtime = runtimeFor(root)
+  if (runtime.kind === 'wsl' && process.platform === 'win32') {
+    return spawn('wsl.exe', wslCommandArgs(runtime, command, args), {
+      windowsHide: true,
+      stdio: 'ignore',
+    })
+  }
+  return spawn(command, args, { cwd: root, stdio: 'ignore' })
+}
+
+module.exports = { run, runtimeFor, spawnLongRunning, wslCommandArgs }
