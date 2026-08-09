@@ -18,7 +18,7 @@ async function fetchText(url) {
   const timeout = setTimeout(() => controller.abort(), 12_000)
   try {
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Plum-Hugo-UI/0.4.0' },
+      headers: { 'User-Agent': 'Plumbago-Hugo-UI/0.4.0' },
       signal: controller.signal,
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -446,7 +446,7 @@ async function syncGit(root, message) {
   await run(root, 'git', ['add', '--all'])
   const staged = await run(root, 'git', ['diff', '--cached', '--name-only'])
   if (staged.stdout) {
-    await run(root, 'git', ['commit', '-m', message?.trim() || 'Atualiza conteúdo pelo Plum'])
+    await run(root, 'git', ['commit', '-m', message?.trim() || 'Atualiza conteúdo pelo Plumbago'])
     log.push('Alterações salvas em um commit.')
   } else {
     log.push('Nenhuma alteração local para salvar.')

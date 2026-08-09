@@ -1,17 +1,20 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const fs = require('node:fs/promises')
 const path = require('node:path')
-const service = require('./plum-service.cjs')
+const service = require('./plumbago-service.cjs')
+
+app.setName('Plumbago')
 
 let mainWindow
 let blogRoot = null
 let previewProcess = null
 
 const settingsPath = () => path.join(app.getPath('userData'), 'settings.json')
+const legacySettingsPath = () => path.join(app.getPath('appData'), 'Plum', 'settings.json')
 
 async function loadSettings() {
   try {
-    const settings = JSON.parse(await fs.readFile(settingsPath(), 'utf8'))
+    const settings = JSON.parse(await fs.readFile(settingsPath(), 'utf8').catch(() => fs.readFile(legacySettingsPath(), 'utf8')))
     if (settings.blogRoot) {
       await service.validateBlog(settings.blogRoot)
       blogRoot = settings.blogRoot
@@ -32,8 +35,8 @@ function requireBlog() {
 }
 
 function registerIpc() {
-  ipcMain.handle('plum:get-context', async () => blogRoot ? service.validateBlog(blogRoot) : null)
-  ipcMain.handle('plum:choose-blog', async () => {
+  ipcMain.handle('plumbago:get-context', async () => blogRoot ? service.validateBlog(blogRoot) : null)
+  ipcMain.handle('plumbago:choose-blog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'], title: 'Escolha a pasta do seu blog Hugo' })
     if (result.canceled) return null
     const context = await service.validateBlog(result.filePaths[0])
@@ -41,7 +44,7 @@ function registerIpc() {
     await persistSettings()
     return context
   })
-  ipcMain.handle('plum:create-blog', async (_event, input) => {
+  ipcMain.handle('plumbago:create-blog', async (_event, input) => {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'], title: 'Escolha onde o novo blog será criado' })
     if (result.canceled) return null
     const context = await service.createSite(result.filePaths[0], input)
@@ -49,24 +52,24 @@ function registerIpc() {
     await persistSettings()
     return context
   })
-  ipcMain.handle('plum:list-themes', () => service.listThemes())
-  ipcMain.handle('plum:install-theme', (_event, slug) => service.installTheme(requireBlog(), slug))
-  ipcMain.handle('plum:open-theme', async (_event, slug) => {
+  ipcMain.handle('plumbago:list-themes', () => service.listThemes())
+  ipcMain.handle('plumbago:install-theme', (_event, slug) => service.installTheme(requireBlog(), slug))
+  ipcMain.handle('plumbago:open-theme', async (_event, slug) => {
     const safeSlug = String(slug || '').toLowerCase()
     if (!/^[a-z0-9][a-z0-9-]{0,100}$/.test(safeSlug)) throw new Error('Tema inválido.')
     await shell.openExternal(`https://themes.gohugo.io/themes/${safeSlug}/`)
     return true
   })
-  ipcMain.handle('plum:list-posts', () => service.listPosts(requireBlog()))
-  ipcMain.handle('plum:read-post', (_event, id) => service.readPost(requireBlog(), id))
-  ipcMain.handle('plum:save-post', (_event, post) => service.savePost(requireBlog(), post))
-  ipcMain.handle('plum:create-post', (_event, input) => service.createPost(requireBlog(), input))
-  ipcMain.handle('plum:git-status', () => service.gitStatus(requireBlog()))
-  ipcMain.handle('plum:git-config', () => service.gitConfig(requireBlog()))
-  ipcMain.handle('plum:save-git-config', (_event, config) => service.saveGitConfig(requireBlog(), config))
-  ipcMain.handle('plum:sync-git', (_event, message) => service.syncGit(requireBlog(), message))
-  ipcMain.handle('plum:read-asset', (_event, postId, name) => service.readAsset(requireBlog(), postId, name))
-  ipcMain.handle('plum:import-images', async (_event, postId) => {
+  ipcMain.handle('plumbago:list-posts', () => service.listPosts(requireBlog()))
+  ipcMain.handle('plumbago:read-post', (_event, id) => service.readPost(requireBlog(), id))
+  ipcMain.handle('plumbago:save-post', (_event, post) => service.savePost(requireBlog(), post))
+  ipcMain.handle('plumbago:create-post', (_event, input) => service.createPost(requireBlog(), input))
+  ipcMain.handle('plumbago:git-status', () => service.gitStatus(requireBlog()))
+  ipcMain.handle('plumbago:git-config', () => service.gitConfig(requireBlog()))
+  ipcMain.handle('plumbago:save-git-config', (_event, config) => service.saveGitConfig(requireBlog(), config))
+  ipcMain.handle('plumbago:sync-git', (_event, message) => service.syncGit(requireBlog(), message))
+  ipcMain.handle('plumbago:read-asset', (_event, postId, name) => service.readAsset(requireBlog(), postId, name))
+  ipcMain.handle('plumbago:import-images', async (_event, postId) => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile', 'multiSelections'],
       title: 'Adicionar imagens ao post',
@@ -74,8 +77,8 @@ function registerIpc() {
     })
     return result.canceled ? [] : service.importImages(requireBlog(), postId, result.filePaths)
   })
-  ipcMain.handle('plum:import-image-paths', (_event, postId, sourcePaths) => service.importImages(requireBlog(), postId, sourcePaths))
-  ipcMain.handle('plum:open-preview', async () => {
+  ipcMain.handle('plumbago:import-image-paths', (_event, postId, sourcePaths) => service.importImages(requireBlog(), postId, sourcePaths))
+  ipcMain.handle('plumbago:open-preview', async () => {
     const root = requireBlog()
     if (!previewProcess || previewProcess.exitCode !== null) {
       previewProcess = service.spawnLongRunning(root, 'hugo', ['server', '--buildDrafts', '--disableFastRender', '--port', '1313'])
@@ -92,7 +95,8 @@ function createWindow() {
     height: 900,
     minWidth: 1040,
     minHeight: 680,
-    backgroundColor: '#f4f1eb',
+    backgroundColor: '#f7f6fb',
+    title: 'Plumbago',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -107,6 +111,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === 'win32') app.setAppUserModelId('dev.gabu.plumbago')
   await loadSettings()
   registerIpc()
   createWindow()

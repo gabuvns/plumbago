@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <defs><linearGradient id="p" x1="160" y1="96" x2="864" y2="928" gradientUnits="userSpaceOnUse"><stop stop-color="#8d5278"/><stop offset="1" stop-color="#4b203b"/></linearGradient></defs>
-  <rect width="1024" height="1024" rx="224" fill="#f3ebe5"/><path d="M526 235c-10-75 26-132 88-170 17 68-4 129-72 177" fill="none" stroke="#526045" stroke-width="48" stroke-linecap="round"/><path d="M550 202c83-75 171-55 218-6-60 65-140 76-218 6Z" fill="#788868"/><path d="M512 216c218 0 344 154 344 366 0 211-142 338-344 338S168 793 168 582c0-212 126-366 344-366Z" fill="url(#p)"/><path d="M366 717V395h151c99 0 168 54 168 145 0 94-69 151-166 151h-63v114h-90Zm90-101h57c49 0 79-25 79-72 0-44-30-68-79-68h-57v140Z" fill="#fffaf5"/>
+  <rect width="1024" height="1024" rx="224" fill="#D8D4F2"/>
+  <path d="M512 512C420 430 425 270 512 190c87 80 92 240 0 322Z" fill="#524DE1"/>
+  <path d="M512 512C420 430 425 270 512 190c87 80 92 240 0 322Z" fill="#558B6E" transform="rotate(72 512 512)"/>
+  <path d="M512 512C420 430 425 270 512 190c87 80 92 240 0 322Z" fill="#C4B2BC" transform="rotate(144 512 512)"/>
+  <path d="M512 512C420 430 425 270 512 190c87 80 92 240 0 322Z" fill="#524DE1" transform="rotate(216 512 512)"/>
+  <path d="M512 512C420 430 425 270 512 190c87 80 92 240 0 322Z" fill="#558B6E" transform="rotate(288 512 512)"/>
+  <circle cx="512" cy="512" r="154" fill="#FFC759"/>
+  <path d="M454 638V384h112c79 0 132 45 132 115 0 72-53 118-130 118h-43v79h-71Zm71-80h39c39 0 63-20 63-57 0-35-24-55-63-55h-39v112Z" fill="#292644"/>
 </svg>
