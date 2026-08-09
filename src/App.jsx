@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowUpRight, Bold, Check, Clock3, Cloud, Code2, Eye, FileText,
   FolderOpen, GitBranch, HardDrive, Heading2, ImagePlus, Images, Italic, Link,
   List, LoaderCircle, Menu, MoreHorizontal, PanelLeftClose, Plus, Save, Search,
-  Settings, Sparkles, UploadCloud, UserRound, X,
+  Palette, Settings, Sparkles, UploadCloud, UserRound, X,
 } from 'lucide-react'
 import { createDemoBridge } from './demo'
 import { supportedLanguages, useI18n } from './i18n'
@@ -22,7 +22,7 @@ function formatDate(value, locale, t) {
   return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
 
-function Welcome({ onChoose, busy }) {
+function Welcome({ onChoose, onCreate, busy }) {
   const { t } = useI18n()
   return (
     <main className="welcome-shell">
@@ -31,10 +31,13 @@ function Welcome({ onChoose, busy }) {
         <p className="eyebrow">{t('welcome.eyebrow')}</p>
         <h1>{t('welcome.title')}</h1>
         <p className="welcome-copy">{t('welcome.copy')}</p>
-        <button className="button primary large" onClick={onChoose} disabled={busy}>
-          {busy ? <LoaderCircle className="spin" size={18} /> : <FileText size={18} />}
-          {t('welcome.choose')}
-        </button>
+        <div className="welcome-actions">
+          <button className="button primary large" onClick={onChoose} disabled={busy}>
+            {busy ? <LoaderCircle className="spin" size={18} /> : <FolderOpen size={18} />}
+            {t('welcome.choose')}
+          </button>
+          <button className="button quiet large" onClick={onCreate} disabled={busy}><Plus size={18} /> {t('welcome.create')}</button>
+        </div>
         <div className="welcome-features">
           <span><Check size={15} /> {t('welcome.wsl')}</span>
           <span><Check size={15} /> {t('welcome.ownership')}</span>
@@ -79,6 +82,90 @@ function NewPostModal({ onClose, onCreate, busy }) {
         <p className="form-hint">{t('new.hint')}</p>
         <footer><button type="button" className="button quiet" onClick={onClose}>{t('common.cancel')}</button><button className="button primary" disabled={!title.trim() || busy}>{busy && <LoaderCircle className="spin" size={16} />} {t('new.create')}</button></footer>
       </form>
+    </Modal>
+  )
+}
+
+function ThemeBrowser({ selected, onSelect, allowNone = true }) {
+  const { t } = useI18n()
+  const [themes, setThemes] = useState([])
+  const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    api.listThemes()
+      .then((items) => { if (!cancelled) setThemes(items) })
+      .catch((reason) => { if (!cancelled) setError(friendlyError(reason, t)) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [t])
+
+  const matches = themes.filter((theme) => `${theme.name} ${theme.slug}`.toLowerCase().includes(query.toLowerCase())).slice(0, 60)
+  return (
+    <div className="theme-browser">
+      <div className={`theme-browser-toolbar ${allowNone ? '' : 'without-none'}`}>
+        <div className="search theme-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('themes.search')} /></div>
+        {allowNone && <button type="button" className={`theme-none ${selected ? '' : 'selected'}`} onClick={() => onSelect('')}><span><Palette size={17} /></span><strong>{t('themes.none')}</strong><small>{t('themes.noneCopy')}</small></button>}
+      </div>
+      {loading && <div className="themes-state"><LoaderCircle className="spin" size={22} /> {t('themes.loading')}</div>}
+      {error && <div className="themes-state error"><AlertCircle size={21} /> {error}</div>}
+      {!loading && !error && (
+        <div className="theme-grid">
+          {matches.map((theme) => (
+            <article className={`theme-card ${selected === theme.slug ? 'selected' : ''}`} key={theme.slug}>
+              <button type="button" className="theme-select" onClick={() => onSelect(theme.slug)} aria-pressed={selected === theme.slug}>
+                <span className="theme-preview"><img src={theme.image} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none' }} />{selected === theme.slug && <b><Check size={14} /></b>}</span>
+                <span className="theme-card-copy"><strong>{theme.name}</strong><small>{theme.slug}</small></span>
+              </button>
+              <button type="button" className="theme-details" onClick={() => api.openTheme(theme.slug)} title={t('themes.details')}><ArrowUpRight size={14} /></button>
+            </article>
+          ))}
+          {!matches.length && <div className="themes-state"><Search size={21} /> {t('themes.empty')}</div>}
+        </div>
+      )}
+      <p className="theme-source">{t('themes.source')}</p>
+    </div>
+  )
+}
+
+function CreateBlogModal({ onClose, onCreate, busy }) {
+  const { t } = useI18n()
+  const [title, setTitle] = useState('')
+  const [folder, setFolder] = useState('')
+  const [folderEdited, setFolderEdited] = useState(false)
+  const [languageCode, setLanguageCode] = useState('en-US')
+  const [theme, setTheme] = useState('')
+
+  function changeTitle(value) {
+    setTitle(value)
+    if (!folderEdited) setFolder(value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))
+  }
+
+  return (
+    <Modal title={t('createBlog.title')} onClose={onClose} width="920px">
+      <form className="create-blog-form" onSubmit={(event) => { event.preventDefault(); onCreate({ title, folder, languageCode, theme }) }}>
+        <div className="create-blog-fields">
+          <label>{t('createBlog.siteTitle')}<input autoFocus value={title} onChange={(event) => changeTitle(event.target.value)} placeholder={t('createBlog.siteTitlePlaceholder')} /></label>
+          <label>{t('createBlog.folder')}<input value={folder} onChange={(event) => { setFolderEdited(true); setFolder(event.target.value) }} placeholder="my-hugo-blog" /></label>
+          <label>{t('createBlog.language')}<select value={languageCode} onChange={(event) => setLanguageCode(event.target.value)}><option value="en-US">English (US)</option><option value="pt-BR">Português (Brasil)</option></select></label>
+        </div>
+        <div className="create-blog-theme"><div><h3>{t('createBlog.theme')}</h3><p>{t('createBlog.themeCopy')}</p></div><ThemeBrowser selected={theme} onSelect={setTheme} /></div>
+        <footer className="create-blog-footer"><p><FolderOpen size={15} /> {t('createBlog.destinationHint')}</p><button type="button" className="button quiet" onClick={onClose}>{t('common.cancel')}</button><button className="button primary" disabled={busy || !title.trim() || !folder.trim()}>{busy ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />} {t('createBlog.create')}</button></footer>
+      </form>
+    </Modal>
+  )
+}
+
+function ThemeManagerModal({ context, onClose, onInstall, busy }) {
+  const { t } = useI18n()
+  const [selected, setSelected] = useState('')
+  return (
+    <Modal title={t('themes.manage')} onClose={onClose} width="900px">
+      <div className="theme-manager-intro"><div><Palette size={19} /><span><strong>{t('themes.current')}</strong><small>{context.theme || t('themes.noCurrent')}</small></span></div><p>{t('themes.installCopy')}</p></div>
+      <ThemeBrowser selected={selected} onSelect={setSelected} allowNone={false} />
+      <footer className="theme-manager-footer"><button className="button quiet" onClick={onClose}>{t('common.close')}</button><button className="button primary" disabled={!selected || busy} onClick={() => onInstall(selected)}>{busy ? <LoaderCircle className="spin" size={16} /> : <Palette size={16} />} {t('themes.install')}</button></footer>
     </Modal>
   )
 }
@@ -159,7 +246,7 @@ function ImageLibrary({ post, onClose, onAdd, onDrop, onInsert, onFeatured }) {
   )
 }
 
-function SettingsModal({ context, onClose, onChooseBlog, onSync, notify }) {
+function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, notify }) {
   const { t, locale, setLocale } = useI18n()
   const [config, setConfig] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -189,7 +276,7 @@ function SettingsModal({ context, onClose, onChooseBlog, onSync, notify }) {
           <div className="settings-heading"><HardDrive size={18} /><div><h3>{t('settings.blog')}</h3><p>{t('settings.blogCopy')}</p></div></div>
           <div className="settings-blog-card">
             <div><small>{t('settings.folder')}</small><strong title={context.root}>{context.root}</strong></div>
-            <button className="button quiet" onClick={onChooseBlog}><FolderOpen size={15} /> {t('settings.changeBlog')}</button>
+            <div className="settings-blog-actions"><button className="button quiet" onClick={onChooseBlog}><FolderOpen size={15} /> {t('settings.changeBlog')}</button><button className="button quiet" onClick={onCreateBlog}><Plus size={15} /> {t('settings.createBlog')}</button></div>
           </div>
           <div className="tool-status"><span className={context.hugo ? 'ok' : 'error'} /><div><strong>Hugo</strong><small>{context.hugo || t('settings.notFound')}</small></div><span className={context.git ? 'ok' : 'error'} /><div><strong>Git</strong><small>{context.git || t('settings.notFound')}</small></div></div>
           <label className="language-setting">{t('language.label')}<select value={locale} onChange={(event) => setLocale(event.target.value)}>{supportedLanguages.map((language) => <option key={language.value} value={language.value}>{language.label}</option>)}</select></label>
@@ -212,7 +299,7 @@ function SettingsModal({ context, onClose, onChooseBlog, onSync, notify }) {
   )
 }
 
-function Sidebar({ context, onChooseBlog, onImages, onSettings }) {
+function Sidebar({ context, onChooseBlog, onImages, onThemes, onSettings }) {
   const { t, locale } = useI18n()
   return (
     <aside className="sidebar">
@@ -220,6 +307,7 @@ function Sidebar({ context, onChooseBlog, onImages, onSettings }) {
       <nav>
         <button className="nav-item active"><FileText size={18} /><span>{t('sidebar.posts')}</span><small>⌘ 1</small></button>
         <button className="nav-item" onClick={onImages}><ImagePlus size={18} /><span>{t('sidebar.images')}</span></button>
+        <button className="nav-item" onClick={onThemes}><Palette size={18} /><span>{t('sidebar.themes')}</span>{context.theme && <small>✓</small>}</button>
       </nav>
       <div className="sidebar-spacer" />
       <div className="site-card">
@@ -367,10 +455,12 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [createBlogOpen, setCreateBlogOpen] = useState(false)
   const [newPostOpen, setNewPostOpen] = useState(false)
   const [syncOpen, setSyncOpen] = useState(false)
   const [imagesOpen, setImagesOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [themesOpen, setThemesOpen] = useState(false)
   const [gitStatus, setGitStatus] = useState(null)
   const [toast, setToast] = useState(null)
   const savePromiseRef = useRef(null)
@@ -417,13 +507,15 @@ export default function App() {
     }
   }, [notify, t])
 
-  const refreshPosts = useCallback(async (preferredId) => {
+  const refreshPosts = useCallback(async (preferredId, replaceSelection = false) => {
     const result = await api.listPosts()
     setPosts(result)
-    const id = preferredId || activeId || result[0]?.id
+    const id = preferredId || (!replaceSelection && activeId) || result[0]?.id
     if (id) {
       const loaded = await api.readPost(id)
       setActiveId(id); setPost(loaded); setSavedPost(JSON.stringify(loaded))
+    } else {
+      setActiveId(null); setPost(null); setSavedPost(null)
     }
   }, [activeId])
 
@@ -445,8 +537,31 @@ export default function App() {
     setBusy(true)
     try {
       const value = await api.chooseBlog()
-      if (value) { setContext(value); await refreshPosts(); notify(t('notice.blogConnected')) }
+      if (value) { setContext(value); await refreshPosts(undefined, true); notify(t('notice.blogConnected')) }
     } catch (error) { notify(friendlyError(error, t), 'error') } finally { setBusy(false); setReady(true) }
+  }
+
+  async function createBlog(input) {
+    setBusy(true)
+    try {
+      const value = await api.createBlog(input)
+      if (value) {
+        setContext(value)
+        setCreateBlogOpen(false)
+        await refreshPosts(undefined, true)
+        notify(value.themeWarning ? t('notice.blogCreatedThemeWarning', { detail: value.themeWarning }) : t('notice.blogCreated'), value.themeWarning ? 'error' : 'success')
+      }
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setBusy(false); setReady(true) }
+  }
+
+  async function installTheme(slug) {
+    setBusy(true)
+    try {
+      const result = await api.installTheme(slug)
+      setContext(result.context)
+      setThemesOpen(false)
+      notify(t('notice.themeInstalled', { theme: result.folder }))
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setBusy(false) }
   }
 
   async function selectPost(id) {
@@ -511,11 +626,11 @@ export default function App() {
   }
 
   if (!ready) return <div className="app-loading"><div className="welcome-mark"><span>p</span></div><LoaderCircle className="spin" /></div>
-  if (!context.root) return <><Welcome onChoose={chooseBlog} busy={busy} />{toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>}</>
+  if (!context.root) return <><Welcome onChoose={chooseBlog} onCreate={() => setCreateBlogOpen(true)} busy={busy} />{createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}{toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>}</>
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} />
       <main className="content-area">
         <header className="topbar">
@@ -526,9 +641,11 @@ export default function App() {
         {post ? <Editor post={post} onChange={(change) => { setSaveError(null); setPost((current) => ({ ...current, ...change })) }} onSave={save} onOpenImages={() => setImagesOpen(true)} onDropImages={addDroppedImages} saveState={{ saving, dirty, error: saveError }} /> : <div className="empty-editor"><FileText size={34} /><h2>{t('empty.title')}</h2><p>{t('empty.copy')}</p><button className="button primary" onClick={() => setNewPostOpen(true)}><Plus size={17} /> {t('posts.new')}</button></div>}
       </main>
       {newPostOpen && <NewPostModal onClose={() => setNewPostOpen(false)} onCreate={create} busy={busy} />}
+      {createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}
       {syncOpen && <SyncModal status={gitStatus} busy={busy} onClose={() => setSyncOpen(false)} onSync={sync} />}
       {imagesOpen && post && <ImageLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertExistingImage} onFeatured={(name) => setPost((current) => ({ ...current, featuredImage: name }))} />}
-      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onSync={showSync} notify={notify} />}
+      {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} busy={busy} />}
+      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showSync} notify={notify} />}
       {toast && <div className={`toast ${toast.kind}`}>{toast.kind === 'success' && <Check size={17} />}{toast.message}</div>}
     </div>
   )

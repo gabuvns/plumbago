@@ -41,6 +41,22 @@ function registerIpc() {
     await persistSettings()
     return context
   })
+  ipcMain.handle('plum:create-blog', async (_event, input) => {
+    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'], title: 'Escolha onde o novo blog será criado' })
+    if (result.canceled) return null
+    const context = await service.createSite(result.filePaths[0], input)
+    blogRoot = context.root
+    await persistSettings()
+    return context
+  })
+  ipcMain.handle('plum:list-themes', () => service.listThemes())
+  ipcMain.handle('plum:install-theme', (_event, slug) => service.installTheme(requireBlog(), slug))
+  ipcMain.handle('plum:open-theme', async (_event, slug) => {
+    const safeSlug = String(slug || '').toLowerCase()
+    if (!/^[a-z0-9][a-z0-9-]{0,100}$/.test(safeSlug)) throw new Error('Tema inválido.')
+    await shell.openExternal(`https://themes.gohugo.io/themes/${safeSlug}/`)
+    return true
+  })
   ipcMain.handle('plum:list-posts', () => service.listPosts(requireBlog()))
   ipcMain.handle('plum:read-post', (_event, id) => service.readPost(requireBlog(), id))
   ipcMain.handle('plum:save-post', (_event, post) => service.savePost(requireBlog(), post))

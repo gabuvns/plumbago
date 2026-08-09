@@ -3,6 +3,10 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 contextBridge.exposeInMainWorld('plum', {
   getContext: () => ipcRenderer.invoke('plum:get-context'),
   chooseBlog: () => ipcRenderer.invoke('plum:choose-blog'),
+  createBlog: (input) => ipcRenderer.invoke('plum:create-blog', input),
+  listThemes: () => ipcRenderer.invoke('plum:list-themes'),
+  installTheme: (slug) => ipcRenderer.invoke('plum:install-theme', slug),
+  openTheme: (slug) => ipcRenderer.invoke('plum:open-theme', slug),
   listPosts: () => ipcRenderer.invoke('plum:list-posts'),
   readPost: (id) => ipcRenderer.invoke('plum:read-post', id),
   savePost: (post) => ipcRenderer.invoke('plum:save-post', post),

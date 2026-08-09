@@ -10,6 +10,15 @@ const bodies = {
   [samplePosts[2].id]: 'A few pages, loose lines, and the beginning of a visual language.',
 }
 
+const demoThemes = [
+  { slug: 'hugo-book', name: 'Book', image: 'https://themes.gohugo.io/themes/hugo-book/tn-featured.png', details: 'https://themes.gohugo.io/themes/hugo-book/' },
+  { slug: 'hugo-coder', name: 'Coder', image: 'https://themes.gohugo.io/themes/hugo-coder/tn-featured.png', details: 'https://themes.gohugo.io/themes/hugo-coder/' },
+  { slug: 'hugo-papermod', name: 'PaperMod', image: 'https://themes.gohugo.io/themes/hugo-papermod/tn-featured.png', details: 'https://themes.gohugo.io/themes/hugo-papermod/' },
+  { slug: 'ananke', name: 'Ananke', image: 'https://themes.gohugo.io/themes/ananke/tn-featured.png', details: 'https://themes.gohugo.io/themes/ananke/' },
+  { slug: 'hugo-theme-stack', name: 'Stack', image: 'https://themes.gohugo.io/themes/hugo-theme-stack/tn-featured.png', details: 'https://themes.gohugo.io/themes/hugo-theme-stack/' },
+  { slug: 'blowfish', name: 'Blowfish', image: 'https://themes.gohugo.io/themes/blowfish/tn-featured.png', details: 'https://themes.gohugo.io/themes/blowfish/' },
+]
+
 function fullPost(summary) {
   const assets = summary.id === samplePosts[0].id ? ['estudo-plum.svg'] : []
   return { ...summary, tags: ['Processo', 'Arte'], translationKey: summary.id.split('/')[2], body: bodies[summary.id] || '', assets }
@@ -17,9 +26,22 @@ function fullPost(summary) {
 
 export function createDemoBridge() {
   let posts = [...samplePosts]
+  let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   return {
-    getContext: async () => ({ root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', git: 'git version 2.43.0' }),
-    chooseBlog: async () => ({ root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', git: 'git version 2.43.0' }),
+    getContext: async () => context,
+    chooseBlog: async () => context,
+    createBlog: async (input) => {
+      context = { ...context, root: `/home/voce/${input.folder || 'novo-blog'}`, theme: input.theme || '' }
+      posts = []
+      return context
+    },
+    listThemes: async () => demoThemes,
+    installTheme: async (slug) => {
+      const theme = demoThemes.find((item) => item.slug === slug)
+      context = { ...context, theme: slug }
+      return { ...theme, folder: slug, context }
+    },
+    openTheme: async () => true,
     listPosts: async () => posts,
     readPost: async (id) => fullPost(posts.find((post) => post.id === id)),
     savePost: async (post) => { posts = posts.map((item) => item.id === post.id ? { ...item, ...post } : item); return post },

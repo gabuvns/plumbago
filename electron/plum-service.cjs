@@ -8,6 +8,93 @@ const YAML = require('yaml')
 const execFileAsync = promisify(execFile)
 const IMAGE_EXTENSIONS = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.svg', '.webp'])
 const CONFIG_FILES = ['hugo.toml', 'hugo.yaml', 'hugo.yml', 'hugo.json', 'config.toml', 'config.yaml', 'config.yml']
+const THEME_CATALOG_URL = 'https://themes.gohugo.io/'
+const THEME_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,100}$/
+let themeCatalogCache = null
+let themeCatalogCachedAt = 0
+
+async function fetchText(url) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12_000)
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Plum-Hugo-UI/0.3' },
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    return response.text()
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function decodeHtml(value) {
+  return value
+    .replaceAll('&amp;', '&')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Number(code)))
+}
+
+function parseThemeCatalog(html) {
+  const themes = []
+  const seen = new Set()
+  const linkPattern = /<a\s+href=\/themes\/([^/\s]+)\/[^>]*>\s*<span[^>]*>View details for ([^<]+)<\/span>/gi
+  for (const match of html.matchAll(linkPattern)) {
+    const slug = match[1].toLowerCase()
+    if (!THEME_SLUG_PATTERN.test(slug) || seen.has(slug)) continue
+    const nearbyMarkup = html.slice(Math.max(0, match.index - 1_300), match.index)
+    const images = [...nearbyMarkup.matchAll(/(?:src|srcset)=([^\s>]+)/gi)]
+    const imagePath = images.at(-1)?.[1]?.replace(/^['"]|['"]$/g, '') || `/themes/${slug}/tn-featured.png`
+    seen.add(slug)
+    themes.push({
+      slug,
+      name: decodeHtml(match[2].trim()),
+      image: new URL(imagePath, THEME_CATALOG_URL).href,
+      details: `${THEME_CATALOG_URL}themes/${slug}/`,
+    })
+  }
+  return themes
+}
+
+function parseThemeRepository(html) {
+  for (const match of html.matchAll(/<a\b([^>]+)>/gi)) {
+    const attributes = match[1]
+    if (!/\brel=(?:"[^"]*nofollow[^"]*"|'[^']*nofollow[^']*'|nofollow)(?:\s|$)/i.test(attributes)) continue
+    const href = attributes.match(/\bhref=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i)
+    const candidate = href?.[1] || href?.[2] || href?.[3]
+    if (!candidate) continue
+    let url
+    try { url = new URL(candidate) } catch { continue }
+    if (!['github.com', 'gitlab.com', 'codeberg.org'].includes(url.hostname)) continue
+    const segments = url.pathname.replace(/\.git\/?$/, '').split('/').filter(Boolean)
+    if (segments.at(-1)?.match(/^v\d+$/i)) segments.pop()
+    if (segments.length < 2) continue
+    url.pathname = `/${segments.join('/')}.git`
+    url.search = ''
+    url.hash = ''
+    return url.href
+  }
+  throw new Error('O repositório deste tema não foi encontrado no catálogo oficial do Hugo.')
+}
+
+async function listThemes() {
+  if (themeCatalogCache && Date.now() - themeCatalogCachedAt < 15 * 60_000) return themeCatalogCache
+  const themes = parseThemeCatalog(await fetchText(THEME_CATALOG_URL))
+  if (!themes.length) throw new Error('O catálogo oficial de temas do Hugo não pôde ser lido.')
+  themeCatalogCache = themes
+  themeCatalogCachedAt = Date.now()
+  return themes
+}
+
+async function resolveTheme(slug) {
+  const safeSlug = String(slug || '').toLowerCase()
+  if (!THEME_SLUG_PATTERN.test(safeSlug)) throw new Error('Tema inválido.')
+  const details = `${THEME_CATALOG_URL}themes/${safeSlug}/`
+  const repository = parseThemeRepository(await fetchText(details))
+  const folder = path.basename(new URL(repository).pathname, '.git')
+  return { slug: safeSlug, details, repository, folder }
+}
 
 function runtimeFor(root) {
   const normalized = root.replaceAll('/', '\\')
@@ -64,6 +151,51 @@ function contentPath(root, id) {
   return resolved
 }
 
+function readThemeValue(raw, config) {
+  try {
+    if (config.endsWith('.json')) return JSON.parse(raw).theme || ''
+    if (config.endsWith('.yaml') || config.endsWith('.yml')) return YAML.parse(raw).theme || ''
+  } catch {
+    return ''
+  }
+  const match = raw.match(/^\s*theme\s*=\s*["']([^"']+)["']/m)
+  return match?.[1] || ''
+}
+
+async function updateSiteConfig(root, updates) {
+  const entries = await fs.readdir(root)
+  const config = CONFIG_FILES.find((candidate) => entries.includes(candidate))
+  if (!config) throw new Error('Nenhum arquivo de configuração do Hugo foi encontrado.')
+  const absolute = path.join(root, config)
+  const raw = await fs.readFile(absolute, 'utf8')
+  let next
+  if (config.endsWith('.json')) {
+    next = `${JSON.stringify({ ...JSON.parse(raw), ...updates }, null, 2)}\n`
+  } else if (config.endsWith('.yaml') || config.endsWith('.yml')) {
+    next = YAML.stringify({ ...YAML.parse(raw), ...updates }, { lineWidth: 0 })
+  } else {
+    next = raw
+    for (const [key, value] of Object.entries(updates)) {
+      const line = `${key} = ${JSON.stringify(value)}`
+      const pattern = new RegExp(`^\\s*${key}\\s*=.*$`, 'm')
+      next = pattern.test(next) ? next.replace(pattern, line) : `${next.trimEnd()}\n${line}\n`
+    }
+  }
+  await fs.writeFile(absolute, next, 'utf8')
+  return config
+}
+
+async function ensureGitRepository(root) {
+  const gitEntry = await fs.stat(path.join(root, '.git')).catch(() => null)
+  if (gitEntry) return
+  try {
+    await run(root, 'git', ['init', '-b', 'main'])
+  } catch {
+    await run(root, 'git', ['init'])
+    await run(root, 'git', ['branch', '-M', 'main'])
+  }
+}
+
 async function validateBlog(root) {
   const entries = await fs.readdir(root)
   const config = CONFIG_FILES.find((candidate) => entries.includes(candidate))
@@ -76,7 +208,54 @@ async function validateBlog(root) {
     run(root, 'hugo', ['version']).then((value) => value.stdout).catch(() => null),
     run(root, 'git', ['--version']).then((value) => value.stdout).catch(() => null),
   ])
-  return { root, config, runtime, hugo, git }
+  const rawConfig = await fs.readFile(path.join(root, config), 'utf8').catch(() => '')
+  const configuredTheme = readThemeValue(rawConfig, config)
+  const theme = Array.isArray(configuredTheme) ? configuredTheme[0] || '' : configuredTheme
+  return { root, config, runtime, hugo, git, theme }
+}
+
+async function installTheme(root, slug) {
+  await validateBlog(root)
+  const theme = await resolveTheme(slug)
+  await ensureGitRepository(root)
+  const themeRoot = path.join(root, 'themes', theme.folder)
+  const existing = await fs.stat(themeRoot).catch(() => null)
+  if (!existing) {
+    await fs.mkdir(path.dirname(themeRoot), { recursive: true })
+    await run(root, 'git', ['submodule', 'add', '--depth', '1', theme.repository, `themes/${theme.folder}`])
+  } else if (!existing.isDirectory()) {
+    throw new Error(`Já existe um arquivo chamado themes/${theme.folder}.`)
+  }
+  await updateSiteConfig(root, { theme: theme.folder })
+  return { ...theme, context: await validateBlog(root) }
+}
+
+async function createSite(parentRoot, input) {
+  const title = String(input?.title || '').trim()
+  const folder = slugify(input?.folder || title)
+  const languageCode = String(input?.languageCode || 'en-US').replace(/[^a-z-]/gi, '') || 'en-US'
+  if (!title) throw new Error('Informe o título do novo blog.')
+  if (!folder) throw new Error('Informe um nome de pasta válido para o novo blog.')
+  const parent = path.resolve(parentRoot)
+  const target = path.resolve(parent, folder)
+  if (target === parent || !target.startsWith(`${parent}${path.sep}`)) throw new Error('A pasta do novo blog é inválida.')
+  const parentStat = await fs.stat(parent)
+  if (!parentStat.isDirectory()) throw new Error('Escolha uma pasta onde o novo blog será criado.')
+  if (await fs.stat(target).catch(() => null)) throw new Error(`A pasta ${folder} já existe.`)
+
+  await run(parent, 'hugo', ['new', 'site', folder, '--format', 'toml'])
+  await updateSiteConfig(target, { title, languageCode })
+  await ensureGitRepository(target)
+
+  let themeWarning = ''
+  if (input?.theme) {
+    try {
+      await installTheme(target, input.theme)
+    } catch (error) {
+      themeWarning = error.message
+    }
+  }
+  return { ...(await validateBlog(target)), themeWarning }
 }
 
 async function walkMarkdown(directory, root, output = []) {
@@ -296,11 +475,16 @@ async function syncGit(root, message) {
 }
 
 module.exports = {
+  createSite,
   createPost,
   gitConfig,
   gitStatus,
   importImages,
+  installTheme,
   listPosts,
+  listThemes,
+  parseThemeCatalog,
+  parseThemeRepository,
   readAsset,
   readPost,
   runtimeFor,

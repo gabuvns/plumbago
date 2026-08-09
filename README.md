@@ -11,6 +11,8 @@ O Plum foi desenhado primeiro para Windows + WSL. O app abre a pasta do blog pel
 ## O que o MVP já faz
 
 - abre um site Hugo existente sem alterar sua estrutura;
+- cria um site Hugo novo, inicializa seu repositório Git e configura título e idioma;
+- pesquisa a galeria oficial do Hugo e instala temas como submódulos Git;
 - encontra posts Markdown dentro de `content/posts`;
 - cria page bundles com o comando `hugo new content`;
 - edita título, descrição, data, tags, estado de rascunho e conteúdo Markdown;
@@ -68,7 +70,7 @@ Os arquivos serão criados em `release/`. A primeira versão usa a autenticaçã
 
 ## Releases automáticos
 
-Ao publicar uma GitHub Release cujo identificador seja igual à versão do `package.json` com o prefixo `v` — por exemplo, `v0.3.0` — o workflow cria automaticamente:
+Ao publicar uma GitHub Release cujo identificador seja igual à versão do `package.json` com o prefixo `v` — por exemplo, `v0.4.0` — o workflow cria automaticamente:
 
 - instalador NSIS para Windows x64;
 - AppImage para Linux x64;
@@ -77,7 +79,7 @@ Ao publicar uma GitHub Release cujo identificador seja igual à versão do `pack
 Os quatro pacotes são anexados à mesma release. Para publicar pela linha de comando:
 
 ```bash
-gh release create v0.3.0 --generate-notes
+gh release create v0.4.0 --generate-notes
 ```
 
 Antes de criar outra release, atualize a versão no `package.json` e no `package-lock.json`.
