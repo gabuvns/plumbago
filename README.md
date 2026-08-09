@@ -1,4 +1,4 @@
-# Plum
+# Plumbago
 
 **A Hugo UI manager.** Um aplicativo desktop para escrever, organizar e publicar blogs Hugo sem depender da linha de comando no dia a dia.
 
@@ -6,7 +6,7 @@ Site e downloads: [gabu.dev.br/plumbago](https://gabu.dev.br/plumbago/)
 
 Código e releases: [github.com/gabuvns/plumbago](https://github.com/gabuvns/plumbago)
 
-O Plum foi desenhado primeiro para Windows + WSL. O app abre a pasta do blog pela integração de arquivos do Windows e executa Hugo e Git dentro da distribuição WSL correspondente. Em Linux, executa essas ferramentas diretamente.
+O Plumbago foi desenhado primeiro para Windows + WSL. O app abre a pasta do blog pela integração de arquivos do Windows e executa Hugo e Git dentro da distribuição WSL correspondente. Em Linux, executa essas ferramentas diretamente.
 
 ## O que o MVP já faz
 
@@ -26,7 +26,7 @@ O Plum foi desenhado primeiro para Windows + WSL. O app abre a pasta do blog pel
 - sincroniza com qualquer remoto Git: commit, pull com rebase e push;
 - configura autor, e-mail e remoto `origin` pelo menu do aplicativo;
 - oferece a interface em inglês (padrão) e português do Brasil;
-- preserva campos de front matter que o Plum ainda não conhece.
+- preserva campos de front matter que o Plumbago ainda não conhece.
 
 ## Desenvolvimento
 
@@ -54,7 +54,9 @@ npm test
 npm run check
 ```
 
-Os testes criam um site Hugo temporário e exercitam o fluxo de criação, edição, listagem e importação de imagens. Nenhum blog do usuário é modificado pelos testes.
+Os testes criam sites e repositórios Git temporários para exercitar criação, edição, imagens, temas e sincronização. Também protegem a paridade das traduções, os canais entre Electron e a interface, a identidade Plumbago, a paleta oficial e a configuração do CI. Nenhum blog do usuário é modificado.
+
+O workflow de CI executa esses testes e o build de produção em todo push e em todo pull request.
 
 ## Pacotes locais
 
@@ -66,7 +68,7 @@ npm run package:linux
 npm run package:mac
 ```
 
-Os arquivos serão criados em `release/`. A primeira versão usa a autenticação Git já configurada no sistema ou no WSL; o Plum não armazena tokens ou senhas.
+Os arquivos serão criados em `release/`. A primeira versão usa a autenticação Git já configurada no sistema ou no WSL; o Plumbago não armazena tokens ou senhas.
 
 ## Releases automáticos
 
@@ -90,7 +92,7 @@ O conteúdo de `site/` é publicado automaticamente pelo workflow do GitHub Page
 
 ## Como a integração com WSL funciona
 
-Quando a pasta selecionada começa com `\\wsl.localhost\<distro>\...`, o Plum extrai a distribuição e o caminho Linux. Hugo e Git são executados por `wsl.exe -d <distro> --cd <pasta> -- <programa> <argumentos>`. Os argumentos não passam por um shell intermediário.
+Quando a pasta selecionada começa com `\\wsl.localhost\<distro>\...`, o Plumbago extrai a distribuição e o caminho Linux. Hugo e Git são executados por `wsl.exe -d <distro> --cd <pasta> -- <programa> <argumentos>`. Os argumentos não passam por um shell intermediário.
 
 ## Próximos passos
 

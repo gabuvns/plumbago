@@ -1,8 +1,8 @@
 {
-  "name": "plum-hugo-ui",
+  "name": "plumbago-hugo-ui",
   "version": "0.4.0",
-  "description": "Plum: a friendly Hugo UI manager for Windows and WSL",
-  "author": "Plum contributors",
+  "description": "Plumbago: a friendly Hugo UI manager for Windows and WSL",
+  "author": "Plumbago contributors",
   "license": "GPL-3.0-only",
   "homepage": "https://gabu.dev.br/plumbago/",
   "repository": {
@@ -45,9 +45,9 @@
     "wait-on": "8.0.1"
   },
   "build": {
-    "appId": "art.plum.hugo",
-    "productName": "Plum",
-    "copyright": "Copyright © 2026 Plum contributors",
+    "appId": "dev.gabu.plumbago",
+    "productName": "Plumbago",
+    "copyright": "Copyright © 2026 Plumbago contributors",
     "directories": {
       "output": "release"
     },

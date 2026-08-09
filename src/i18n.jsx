@@ -9,7 +9,7 @@ const messages = {
     'common.close': 'Close',
     'common.loading': 'Loading...',
     'common.save': 'Save',
-    'welcome.eyebrow': 'PLUM · A HUGO UI MANAGER',
+    'welcome.eyebrow': 'PLUMBAGO · A HUGO UI MANAGER',
     'welcome.title': 'Your blog, without the command line.',
     'welcome.copy': 'Write in Markdown, organize images, and publish with Git — while Hugo runs where your blog already lives.',
     'welcome.choose': 'Choose a Hugo blog',
@@ -21,7 +21,7 @@ const messages = {
     'new.fieldTitle': 'Title',
     'new.placeholder': 'An idea worth sharing',
     'new.language': 'Content language',
-    'new.hint': 'Plum will use Hugo to create a page bundle containing the Markdown and images for this post.',
+    'new.hint': 'Plumbago will use Hugo to create a page bundle containing the Markdown and images for this post.',
     'new.create': 'Create draft',
     'sync.title': 'Sync with Git',
     'sync.branch': 'Branch',
@@ -96,7 +96,7 @@ const messages = {
     'images.insert': 'Insert',
     'images.emptyTitle': 'No images in this post',
     'images.emptyCopy': 'Add files or drag them here.',
-    'settings.title': 'Plum settings',
+    'settings.title': 'Plumbago settings',
     'settings.blog': 'Hugo blog',
     'settings.blogCopy': 'Connected site and runtime environment.',
     'settings.folder': 'FOLDER',
@@ -139,7 +139,7 @@ const messages = {
     'top.openSettings': 'Open settings',
     'empty.title': 'Create your first post',
     'empty.copy': 'Hugo will handle the structure; you only need to start writing.',
-    'notice.blogConnected': 'Blog connected to Plum.',
+    'notice.blogConnected': 'Blog connected to Plumbago.',
     'notice.postSaved': 'Post saved to the blog.',
     'notice.draftCreated': 'Draft created by Hugo.',
     'notice.imagesAdded.one': '1 image added.',
@@ -147,7 +147,7 @@ const messages = {
     'notice.imageInserted': 'Image inserted into Markdown.',
     'notice.synced': 'Blog synced successfully.',
     'notice.gitSaved': 'Git settings saved for this blog.',
-    'notice.blogCreated': 'New Hugo blog created and connected to Plum.',
+    'notice.blogCreated': 'New Hugo blog created and connected to Plumbago.',
     'notice.blogCreatedThemeWarning': 'The blog was created, but the theme could not be installed: {detail}',
     'notice.themeInstalled': 'Theme {theme} installed and activated.',
     'error.generic': 'Something did not go as expected.',
@@ -159,7 +159,7 @@ const messages = {
     'common.close': 'Fechar',
     'common.loading': 'Carregando...',
     'common.save': 'Salvar',
-    'welcome.eyebrow': 'PLUM · UM GERENCIADOR HUGO',
+    'welcome.eyebrow': 'PLUMBAGO · UM GERENCIADOR HUGO',
     'welcome.title': 'Seu blog, sem a linha de comando.',
     'welcome.copy': 'Escreva em Markdown, organize imagens e publique com Git — enquanto o Hugo roda onde seu blog já está.',
     'welcome.choose': 'Escolher um blog Hugo',
@@ -171,7 +171,7 @@ const messages = {
     'new.fieldTitle': 'Título',
     'new.placeholder': 'Uma ideia que vale compartilhar',
     'new.language': 'Idioma do conteúdo',
-    'new.hint': 'O Plum usará o Hugo para criar um page bundle com o Markdown e as imagens deste post.',
+    'new.hint': 'O Plumbago usará o Hugo para criar um page bundle com o Markdown e as imagens deste post.',
     'new.create': 'Criar rascunho',
     'sync.title': 'Sincronizar com o Git',
     'sync.branch': 'Branch',
@@ -246,7 +246,7 @@ const messages = {
     'images.insert': 'Inserir',
     'images.emptyTitle': 'Nenhuma imagem neste post',
     'images.emptyCopy': 'Adicione arquivos ou arraste-os para cá.',
-    'settings.title': 'Configurações do Plum',
+    'settings.title': 'Configurações do Plumbago',
     'settings.blog': 'Blog Hugo',
     'settings.blogCopy': 'Site conectado e ambiente de execução.',
     'settings.folder': 'PASTA',
@@ -289,7 +289,7 @@ const messages = {
     'top.openSettings': 'Abrir configurações',
     'empty.title': 'Crie seu primeiro post',
     'empty.copy': 'O Hugo cuidará da estrutura; você só precisa começar a escrever.',
-    'notice.blogConnected': 'Blog conectado ao Plum.',
+    'notice.blogConnected': 'Blog conectado ao Plumbago.',
     'notice.postSaved': 'Post salvo no blog.',
     'notice.draftCreated': 'Rascunho criado pelo Hugo.',
     'notice.imagesAdded.one': '1 imagem adicionada.',
@@ -297,7 +297,7 @@ const messages = {
     'notice.imageInserted': 'Imagem inserida no Markdown.',
     'notice.synced': 'Blog sincronizado com sucesso.',
     'notice.gitSaved': 'Configurações do Git salvas neste blog.',
-    'notice.blogCreated': 'Novo blog Hugo criado e conectado ao Plum.',
+    'notice.blogCreated': 'Novo blog Hugo criado e conectado ao Plumbago.',
     'notice.blogCreatedThemeWarning': 'O blog foi criado, mas o tema não pôde ser instalado: {detail}',
     'notice.themeInstalled': 'Tema {theme} instalado e ativado.',
     'error.generic': 'Algo não saiu como esperado.',
@@ -312,7 +312,7 @@ function interpolate(template, values = {}) {
 
 export function I18nProvider({ children }) {
   const [locale, setLocaleState] = useState(() => {
-    const savedLocale = localStorage.getItem('plum-language')
+    const savedLocale = localStorage.getItem('plumbago-language') || localStorage.getItem('plum-language')
     return messages[savedLocale] ? savedLocale : 'en-US'
   })
   useEffect(() => {
@@ -320,7 +320,7 @@ export function I18nProvider({ children }) {
   }, [locale])
   const setLocale = (nextLocale) => {
     const supported = messages[nextLocale] ? nextLocale : 'en-US'
-    localStorage.setItem('plum-language', supported)
+    localStorage.setItem('plumbago-language', supported)
     setLocaleState(supported)
   }
   const value = useMemo(() => ({

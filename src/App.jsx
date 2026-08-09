@@ -10,7 +10,7 @@ import {
 import { createDemoBridge } from './demo'
 import { supportedLanguages, useI18n } from './i18n'
 
-const api = window.plum || createDemoBridge()
+const api = window.plumbago || createDemoBridge()
 const emptyContext = { root: '', runtime: { kind: 'native' }, hugo: null, git: null }
 
 function friendlyError(error, t) {
@@ -52,7 +52,7 @@ function Welcome({ onChoose, onCreate, busy }) {
           <div className="paper-image"><Sparkles size={44} /></div>
           <div className="paper-line" /><div className="paper-line short" /><div className="paper-line" />
         </div>
-        <div className="plum-fruit"><span>p</span></div>
+        <div className="plumbago-flower"><i /><i /><i /><i /><i /><span>p</span></div>
       </div>
     </main>
   )
@@ -303,7 +303,7 @@ function Sidebar({ context, onChooseBlog, onImages, onThemes, onSettings }) {
   const { t, locale } = useI18n()
   return (
     <aside className="sidebar">
-      <div className="brand"><div className="brand-mark">p</div><div><strong>Plum</strong><span>Hugo UI manager</span></div></div>
+      <div className="brand"><div className="brand-mark">p</div><div><strong>Plumbago</strong><span>Hugo UI manager</span></div></div>
       <nav>
         <button className="nav-item active"><FileText size={18} /><span>{t('sidebar.posts')}</span><small>⌘ 1</small></button>
         <button className="nav-item" onClick={onImages}><ImagePlus size={18} /><span>{t('sidebar.images')}</span></button>
@@ -330,7 +330,7 @@ function PostList({ posts, activeId, onSelect, onNew }) {
   })
   return (
     <section className="post-panel">
-      <header className="panel-header"><div><p className="eyebrow">{t('posts.content')}</p><h2>{t('posts.title')} <span>{posts.length}</span></h2></div><button className="icon-button plum" onClick={onNew} title={t('posts.new')}><Plus size={20} /></button></header>
+      <header className="panel-header"><div><p className="eyebrow">{t('posts.content')}</p><h2>{t('posts.title')} <span>{posts.length}</span></h2></div><button className="icon-button brand-action" onClick={onNew} title={t('posts.new')}><Plus size={20} /></button></header>
       <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('posts.search')} /></div>
       <div className="filters"><button className={filter === 'todos' ? 'active' : ''} onClick={() => setFilter('todos')}>{t('posts.all')}</button><button className={filter === 'publicados' ? 'active' : ''} onClick={() => setFilter('publicados')}>{t('posts.published')}</button><button className={filter === 'rascunhos' ? 'active' : ''} onClick={() => setFilter('rascunhos')}>{t('posts.drafts')}</button></div>
       <div className="post-list">
