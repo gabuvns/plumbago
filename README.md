@@ -1,66 +1,66 @@
 # Plumbago
 
-**A Hugo UI manager.** Um aplicativo desktop para escrever, organizar e publicar blogs Hugo sem depender da linha de comando no dia a dia.
+**A Hugo UI manager.** A desktop application for writing, organizing, and publishing Hugo blogs without relying on the command line for everyday work.
 
-Site e downloads: [gabuvns.github.io/plumbago](https://gabuvns.github.io/plumbago/)
+Website and downloads: [gabuvns.github.io/plumbago](https://gabuvns.github.io/plumbago/)
 
-Código e releases: [github.com/gabuvns/plumbago](https://github.com/gabuvns/plumbago)
+Source code and releases: [github.com/gabuvns/plumbago](https://github.com/gabuvns/plumbago)
 
-O Plumbago foi desenhado primeiro para Windows + WSL. O app abre a pasta do blog pela integração de arquivos do Windows e executa Hugo e Git dentro da distribuição WSL correspondente. Em Linux, executa essas ferramentas diretamente.
+Plumbago was designed first for Windows + WSL. It opens the blog folder through Windows file integration and runs Hugo and Git inside the corresponding WSL distribution. On Linux and macOS, it runs those tools natively.
 
-## O que o MVP já faz
+## What the MVP can do
 
-- abre um site Hugo existente sem alterar sua estrutura;
-- cria um site Hugo novo, inicializa seu repositório Git e configura título e idioma;
-- pesquisa a galeria oficial do Hugo e instala temas como submódulos Git;
-- encontra posts Markdown dentro de `content/posts`;
-- cria page bundles com o comando `hugo new content`;
-- edita título, descrição, data, tags, estado de rascunho e conteúdo Markdown;
-- salva automaticamente após a digitação e mantém botões de salvamento manual;
-- mostra preview seguro de Markdown lado a lado;
-- abre uma biblioteca com as imagens anexadas ao post;
-- importa imagens pelo seletor ou por arrastar e soltar, evita colisões de nomes e insere o Markdown;
-- permite inserir uma imagem existente novamente ou escolhê-la como destaque;
-- inicia `hugo server` para abrir o preview real do site;
-- mostra branch, remoto e arquivos alterados;
-- sincroniza com qualquer remoto Git: commit, pull com rebase e push;
-- configura autor, e-mail e remoto `origin` pelo menu do aplicativo;
-- oferece a interface em inglês (padrão) e português do Brasil;
-- preserva campos de front matter que o Plumbago ainda não conhece.
+- open an existing Hugo site without changing its structure;
+- create a new Hugo site, initialize its Git repository, and configure its title and language;
+- search the official Hugo theme gallery and install themes as Git submodules;
+- find Markdown posts inside `content/posts`;
+- create page bundles with the `hugo new content` command;
+- edit the title, description, date, tags, draft state, and Markdown content;
+- save automatically after typing while retaining a manual save button;
+- show a sanitized, side-by-side Markdown preview;
+- open a library containing the images attached to a post;
+- import images through the file picker or drag and drop, prevent filename collisions, and insert the corresponding Markdown;
+- reuse an existing image or set it as the featured image;
+- start `hugo server` and open the real site preview;
+- show the current branch, remote, and changed files;
+- synchronize with any Git remote through commit, pull with rebase, and push;
+- configure the author, email address, and `origin` remote from the application menu;
+- provide an English interface by default, with Brazilian Portuguese also available;
+- preserve front matter fields that Plumbago does not know yet.
 
-## Desenvolvimento
+## Development
 
-Pré-requisitos:
+Prerequisites:
 
-- Node.js 18 ou mais recente;
-- Hugo Extended disponível no mesmo ambiente do blog;
-- Git configurado, incluindo a autenticação do remoto para usar a sincronização.
+- Node.js 18 or newer;
+- Hugo Extended available in the same environment as the blog;
+- Git configured, including remote authentication for synchronization.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Para abrir somente a interface de demonstração no navegador:
+To open only the demonstration interface in a browser:
 
 ```bash
 npm run dev:web
 ```
 
-## Verificações
+## Checks
 
 ```bash
 npm test
 npm run check
 ```
 
-Os testes criam sites e repositórios Git temporários para exercitar criação, edição, imagens, temas e sincronização. Também protegem a paridade das traduções, os canais entre Electron e a interface, a identidade Plumbago, a paleta oficial e a configuração do CI. Nenhum blog do usuário é modificado.
+The tests create temporary Hugo sites and Git repositories to exercise site creation, editing, images, themes, and synchronization. They also protect translation parity, Electron bridge channels, the Plumbago identity, the official color palette, and the CI configuration. No user blog is modified.
 
-O workflow de CI executa esses testes e o build de produção em todo push e em todo pull request.
+The CI workflow runs these tests and the production build on every push and every pull request.
 
-## Pacotes locais
+## Local packages
 
-Use o comando correspondente ao sistema em que a compilação será executada:
+Use the command for the platform where the package is being built:
 
 ```bash
 npm run package:win
@@ -68,40 +68,40 @@ npm run package:linux
 npm run package:mac
 ```
 
-Os arquivos serão criados em `release/`. A primeira versão usa a autenticação Git já configurada no sistema ou no WSL; o Plumbago não armazena tokens ou senhas.
+Generated files are placed in `release/`. The initial version uses the Git authentication already configured on the system or in WSL; Plumbago never stores tokens or passwords.
 
-## Releases automáticos
+## Automated releases
 
-Ao publicar uma GitHub Release cujo identificador seja igual à versão do `package.json` com o prefixo `v` — por exemplo, `v0.4.0` — o workflow cria automaticamente:
+When a GitHub Release is published with a tag matching the `package.json` version prefixed with `v`—for example, `v0.4.0`—the workflow automatically creates:
 
-- instalador NSIS para Windows x64;
-- AppImage para Linux x64;
-- DMGs para macOS Intel e Apple Silicon.
+- an NSIS installer for Windows x64;
+- an AppImage for Linux x64;
+- DMGs for Intel and Apple Silicon Macs.
 
-Os quatro pacotes são anexados à mesma release. Para publicar pela linha de comando:
+All four packages are attached to the same release. To publish from the command line:
 
 ```bash
 gh release create v0.4.0 --generate-notes
 ```
 
-Antes de criar outra release, atualize a versão no `package.json` e no `package-lock.json`.
+Before creating another release, update the version in `package.json` and `package-lock.json`.
 
 ## GitHub Pages
 
-O conteúdo de `site/` é publicado automaticamente pelo workflow do GitHub Pages após alterações na branch `main`. A página consulta a release mais recente e direciona cada botão ao pacote correspondente.
+The contents of `site/` are automatically published by the GitHub Pages workflow after changes reach the `main` branch. The page fetches the latest release and directs each download button to the corresponding package.
 
-## Como a integração com WSL funciona
+## How WSL integration works
 
-Quando a pasta selecionada começa com `\\wsl.localhost\<distro>\...`, o Plumbago extrai a distribuição e o caminho Linux. Hugo e Git são executados por `wsl.exe -d <distro> --cd <pasta> -- <programa> <argumentos>`. Os argumentos não passam por um shell intermediário.
+When the selected folder starts with `\\wsl.localhost\<distro>\...`, Plumbago extracts the distribution name and Linux path. Hugo and Git run through `wsl.exe -d <distro> --cd <folder> -- <program> <arguments>`. Arguments never pass through an intermediate shell.
 
-## Próximos passos
+## Roadmap
 
-1. texto alternativo e redimensionamento de imagens;
-2. suporte configurável a seções e formatos de front matter;
-3. histórico de versões e resolução guiada de conflitos;
-4. instalador assinado, atualizações automáticas e onboarding de Hugo/Git;
-5. integração opcional com a API do GitHub para criar repositórios e pull requests.
+1. Image alt text and resizing.
+2. Configurable content sections and front matter formats.
+3. Version history and guided conflict resolution.
+4. Signed installers, automatic updates, and Hugo/Git onboarding.
+5. Optional GitHub API integration for creating repositories and pull requests.
 
-## Licença
+## License
 
 GNU General Public License v3.0 (`GPL-3.0-only`).
