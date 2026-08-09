@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import TurndownService from 'turndown'
 import {
-  AlertCircle, ArrowUpRight, Bold, Check, Clock3, Cloud, Code2, Eye, FileText,
-  FolderOpen, GitBranch, HardDrive, Heading2, ImagePlus, Images, Italic, Link,
+  Activity, AlertCircle, ArrowUpRight, Bold, Check, Clock3, Cloud, Code2, Download, Eye, FileText,
+  FolderOpen, GitBranch, Github, Globe2, HardDrive, Heading2, ImagePlus, Images, Italic, Link,
   List, LoaderCircle, Menu, MoreHorizontal, PanelLeftClose, Plus, Save, Search,
   Palette, Settings, Sparkles, UploadCloud, UserRound, X,
 } from 'lucide-react'
@@ -12,6 +13,7 @@ import { supportedLanguages, useI18n } from './i18n'
 
 const api = window.plumbago || createDemoBridge()
 const emptyContext = { root: '', runtime: { kind: 'native' }, hugo: null, git: null }
+const visualTurndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced' })
 
 function friendlyError(error, t) {
   return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, '') || t('error.generic')
@@ -20,6 +22,19 @@ function friendlyError(error, t) {
 function formatDate(value, locale, t) {
   if (!value) return t('posts.noDate')
   return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
+}
+
+function formatDateTime(value, locale, t) {
+  if (!value) return t('posts.noDate')
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function dateTimeInputValue(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.valueOf())) return ''
+  const local = new Date(date.valueOf() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
 }
 
 function Welcome({ onChoose, onCreate, busy }) {
@@ -158,35 +173,353 @@ function CreateBlogModal({ onClose, onCreate, busy }) {
   )
 }
 
-function ThemeManagerModal({ context, onClose, onInstall, busy }) {
+function ThemeManagerModal({ context, onClose, onInstall, busy, notify }) {
   const { t } = useI18n()
   const [selected, setSelected] = useState('')
+  const [site, setSite] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    api.siteSettings().then(setSite).catch((error) => notify(friendlyError(error, t), 'error'))
+  }, [notify, t])
+
+  async function saveAppearance(event) {
+    event.preventDefault()
+    setSaving(true)
+    try { setSite(await api.saveSiteSettings(site)); notify(t('notice.appearanceSaved')) } catch (error) { notify(friendlyError(error, t), 'error') } finally { setSaving(false) }
+  }
+
   return (
-    <Modal title={t('themes.manage')} onClose={onClose} width="900px">
+    <Modal title={t('themes.manage')} onClose={onClose} width="940px">
       <div className="theme-manager-intro"><div><Palette size={19} /><span><strong>{t('themes.current')}</strong><small>{context.theme || t('themes.noCurrent')}</small></span></div><p>{t('themes.installCopy')}</p></div>
+      {site && <form className="theme-site-settings" onSubmit={saveAppearance}><div><label>{t('themes.blogTitle')}<input value={site.title} onChange={(event) => setSite({ ...site, title: event.target.value })} /></label><label>{t('themes.siteAddress')}<input value={site.baseURL} onChange={(event) => setSite({ ...site, baseURL: event.target.value })} placeholder="https://username.github.io/blog/" /></label></div><div><label>{t('themes.languageCode')}<input value={site.languageCode} onChange={(event) => setSite({ ...site, languageCode: event.target.value })} placeholder="en-US" /></label><label>{t('themes.copyright')}<input value={site.copyright} onChange={(event) => setSite({ ...site, copyright: event.target.value })} placeholder="© 2026 Your name" /></label></div><button className="button quiet" disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {t('themes.saveIdentity')}</button></form>}
+      <div className="theme-gallery-heading"><div><h3>{t('themes.galleryTitle')}</h3><p>{t('themes.galleryCopy')}</p></div></div>
       <ThemeBrowser selected={selected} onSelect={setSelected} allowNone={false} />
       <footer className="theme-manager-footer"><button className="button quiet" onClick={onClose}>{t('common.close')}</button><button className="button primary" disabled={!selected || busy} onClick={() => onInstall(selected)}>{busy ? <LoaderCircle className="spin" size={16} /> : <Palette size={16} />} {t('themes.install')}</button></footer>
     </Modal>
   )
 }
 
-function SyncModal({ status, busy, onClose, onSync }) {
+function PublishModal({ status, busy, phase, error, log, onClose, onPublish, onRefresh, onSettings }) {
   const { t, locale } = useI18n()
-  const [message, setMessage] = useState(t('sync.defaultMessage', { date: new Intl.DateTimeFormat(locale).format(new Date()) }))
+  const [message, setMessage] = useState(t('publish.defaultMessage', { date: new Intl.DateTimeFormat(locale).format(new Date()) }))
+  const deployment = status?.deployment?.state || 'unknown'
+
+  useEffect(() => {
+    if (phase !== 'complete' || deployment !== 'deploying') return undefined
+    const timer = setInterval(onRefresh, 5000)
+    return () => clearInterval(timer)
+  }, [deployment, onRefresh, phase])
+
+  const publishState = phase === 'error'
+    ? { kind: 'error', icon: <AlertCircle size={20} />, title: t('publish.failed'), copy: error }
+    : phase === 'publishing'
+      ? { kind: 'working', icon: <LoaderCircle className="spin" size={20} />, title: t('publish.working'), copy: t('publish.workingCopy') }
+      : phase === 'complete' && deployment === 'live'
+        ? { kind: 'success', icon: <Check size={20} />, title: t('publish.live'), copy: t('publish.liveCopy') }
+        : phase === 'complete' && deployment === 'failed'
+          ? { kind: 'error', icon: <AlertCircle size={20} />, title: t('publish.deployFailed'), copy: t('publish.deployFailedCopy') }
+          : phase === 'complete' && deployment === 'deploying'
+            ? { kind: 'working', icon: <LoaderCircle className="spin" size={20} />, title: t('publish.deploying'), copy: t('publish.deployingCopy') }
+            : phase === 'complete'
+              ? { kind: 'success', icon: <UploadCloud size={20} />, title: t('publish.uploaded'), copy: t(`publish.deployment.${deployment}`) }
+              : { kind: 'ready', icon: <Cloud size={20} />, title: t('publish.ready'), copy: t('publish.readyCopy') }
+
   return (
-    <Modal title={t('sync.title')} onClose={onClose}>
-      <div className="sync-summary">
-        <div><GitBranch size={18} /><span><small>{t('sync.branch')}</small>{status?.branch || '—'}</span></div>
-        <div><Cloud size={18} /><span><small>{t('sync.destination')}</small>{status?.remote || t('sync.noOrigin')}</span></div>
+    <Modal title={t('publish.title')} onClose={onClose} width="570px">
+      <div className="publish-summary">
+        <div><GitBranch size={18} /><span><small>{t('publish.branch')}</small>{status?.branch || '—'}</span></div>
+        <div><Cloud size={18} /><span><small>{t('publish.destination')}</small>{status?.repository?.fullName || status?.remote || t('publish.noDestination')}</span></div>
       </div>
-      <div className="change-list">
-        <div className="section-label"><span>{t('sync.localChanges')}</span><b>{status?.changes?.length || 0}</b></div>
-        {status?.changes?.length ? status.changes.slice(0, 8).map((change) => <code key={change}>{change}</code>) : <p>{t('sync.clean')}</p>}
+      <div className={`publish-state ${publishState.kind}`}>
+        <span className="publish-state-icon">{publishState.icon}</span>
+        <div><strong>{publishState.title}</strong><p>{publishState.copy}</p></div>
       </div>
-      <form className="modal-form" onSubmit={(event) => { event.preventDefault(); onSync(message) }}>
-        <label>{t('sync.commitMessage')}<input value={message} onChange={(event) => setMessage(event.target.value)} /></label>
-        <footer><button type="button" className="button quiet" onClick={onClose}>{t('sync.later')}</button><button className="button primary" disabled={busy || !status?.remote}>{busy ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />} {t('sync.now')}</button></footer>
+      <div className="publish-steps">
+        <div className="done"><span><Check size={13} /></span><div><strong>{t('publish.stepSave')}</strong><small>{t('publish.stepSaveCopy')}</small></div></div>
+        <div className={phase === 'publishing' ? 'active' : phase === 'complete' ? 'done' : ''}><span>{phase === 'publishing' ? <LoaderCircle className="spin" size={13} /> : phase === 'complete' ? <Check size={13} /> : '2'}</span><div><strong>{t('publish.stepUpload')}</strong><small>{t('publish.stepUploadCopy')}</small></div></div>
+        <div className={deployment === 'live' ? 'done' : deployment === 'deploying' ? 'active' : ''}><span>{deployment === 'live' ? <Check size={13} /> : deployment === 'deploying' ? <LoaderCircle className="spin" size={13} /> : '3'}</span><div><strong>{t('publish.stepLive')}</strong><small>{t('publish.stepLiveCopy')}</small></div></div>
+      </div>
+      {log?.length > 0 && <details className="publish-details"><summary>{t('publish.details')}</summary>{log.map((entry) => <code key={entry}>{entry}</code>)}</details>}
+      <form className="modal-form publish-form" onSubmit={(event) => { event.preventDefault(); onPublish(message) }}>
+        {phase !== 'complete' && status?.remote && <label>{t('publish.message')}<input value={message} onChange={(event) => setMessage(event.target.value)} /></label>}
+        <footer>
+          <button type="button" className="button quiet" onClick={onClose}>{phase === 'complete' ? t('common.close') : t('publish.later')}</button>
+          {!status?.remote && <button type="button" className="button primary" onClick={onSettings}><Settings size={16} /> {t('publish.setup')}</button>}
+          {phase === 'complete' && <button type="button" className="button quiet" onClick={onRefresh} disabled={busy}><Clock3 size={15} /> {t('publish.check')}</button>}
+          {phase === 'complete' && status?.liveUrl && <button type="button" className="button primary" onClick={() => api.openPublishingUrl(status.liveUrl)}><ArrowUpRight size={15} /> {t('publish.viewSite')}</button>}
+          {status?.remote && phase !== 'complete' && <button className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />} {phase === 'error' ? t('publish.retry') : t('publish.now')}</button>}
+        </footer>
       </form>
+    </Modal>
+  )
+}
+
+function GitHubSetupModal({ context, onClose, onPublish, notify }) {
+  const { t } = useI18n()
+  const defaultName = context.root.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase().replace(/[^a-z0-9_.-]+/g, '-') || 'my-blog'
+  const [github, setGitHub] = useState(null)
+  const [flow, setFlow] = useState(null)
+  const [repositories, setRepositories] = useState([])
+  const [mode, setMode] = useState('create')
+  const [selectedRepository, setSelectedRepository] = useState('')
+  const [repositoryName, setRepositoryName] = useState(defaultName)
+  const [description, setDescription] = useState('')
+  const [isPrivate, setIsPrivate] = useState(false)
+  const [protocol, setProtocol] = useState('ssh')
+  const [connectedRepository, setConnectedRepository] = useState(null)
+  const [pages, setPages] = useState(null)
+  const [working, setWorking] = useState(false)
+  const [accessToken, setAccessToken] = useState('')
+
+  const loadAccount = useCallback(async () => {
+    const next = await api.githubStatus()
+    setGitHub(next)
+    if (next.connected) {
+      const items = await api.listGitHubRepositories()
+      setRepositories(items.filter((repository) => repository.permissions?.push !== false))
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAccount().catch((error) => notify(friendlyError(error, t), 'error'))
+  }, [loadAccount, notify, t])
+
+  useEffect(() => {
+    if (!flow?.deviceCode) return undefined
+    let cancelled = false
+    let timer
+    async function poll() {
+      try {
+        const result = await api.completeGitHubSignIn(flow.deviceCode)
+        if (cancelled) return
+        if (result.state === 'complete') {
+          setFlow(null)
+          setGitHub({ configured: true, connected: true, account: result.account, persistent: result.persistent })
+          setRepositories((await api.listGitHubRepositories()).filter((repository) => repository.permissions?.push !== false))
+          notify(t('github.connected', { login: result.account.login }))
+          return
+        }
+        if (['expired', 'denied', 'error'].includes(result.state)) {
+          setFlow({ ...flow, error: result.description || t(`github.flow.${result.state}`) })
+          return
+        }
+        timer = setTimeout(poll, (result.state === 'slow-down' ? flow.interval + 5 : flow.interval) * 1000)
+      } catch (error) {
+        if (!cancelled) setFlow({ ...flow, error: friendlyError(error, t) })
+      }
+    }
+    timer = setTimeout(poll, flow.interval * 1000)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [flow, notify, t])
+
+  async function signIn() {
+    setWorking(true)
+    try { setFlow(await api.beginGitHubSignIn()) } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  async function connectToken() {
+    setWorking(true)
+    try {
+      const result = await api.connectGitHubToken(accessToken)
+      setAccessToken('')
+      setGitHub({ configured: github.configured, connected: true, account: result.account, persistent: result.persistent })
+      setRepositories((await api.listGitHubRepositories()).filter((repository) => repository.permissions?.push !== false))
+      notify(t('github.connected', { login: result.account.login }))
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  async function createRepository(event) {
+    event.preventDefault()
+    setWorking(true)
+    try {
+      const result = await api.createGitHubRepository({ name: repositoryName, description, private: isPrivate, protocol })
+      setConnectedRepository(result.repository)
+      notify(t('github.repositoryCreated', { repository: result.repository.fullName }))
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  async function connectRepository(event) {
+    event.preventDefault()
+    setWorking(true)
+    try {
+      const result = await api.connectGitHubRepository(selectedRepository, protocol)
+      setConnectedRepository(result.repository)
+      notify(t('github.repositoryConnected', { repository: result.repository.fullName }))
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  async function configurePages() {
+    setWorking(true)
+    try {
+      const result = await api.configureGitHubPages()
+      setPages(result)
+      notify(result.warning ? t('github.pagesWarning') : t('github.pagesReady'), result.warning ? 'error' : 'success')
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  async function disconnect() {
+    await api.disconnectGitHub()
+    setGitHub({ configured: true, connected: false, account: null, persistent: false })
+    setRepositories([])
+    setConnectedRepository(null)
+    setPages(null)
+  }
+
+  return (
+    <Modal title={t('github.title')} onClose={onClose} width="720px">
+      <div className="github-setup">
+        {!github && <div className="github-loading"><LoaderCircle className="spin" size={22} /> {t('github.loading')}</div>}
+        {github && !github.connected && (
+          <section className="github-signin">
+            <div className="github-hero-icon"><Github size={30} /></div>
+            <h3>{t('github.signInTitle')}</h3>
+            <p>{t('github.signInCopy')}</p>
+            {github.configured && (!flow ? <button className="button primary large" onClick={signIn} disabled={working}>{working ? <LoaderCircle className="spin" size={17} /> : <Github size={17} />} {t('github.signIn')}</button> : (
+              <div className="github-device-code">
+                <span>{t('github.codeCopied')}</span>
+                <strong>{flow.userCode}</strong>
+                <p>{flow.error || t('github.waiting')}</p>
+                {flow.error && <button className="button quiet" onClick={() => setFlow(null)}>{t('github.tryAgain')}</button>}
+              </div>
+            ))}
+            <div className="github-token-option">
+              <span>{github.configured ? t('github.orToken') : t('github.tokenRequired')}</span>
+              <p>{t('github.tokenCopy')}</p>
+              <button className="button quiet" onClick={() => api.openPublishingUrl('https://github.com/settings/personal-access-tokens/new')}><ExternalLink size={14} /> {t('github.createToken')}</button>
+              <div><input type="password" value={accessToken} onChange={(event) => setAccessToken(event.target.value)} placeholder={t('github.tokenPlaceholder')} autoComplete="off" /><button className="button primary" onClick={connectToken} disabled={working || accessToken.trim().length < 20}>{working && <LoaderCircle className="spin" size={15} />} {t('github.connectToken')}</button></div>
+              <small>{t('github.tokenStorage')}</small>
+            </div>
+          </section>
+        )}
+        {github?.connected && !connectedRepository && (
+          <>
+            <div className="github-account">
+              <img src={github.account.avatarUrl} alt="" /><div><small>{t('github.connectedAs')}</small><strong>{github.account.name}</strong><span>@{github.account.login}{!github.persistent && ` · ${t('github.sessionOnly')}`}</span></div>
+              <button className="button quiet" onClick={disconnect}>{t('github.disconnect')}</button>
+            </div>
+            <div className="github-mode-tabs"><button className={mode === 'create' ? 'active' : ''} onClick={() => setMode('create')}>{t('github.createRepository')}</button><button className={mode === 'existing' ? 'active' : ''} onClick={() => setMode('existing')}>{t('github.existingRepository')}</button></div>
+            {mode === 'create' ? (
+              <form className="github-repository-form" onSubmit={createRepository}>
+                <label>{t('github.repositoryName')}<div className="repository-name"><span>{github.account.login} /</span><input value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} /></div></label>
+                <label>{t('github.description')}<input value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t('github.descriptionPlaceholder')} /></label>
+                <div className="github-options">
+                  <label><input type="radio" checked={!isPrivate} onChange={() => setIsPrivate(false)} /> <Globe2 size={15} /><span><strong>{t('github.public')}</strong><small>{t('github.publicCopy')}</small></span></label>
+                  <label><input type="radio" checked={isPrivate} onChange={() => setIsPrivate(true)} /> <Github size={15} /><span><strong>{t('github.private')}</strong><small>{t('github.privateCopy')}</small></span></label>
+                </div>
+                <label>{t('github.gitConnection')}<select value={protocol} onChange={(event) => setProtocol(event.target.value)}><option value="ssh">SSH</option><option value="https">HTTPS</option></select></label>
+                <footer><button className="button primary" disabled={working || !repositoryName}>{working && <LoaderCircle className="spin" size={15} />} {t('github.createAndConnect')}</button></footer>
+              </form>
+            ) : (
+              <form className="github-repository-form" onSubmit={connectRepository}>
+                <label>{t('github.chooseRepository')}<select value={selectedRepository} onChange={(event) => setSelectedRepository(event.target.value)}><option value="">{t('github.choosePlaceholder')}</option>{repositories.map((repository) => <option key={repository.fullName} value={repository.fullName}>{repository.fullName}{repository.private ? ` · ${t('github.private')}` : ''}</option>)}</select></label>
+                <label>{t('github.gitConnection')}<select value={protocol} onChange={(event) => setProtocol(event.target.value)}><option value="ssh">SSH</option><option value="https">HTTPS</option></select></label>
+                <footer><button className="button primary" disabled={working || !selectedRepository}>{working && <LoaderCircle className="spin" size={15} />} {t('github.connectSelected')}</button></footer>
+              </form>
+            )}
+          </>
+        )}
+        {connectedRepository && !pages && (
+          <section className="github-pages-step"><div className="github-success"><Check size={20} /><div><strong>{connectedRepository.fullName}</strong><span>{t('github.remoteReady')}</span></div></div><Globe2 size={34} /><h3>{t('github.pagesTitle')}</h3><p>{t('github.pagesCopy')}</p><button className="button primary large" onClick={configurePages} disabled={working}>{working ? <LoaderCircle className="spin" size={17} /> : <Globe2 size={17} />} {t('github.configurePages')}</button></section>
+        )}
+        {pages && (
+          <section className="github-pages-step"><div className="github-finished"><Check size={28} /></div><h3>{t('github.finishedTitle')}</h3><p>{t('github.finishedCopy', { url: pages.liveUrl })}</p>{pages.warning && <div className="github-warning"><AlertCircle size={16} /> {pages.warning}</div>}<div className="github-live-url">{pages.liveUrl}</div><button className="button primary large" onClick={() => { onClose(); onPublish() }}><UploadCloud size={17} /> {t('github.publishFirst')}</button></section>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+function PublishingHealthModal({ onClose, onAction, notify }) {
+  const { t } = useI18n()
+  const [report, setReport] = useState(null)
+  const [running, setRunning] = useState(false)
+
+  const runChecks = useCallback(async () => {
+    setRunning(true)
+    try { setReport(await api.publishingHealth()) } catch (error) { notify(friendlyError(error, t), 'error') } finally { setRunning(false) }
+  }, [notify, t])
+
+  useEffect(() => { runChecks() }, [runChecks])
+
+  return (
+    <Modal title={t('health.title')} onClose={onClose} width="680px">
+      <div className="health-center">
+        <header className="health-overview">
+          <div className={`health-score ${report?.ready ? 'ready' : ''}`}><strong>{report ? `${report.score}/${report.total}` : '—'}</strong><span>{t('health.checks')}</span></div>
+          <div><h3>{report?.ready ? t('health.readyTitle') : t('health.attentionTitle')}</h3><p>{report?.ready ? t('health.readyCopy') : t('health.attentionCopy')}</p></div>
+          <button className="button quiet" onClick={runChecks} disabled={running}>{running ? <LoaderCircle className="spin" size={15} /> : <Activity size={15} />} {t('health.runAgain')}</button>
+        </header>
+        {running && !report ? <div className="health-loading"><LoaderCircle className="spin" size={23} /> {t('health.running')}</div> : (
+          <div className="health-list">
+            {report?.checks.map((check) => (
+              <article className={`health-check ${check.state}`} key={check.id}>
+                <span>{check.state === 'ok' ? <Check size={15} /> : check.state === 'error' ? <AlertCircle size={15} /> : <Clock3 size={15} />}</span>
+                <div><strong>{t(`health.check.${check.id}`)}</strong><p>{check.detail}</p></div>
+                {check.state !== 'ok' && <button className="button quiet" onClick={() => onAction(check.action)}>{t(`health.action.${check.action}`)}</button>}
+              </article>
+            ))}
+          </div>
+        )}
+        <footer className="health-footer"><button className="button quiet" onClick={onClose}>{t('common.close')}</button>{report?.publishing?.liveUrl && <button className="button primary" onClick={() => api.openPublishingUrl(report.publishing.liveUrl)}><ArrowUpRight size={15} /> {t('publish.viewSite')}</button>}</footer>
+      </div>
+    </Modal>
+  )
+}
+
+function BloggerImportModal({ onClose, onImported, notify }) {
+  const { t } = useI18n()
+  const [inspection, setInspection] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [language, setLanguage] = useState('en-us')
+  const [working, setWorking] = useState(false)
+  const [result, setResult] = useState(null)
+
+  async function chooseExport() {
+    setWorking(true)
+    try {
+      const next = await api.chooseBloggerExport()
+      if (next) {
+        setInspection(next)
+        setSelectedIds(new Set(next.posts.map((post) => post.id)))
+        setResult(null)
+      }
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  function toggle(id) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  async function importPosts() {
+    setWorking(true)
+    try {
+      const imported = await api.importBloggerExport({ selectedIds: [...selectedIds], language })
+      setResult(imported)
+      await onImported(imported)
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  return (
+    <Modal title={t('blogger.title')} onClose={onClose} width="780px">
+      <div className="blogger-import">
+        {!inspection && !result && <section className="blogger-start"><div><Download size={31} /></div><h3>{t('blogger.startTitle')}</h3><p>{t('blogger.startCopy')}</p><ol><li>{t('blogger.stepOne')}</li><li>{t('blogger.stepTwo')}</li><li>{t('blogger.stepThree')}</li></ol><button className="button primary large" onClick={chooseExport} disabled={working}>{working ? <LoaderCircle className="spin" size={17} /> : <FolderOpen size={17} />} {t('blogger.choose')}</button></section>}
+        {inspection && !result && (
+          <>
+            <header className="blogger-summary"><div><strong>{inspection.posts.length}</strong><span>{t('blogger.postsFound')}</span></div><div><strong>{inspection.imageCount}</strong><span>{t('blogger.imagesFound')}</span></div><div><strong>{inspection.labels.length}</strong><span>{t('blogger.labelsFound')}</span></div><button className="button quiet" onClick={chooseExport}>{t('blogger.changeFile')}</button></header>
+            <div className="blogger-toolbar"><label><input type="checkbox" checked={selectedIds.size === inspection.posts.length} onChange={(event) => setSelectedIds(event.target.checked ? new Set(inspection.posts.map((post) => post.id)) : new Set())} /> {t('blogger.selectAll')}</label><span>{t('blogger.selected', { count: selectedIds.size })}</span><label>{t('blogger.language')}<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="en-us">English (US)</option><option value="pt-br">Português (Brasil)</option></select></label></div>
+            <div className="blogger-posts">
+              {inspection.posts.map((item) => <label className={selectedIds.has(item.id) ? 'selected' : ''} key={item.id}><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggle(item.id)} /><div><strong>{item.title}</strong><span>{item.date || t('posts.noDate')} · {item.draft ? t('posts.draft') : t('posts.published')}</span><small>{item.labels.join(', ') || t('blogger.noLabels')}{item.imageCount ? ` · ${t('blogger.imagesCount', { count: item.imageCount })}` : ''}</small></div></label>)}
+            </div>
+            <footer className="blogger-footer"><p>{t('blogger.importHint')}</p><button className="button quiet" onClick={onClose}>{t('common.cancel')}</button><button className="button primary" onClick={importPosts} disabled={working || !selectedIds.size}>{working ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />} {t('blogger.importSelected', { count: selectedIds.size })}</button></footer>
+          </>
+        )}
+        {result && <section className="blogger-result"><div><Check size={28} /></div><h3>{t('blogger.completeTitle')}</h3><p>{t('blogger.completeCopy', { posts: result.posts.length, images: result.importedImages })}</p>{result.failures.length > 0 && <div className="blogger-failures"><AlertCircle size={17} /> {t('blogger.failures', { count: result.failures.length })}</div>}<button className="button primary large" onClick={onClose}>{t('blogger.viewPosts')}</button></section>}
+      </div>
     </Modal>
   )
 }
@@ -195,10 +528,14 @@ function ImageLibrary({ post, onClose, onAdd, onDrop, onInsert, onFeatured }) {
   const { t } = useI18n()
   const [assets, setAssets] = useState({})
   const [dragging, setDragging] = useState(false)
+  const [selectedName, setSelectedName] = useState('')
+  const [altText, setAltText] = useState('')
+  const [caption, setCaption] = useState('')
+  const [dimensions, setDimensions] = useState({})
 
   useEffect(() => {
     let cancelled = false
-    Promise.all((post.assets || []).map(async (name) => [name, await api.readAsset(post.id, name)]))
+    Promise.all((post.assets || []).map(async (name) => [name, await api.readAssetInfo(post.id, name)]))
       .then((entries) => { if (!cancelled) setAssets(Object.fromEntries(entries)) })
       .catch(() => setAssets({}))
     return () => { cancelled = true }
@@ -209,6 +546,26 @@ function ImageLibrary({ post, onClose, onAdd, onDrop, onInsert, onFeatured }) {
     setDragging(false)
     const files = Array.from(event.dataTransfer.files || [])
     if (files.length) onDrop(files)
+  }
+
+  function selectAsset(name) {
+    setSelectedName(name)
+    setAltText(pathToAlt(name))
+    setCaption('')
+  }
+
+  function pathToAlt(name) {
+    return name.replace(/\.[^.]+$/, '').replaceAll('-', ' ')
+  }
+
+  function fileSize(bytes) {
+    if (!Number.isFinite(bytes)) return ''
+    return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  }
+
+  function recordDimensions(name, image) {
+    const value = `${image.naturalWidth} × ${image.naturalHeight}`
+    setDimensions((current) => ({ ...current, [name]: value }))
   }
 
   return (
@@ -226,15 +583,16 @@ function ImageLibrary({ post, onClose, onAdd, onDrop, onInsert, onFeatured }) {
       >
         <UploadCloud size={20} /> {t('images.drop')}
       </div>
+      {selectedName && assets[selectedName] && <section className="image-detail"><div className="image-detail-preview"><img src={assets[selectedName].dataUrl} alt={altText} onLoad={(event) => recordDimensions(selectedName, event.currentTarget)} /></div><div className="image-detail-fields"><div><strong>{selectedName}</strong><span>{[dimensions[selectedName], fileSize(assets[selectedName].size)].filter(Boolean).join(' · ')}</span></div><label>{t('images.altText')}<input value={altText} onChange={(event) => setAltText(event.target.value)} /></label><label>{t('images.caption')}<input value={caption} onChange={(event) => setCaption(event.target.value)} placeholder={t('images.captionPlaceholder')} /></label><footer><button className="button quiet" onClick={() => onFeatured(selectedName)}><Sparkles size={14} /> {t('images.useFeatured')}</button><button className="button primary" onClick={() => onInsert(selectedName, { alt: altText, caption })}><Plus size={14} /> {t('images.insert')}</button></footer></div></section>}
       {post.assets.length ? (
-        <div className="image-grid">
+        <div className={`image-grid ${selectedName ? 'with-detail' : ''}`}>
           {post.assets.map((name) => (
-            <article className="image-card" key={name}>
-              <div className="image-thumb">{assets[name] ? <img src={assets[name]} alt={name} /> : <LoaderCircle className="spin" size={20} />}</div>
-              <div className="image-card-info"><strong title={name}>{name}</strong>{post.featuredImage === name && <span>{t('images.featured')}</span>}</div>
+            <article className={`image-card ${selectedName === name ? 'selected' : ''}`} key={name}>
+              <button className="image-thumb" onClick={() => selectAsset(name)}>{assets[name] ? <img src={assets[name].dataUrl} alt={name} onLoad={(event) => recordDimensions(name, event.currentTarget)} /> : <LoaderCircle className="spin" size={20} />}</button>
+              <div className="image-card-info"><strong title={name}>{name}</strong>{post.featuredImage === name && <span>{t('images.featured')}</span>}<small>{assets[name] ? fileSize(assets[name].size) : ''}</small></div>
               <div className="image-card-actions">
                 <button className="button quiet" onClick={() => onFeatured(name)}>{post.featuredImage === name ? <Check size={14} /> : <Sparkles size={14} />} {post.featuredImage === name ? t('images.featured') : t('images.useFeatured')}</button>
-                <button className="button primary" onClick={() => onInsert(name)}><Plus size={14} /> {t('images.insert')}</button>
+                <button className="button primary" onClick={() => selectAsset(name)}><Eye size={14} /> {t('images.details')}</button>
               </div>
             </article>
           ))}
@@ -246,7 +604,7 @@ function ImageLibrary({ post, onClose, onAdd, onDrop, onInsert, onFeatured }) {
   )
 }
 
-function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, notify }) {
+function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, onGitHub, notify }) {
   const { t, locale, setLocale } = useI18n()
   const [config, setConfig] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -294,12 +652,16 @@ function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, n
             </form>
           ) : <div className="settings-loading"><LoaderCircle className="spin" size={20} /> {t('settings.reading')}</div>}
         </section>
+        <section className="settings-section github-settings-card">
+          <div className="settings-heading"><Github size={18} /><div><h3>{t('settings.github')}</h3><p>{t('settings.githubCopy')}</p></div></div>
+          <button className="button quiet" type="button" onClick={onGitHub}><Github size={16} /> {t('settings.githubManage')}</button>
+        </section>
       </div>
     </Modal>
   )
 }
 
-function Sidebar({ context, onChooseBlog, onImages, onThemes, onSettings }) {
+function Sidebar({ context, onChooseBlog, onImages, onThemes, onHealth, onImport, onSettings }) {
   const { t, locale } = useI18n()
   return (
     <aside className="sidebar">
@@ -308,6 +670,8 @@ function Sidebar({ context, onChooseBlog, onImages, onThemes, onSettings }) {
         <button className="nav-item active"><FileText size={18} /><span>{t('sidebar.posts')}</span><small>⌘ 1</small></button>
         <button className="nav-item" onClick={onImages}><ImagePlus size={18} /><span>{t('sidebar.images')}</span></button>
         <button className="nav-item" onClick={onThemes}><Palette size={18} /><span>{t('sidebar.themes')}</span>{context.theme && <small>✓</small>}</button>
+        <button className="nav-item" onClick={onHealth}><Activity size={18} /><span>{t('sidebar.publishing')}</span></button>
+        <button className="nav-item" onClick={onImport}><Download size={18} /><span>{t('sidebar.import')}</span></button>
       </nav>
       <div className="sidebar-spacer" />
       <div className="site-card">
@@ -325,20 +689,21 @@ function PostList({ posts, activeId, onSelect, onNew }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('todos')
   const visible = posts.filter((post) => {
-    const matchesQuery = `${post.title} ${post.description}`.toLowerCase().includes(query.toLowerCase())
-    return matchesQuery && (filter === 'todos' || (filter === 'rascunhos' ? post.draft : !post.draft))
+    const scheduled = !post.draft && post.publishDate && new Date(post.publishDate) > new Date()
+    const matchesQuery = `${post.title} ${post.description} ${(post.tags || []).join(' ')}`.toLowerCase().includes(query.toLowerCase())
+    return matchesQuery && (filter === 'todos' || (filter === 'rascunhos' ? post.draft : filter === 'agendados' ? scheduled : !post.draft && !scheduled))
   })
   return (
     <section className="post-panel">
       <header className="panel-header"><div><p className="eyebrow">{t('posts.content')}</p><h2>{t('posts.title')} <span>{posts.length}</span></h2></div><button className="icon-button brand-action" onClick={onNew} title={t('posts.new')}><Plus size={20} /></button></header>
       <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('posts.search')} /></div>
-      <div className="filters"><button className={filter === 'todos' ? 'active' : ''} onClick={() => setFilter('todos')}>{t('posts.all')}</button><button className={filter === 'publicados' ? 'active' : ''} onClick={() => setFilter('publicados')}>{t('posts.published')}</button><button className={filter === 'rascunhos' ? 'active' : ''} onClick={() => setFilter('rascunhos')}>{t('posts.drafts')}</button></div>
+      <div className="filters"><button className={filter === 'todos' ? 'active' : ''} onClick={() => setFilter('todos')}>{t('posts.all')}</button><button className={filter === 'publicados' ? 'active' : ''} onClick={() => setFilter('publicados')}>{t('posts.published')}</button><button className={filter === 'agendados' ? 'active' : ''} onClick={() => setFilter('agendados')}>{t('posts.scheduled')}</button><button className={filter === 'rascunhos' ? 'active' : ''} onClick={() => setFilter('rascunhos')}>{t('posts.drafts')}</button></div>
       <div className="post-list">
         {visible.map((post) => (
           <button key={post.id} className={`post-row ${post.id === activeId ? 'active' : ''}`} onClick={() => onSelect(post.id)}>
-            <div className="post-row-top"><strong>{post.title || t('posts.noTitle')}</strong>{post.draft && <span className="draft-dot" title={t('posts.draft')} />}</div>
+            <div className="post-row-top"><strong>{post.title || t('posts.noTitle')}</strong>{post.draft ? <span className="post-status draft">{t('posts.draft')}</span> : post.publishDate && new Date(post.publishDate) > new Date() ? <span className="post-status scheduled">{t('posts.scheduled')}</span> : <span className="post-status live">{t('posts.live')}</span>}</div>
             <p>{post.description || t('posts.noDescription')}</p>
-            <div><span>{formatDate(post.date, locale, t)}</span><span className="lang">{post.language}</span></div>
+            <div><span>{post.publishDate && new Date(post.publishDate) > new Date() ? formatDateTime(post.publishDate, locale, t) : formatDate(post.date, locale, t)}</span><span className="lang">{post.language}</span></div>
           </button>
         ))}
         {!visible.length && <div className="empty-list"><Search size={24} /><p>{t('posts.empty')}</p></div>}
@@ -350,18 +715,34 @@ function PostList({ posts, activeId, onSelect, onNew }) {
 function MarkdownToolbar({ onFormat, onImages }) {
   const { t } = useI18n()
   return (
-    <div className="markdown-toolbar">
-      <button onClick={() => onFormat('**', '**', t('toolbar.boldText'))} title={t('toolbar.bold')}><Bold size={16} /></button>
-      <button onClick={() => onFormat('_', '_', t('toolbar.italicText'))} title={t('toolbar.italic')}><Italic size={16} /></button>
+    <div className="markdown-toolbar" onMouseDown={(event) => { if (event.target.closest('button')) event.preventDefault() }}>
+      <button onClick={() => onFormat('bold', '**', '**', t('toolbar.boldText'))} title={t('toolbar.bold')}><Bold size={16} /></button>
+      <button onClick={() => onFormat('italic', '_', '_', t('toolbar.italicText'))} title={t('toolbar.italic')}><Italic size={16} /></button>
       <span />
-      <button onClick={() => onFormat('## ', '', t('toolbar.headingText'))} title={t('toolbar.heading')}><Heading2 size={16} /></button>
-      <button onClick={() => onFormat('- ', '', t('toolbar.listText'))} title={t('toolbar.list')}><List size={16} /></button>
-      <button onClick={() => onFormat('[', '](https://)', t('toolbar.linkText'))} title={t('toolbar.link')}><Link size={16} /></button>
+      <button onClick={() => onFormat('formatBlock', '## ', '', t('toolbar.headingText'), 'h2')} title={t('toolbar.heading')}><Heading2 size={16} /></button>
+      <button onClick={() => onFormat('insertUnorderedList', '- ', '', t('toolbar.listText'))} title={t('toolbar.list')}><List size={16} /></button>
+      <button onClick={() => onFormat('createLink', '[', '](https://)', t('toolbar.linkText'), 'https://')} title={t('toolbar.link')}><Link size={16} /></button>
       <button onClick={onImages} title={t('toolbar.images')}><ImagePlus size={16} /></button>
       <span />
-      <button onClick={() => onFormat('`', '`', t('toolbar.codeText'))} title={t('toolbar.code')}><Code2 size={16} /></button>
+      <button onClick={() => onFormat('formatBlock', '`', '`', t('toolbar.codeText'), 'pre')} title={t('toolbar.code')}><Code2 size={16} /></button>
     </div>
   )
+}
+
+function VisualEditor({ html, assetMap, onChange, placeholder }) {
+  const editorRef = useRef(null)
+
+  useEffect(() => {
+    if (editorRef.current && document.activeElement !== editorRef.current && editorRef.current.innerHTML !== html) editorRef.current.innerHTML = html
+  }, [html])
+
+  function update(event) {
+    let nextHtml = DOMPurify.sanitize(event.currentTarget.innerHTML)
+    for (const [name, data] of Object.entries(assetMap)) nextHtml = nextHtml.replaceAll(data, name)
+    onChange(visualTurndown.turndown(nextHtml))
+  }
+
+  return <div ref={editorRef} className="visual-editor" contentEditable suppressContentEditableWarning data-placeholder={placeholder} onInput={update} spellCheck="true" />
 }
 
 function Editor({ post, onChange, onSave, onOpenImages, onDropImages, saveState }) {
@@ -385,8 +766,13 @@ function Editor({ post, onChange, onSave, onOpenImages, onDropImages, saveState 
     return DOMPurify.sanitize(marked.parse(markdown, { breaks: true }))
   }, [assetMap, post.body])
 
-  function format(before, after, fallback) {
+  function format(command, before, after, fallback, commandValue) {
+    if (mode === 'visual') {
+      document.execCommand(command, false, commandValue)
+      return
+    }
     const textarea = textareaRef.current
+    if (!textarea) return
     const body = post.body || ''
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
@@ -428,16 +814,18 @@ function Editor({ post, onChange, onSave, onOpenImages, onDropImages, saveState 
       <input className="description-input" value={post.description} onChange={(event) => onChange({ description: event.target.value })} placeholder={t('editor.description')} />
       <div className="metadata-row">
         <label>{t('editor.date')}<input type="date" value={post.date} onChange={(event) => onChange({ date: event.target.value })} /></label>
+        <label>{t('editor.schedule')}<input type="datetime-local" value={dateTimeInputValue(post.publishDate)} onChange={(event) => onChange({ publishDate: event.target.value ? new Date(event.target.value).toISOString() : '' })} /></label>
         <label>{t('editor.tags')}<input value={post.tags.join(', ')} onChange={(event) => onChange({ tags: event.target.value.split(',').map((tag) => tag.trim()) })} placeholder={t('editor.tagsPlaceholder')} /></label>
         <label className="draft-toggle"><input type="checkbox" checked={!post.draft} onChange={(event) => onChange({ draft: !event.target.checked })} /><span /> {t('editor.published')}</label>
       </div>
       <div className="editor-controls">
         <MarkdownToolbar onFormat={format} onImages={onOpenImages} />
-        <div className="view-toggle"><button className={mode === 'write' ? 'active' : ''} onClick={() => setMode('write')}>{t('editor.write')}</button><button className={mode === 'split' ? 'active' : ''} onClick={() => setMode('split')}>{t('editor.split')}</button><button className={mode === 'preview' ? 'active' : ''} onClick={() => setMode('preview')}>{t('editor.preview')}</button></div>
+        <div className="view-toggle"><button className={mode === 'visual' ? 'active' : ''} onClick={() => setMode('visual')}>{t('editor.visual')}</button><button className={mode === 'write' ? 'active' : ''} onClick={() => setMode('write')}>{t('editor.write')}</button><button className={mode === 'split' ? 'active' : ''} onClick={() => setMode('split')}>{t('editor.split')}</button><button className={mode === 'preview' ? 'active' : ''} onClick={() => setMode('preview')}>{t('editor.preview')}</button></div>
       </div>
       <div className={`editor-workspace mode-${mode}`}>
-        {mode !== 'preview' && <textarea ref={textareaRef} value={post.body || ''} onChange={(event) => onChange({ body: event.target.value })} placeholder={t('editor.placeholder')} spellCheck="true" />}
-        {mode !== 'write' && <article className="markdown-preview" dangerouslySetInnerHTML={{ __html: preview }} />}
+        {mode === 'visual' && <VisualEditor html={preview} assetMap={assetMap} onChange={(body) => onChange({ body })} placeholder={t('editor.visualPlaceholder')} />}
+        {!['preview', 'visual'].includes(mode) && <textarea ref={textareaRef} value={post.body || ''} onChange={(event) => onChange({ body: event.target.value })} placeholder={t('editor.placeholder')} spellCheck="true" />}
+        {!['write', 'visual'].includes(mode) && <article className="markdown-preview" dangerouslySetInnerHTML={{ __html: preview }} />}
       </div>
       <footer className="editor-footer"><span>{t('editor.markdown')}</span><span>{t('editor.words', { count: post.body?.trim() ? post.body.trim().split(/\s+/).length : 0 })}</span><span className="autosave-hint">{t('editor.autosaveHint')}</span><button className="button primary compact" onClick={onSave} disabled={saveState.saving || !saveState.dirty}><Save size={15} /> {t('common.save')}</button></footer>
     </section>
@@ -457,11 +845,17 @@ export default function App() {
   const [saveError, setSaveError] = useState(null)
   const [createBlogOpen, setCreateBlogOpen] = useState(false)
   const [newPostOpen, setNewPostOpen] = useState(false)
-  const [syncOpen, setSyncOpen] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
   const [imagesOpen, setImagesOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [githubOpen, setGitHubOpen] = useState(false)
+  const [healthOpen, setHealthOpen] = useState(false)
+  const [bloggerOpen, setBloggerOpen] = useState(false)
   const [themesOpen, setThemesOpen] = useState(false)
-  const [gitStatus, setGitStatus] = useState(null)
+  const [publishingStatus, setPublishingStatus] = useState(null)
+  const [publishPhase, setPublishPhase] = useState('ready')
+  const [publishError, setPublishError] = useState('')
+  const [publishLog, setPublishLog] = useState([])
   const [toast, setToast] = useState(null)
   const savePromiseRef = useRef(null)
   const tRef = useRef(t)
@@ -490,7 +884,9 @@ export default function App() {
         title: saved.title,
         description: saved.description,
         date: saved.date,
+        publishDate: saved.publishDate,
         draft: saved.draft,
+        tags: saved.tags,
         language: saved.language,
         featuredImage: saved.featuredImage,
       } : item))
@@ -606,23 +1002,63 @@ export default function App() {
     } catch (error) { notify(friendlyError(error, t), 'error') }
   }
 
-  function insertExistingImage(name) {
+  function insertExistingImage(name, options = {}) {
     setPost((current) => {
       const body = current.body || ''
-      const markdown = `![${t('image.alt')}](${name})`
+      const alt = String(options.alt || t('image.alt')).replaceAll('[', '\\[').replaceAll(']', '\\]')
+      const caption = String(options.caption || '').trim().replaceAll('*', '\\*')
+      const markdown = `![${alt}](${name})${caption ? `\n\n*${caption}*` : ''}`
       return { ...current, body: `${body}${body && !body.endsWith('\n') ? '\n\n' : ''}${markdown}` }
     })
     setImagesOpen(false)
     notify(t('notice.imageInserted'))
   }
 
-  async function showSync() {
-    try { setGitStatus(await api.gitStatus()); setSettingsOpen(false); setSyncOpen(true) } catch (error) { notify(friendlyError(error, t), 'error') }
+  const refreshPublishingStatus = useCallback(async () => {
+    try { setPublishingStatus(await api.publishingStatus()) } catch (error) { notify(friendlyError(error, t), 'error') }
+  }, [notify, t])
+
+  async function showPublish() {
+    if (dirty && !(await performSave(post))) return
+    try {
+      setPublishingStatus(await api.publishingStatus())
+      setPublishPhase('ready')
+      setPublishError('')
+      setPublishLog([])
+      setSettingsOpen(false)
+      setPublishOpen(true)
+    } catch (error) { notify(friendlyError(error, t), 'error') }
   }
 
-  async function sync(message) {
+  async function publish(message) {
     setBusy(true)
-    try { const result = await api.syncGit(message); setGitStatus(result.status); setSyncOpen(false); notify(t('notice.synced')) } catch (error) { notify(friendlyError(error, t), 'error') } finally { setBusy(false) }
+    setPublishPhase('publishing')
+    setPublishError('')
+    try {
+      const result = await api.publishBlog(message)
+      setPublishingStatus(result.status)
+      setPublishLog(result.log || [])
+      setPublishPhase('complete')
+      notify(t('notice.published'))
+    } catch (error) {
+      const messageText = friendlyError(error, t)
+      setPublishError(messageText)
+      setPublishPhase('error')
+      notify(messageText, 'error')
+    } finally { setBusy(false) }
+  }
+
+  function handleHealthAction(action) {
+    setHealthOpen(false)
+    if (action === 'github') setGitHubOpen(true)
+    else if (action === 'publish') showPublish()
+    else if (action === 'preview') api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))
+    else setSettingsOpen(true)
+  }
+
+  async function handleBloggerImported(result) {
+    await refreshPosts(result.posts[0]?.id, true)
+    notify(t('notice.bloggerImported', { count: result.posts.length }))
   }
 
   if (!ready) return <div className="app-loading"><div className="welcome-mark"><span>p</span></div><LoaderCircle className="spin" /></div>
@@ -630,22 +1066,25 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} />
       <main className="content-area">
         <header className="topbar">
           <button className="icon-button ghost"><PanelLeftClose size={19} /></button>
           <div className="breadcrumbs"><span>{context.root.split(/[\\/]/).filter(Boolean).at(-1)}</span><b>/</b><strong>{post?.title || t('posts.title')}</strong></div>
-          <div className="topbar-actions"><button className="button quiet" onClick={() => api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))}><Eye size={17} /> {t('top.preview')} <ArrowUpRight size={14} /></button><button className="button primary" onClick={showSync}><UploadCloud size={17} /> {t('top.sync')}</button><button className="icon-button" onClick={() => setSettingsOpen(true)} title={t('top.openSettings')}><Menu size={18} /></button></div>
+          <div className="topbar-actions"><button className="button quiet" onClick={() => api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))}><Eye size={17} /> {t('top.preview')} <ArrowUpRight size={14} /></button><button className="button primary" onClick={showPublish}><UploadCloud size={17} /> {t('top.publish')}</button><button className="icon-button" onClick={() => setSettingsOpen(true)} title={t('top.openSettings')}><Menu size={18} /></button></div>
         </header>
         {post ? <Editor post={post} onChange={(change) => { setSaveError(null); setPost((current) => ({ ...current, ...change })) }} onSave={save} onOpenImages={() => setImagesOpen(true)} onDropImages={addDroppedImages} saveState={{ saving, dirty, error: saveError }} /> : <div className="empty-editor"><FileText size={34} /><h2>{t('empty.title')}</h2><p>{t('empty.copy')}</p><button className="button primary" onClick={() => setNewPostOpen(true)}><Plus size={17} /> {t('posts.new')}</button></div>}
       </main>
       {newPostOpen && <NewPostModal onClose={() => setNewPostOpen(false)} onCreate={create} busy={busy} />}
       {createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}
-      {syncOpen && <SyncModal status={gitStatus} busy={busy} onClose={() => setSyncOpen(false)} onSync={sync} />}
+      {publishOpen && <PublishModal status={publishingStatus} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onRefresh={refreshPublishingStatus} onSettings={() => { setPublishOpen(false); setGitHubOpen(true) }} />}
       {imagesOpen && post && <ImageLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertExistingImage} onFeatured={(name) => setPost((current) => ({ ...current, featuredImage: name }))} />}
-      {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} busy={busy} />}
-      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showSync} notify={notify} />}
+      {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} busy={busy} notify={notify} />}
+      {githubOpen && <GitHubSetupModal context={context} onClose={() => setGitHubOpen(false)} onPublish={showPublish} notify={notify} />}
+      {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
+      {bloggerOpen && <BloggerImportModal onClose={() => setBloggerOpen(false)} onImported={handleBloggerImported} notify={notify} />}
+      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onGitHub={() => { setSettingsOpen(false); setGitHubOpen(true) }} notify={notify} />}
       {toast && <div className={`toast ${toast.kind}`}>{toast.kind === 'success' && <Check size={17} />}{toast.message}</div>}
     </div>
   )
