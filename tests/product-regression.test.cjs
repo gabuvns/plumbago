@@ -38,6 +38,7 @@ test('protege a identidade e os metadados do produto', () => {
   assert.equal(packageJson.name, 'plumbago-hugo-ui')
   assert.equal(packageJson.build.productName, 'Plumbago')
   assert.equal(packageJson.build.appId, 'dev.gabu.plumbago')
+  assert.equal(packageJson.homepage, 'https://gabuvns.github.io/plumbago/')
 
   for (const file of ['README.md', 'index.html', 'src/App.jsx', 'src/i18n.jsx', 'site/index.html', 'site/app.js']) {
     assert.doesNotMatch(read(file), /\bPlum\b/, `marca antiga encontrada em ${file}`)
