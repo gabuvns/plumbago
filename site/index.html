@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Plum is a friendly desktop UI for Hugo, Markdown, images, Git, and WSL." />
+    <meta name="theme-color" content="#2a1722" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'none'" />
+    <meta property="og:title" content="Plum · A Hugo UI manager" />
+    <meta property="og:description" content="Write, organize images, preview, and publish a Hugo blog without living in the command line." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://gabuvns.github.io/plumbago/icon.svg" />
+    <title>Plum · A Hugo UI manager</title>
+    <link rel="icon" href="icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="#top" aria-label="Plum home"><img src="icon.svg" alt="" /><span>Plum</span></a>
+      <nav aria-label="Primary navigation">
+        <a href="#features" data-i18n="nav.features">Features</a>
+        <a href="#downloads" data-i18n="nav.downloads">Downloads</a>
+        <a href="#how" data-i18n="nav.how">How it works</a>
+      </nav>
+      <div class="header-actions">
+        <button class="language-toggle" type="button" data-language-toggle>PT-BR</button>
+        <a class="github-link" href="https://github.com/gabuvns/plumbago" target="_blank" rel="noreferrer">GitHub <span>↗</span></a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span></span><span data-i18n="hero.eyebrow">OPEN SOURCE · HUGO DESKTOP APP</span></div>
+          <h1 data-i18n="hero.title">Your Hugo blog,<br />without the friction.</h1>
+          <p data-i18n="hero.copy">Write in Markdown, drop in images, preview your site, and sync with Git from one calm desktop workspace.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#downloads"><span data-i18n="hero.download">Download Plum</span><span>↓</span></a>
+            <a class="button secondary" href="https://github.com/gabuvns/plumbago" target="_blank" rel="noreferrer"><span data-i18n="hero.source">View source</span><span>↗</span></a>
+          </div>
+          <div class="hero-notes">
+            <span><b>✓</b><span data-i18n="hero.free">Free and open source</span></span>
+            <span><b>✓</b><span data-i18n="hero.files">Your files stay local</span></span>
+          </div>
+        </div>
+        <div class="app-showcase" aria-label="Plum application preview">
+          <div class="showcase-glow"></div>
+          <div class="window">
+            <div class="window-bar"><i></i><i></i><i></i><span>Plum</span></div>
+            <div class="window-body">
+              <aside><div class="mini-logo">p</div><span class="active">▤ &nbsp; Posts</span><span>▧ &nbsp; Images</span><span class="bottom">⚙ &nbsp; Settings</span></aside>
+              <div class="post-column"><small>CONTENT</small><h3>Posts</h3><div class="fake-search"></div><article class="selected"><b>Growing ideas slowly</b><span>Notes on creative process and references.</span></article><article><b>Winter colors</b><span>A small collection of color studies.</span></article><article><b>First sketchbook</b><span>Loose lines and observations.</span></article></div>
+              <div class="editor-column"><div class="editor-top"><span>my-blog / Growing ideas</span><button>Sync</button></div><h2>Growing ideas slowly</h2><p class="muted">Notes on creative process and references.</p><div class="meta"><span>DATE<br /><b>08/08/2026</b></span><span>TAGS<br /><b>Art, Process</b></span></div><div class="editor-grid"><pre>## Space to experiment
+
+Creativity does not always
+arrive making noise.
+
+&gt; Creating is also learning
+to observe.</pre><div><p>Creativity does not always arrive making noise.</p><h3>Space to experiment</h3><blockquote>Creating is also learning to observe.</blockquote></div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section features" id="features">
+        <div class="section-heading"><span data-i18n="features.eyebrow">EVERYTHING IN ONE PLACE</span><h2 data-i18n="features.title">Made for writing, not configuration.</h2><p data-i18n="features.copy">Plum keeps Hugo and Git underneath while giving everyday publishing a visual home.</p></div>
+        <div class="feature-grid">
+          <article><div class="feature-icon">✎</div><h3 data-i18n="features.editor">Markdown editor</h3><p data-i18n="features.editorCopy">Write with a live, sanitized preview and automatic saving.</p></article>
+          <article><div class="feature-icon">▧</div><h3 data-i18n="features.images">Image library</h3><p data-i18n="features.imagesCopy">Drag images into page bundles, reuse them, and choose a featured image.</p></article>
+          <article><div class="feature-icon">⑂</div><h3 data-i18n="features.git">Git sync</h3><p data-i18n="features.gitCopy">Commit, rebase, and push through one clear synchronization flow.</p></article>
+          <article><div class="feature-icon">✦</div><h3 data-i18n="features.themes">Blogs &amp; themes</h3><p data-i18n="features.themesCopy">Create a Hugo site and install themes from the official gallery.</p></article>
+          <article><div class="feature-icon">⌘</div><h3 data-i18n="features.wsl">Windows + WSL</h3><p data-i18n="features.wslCopy">Run Hugo and Git inside the same WSL distribution where your blog lives.</p></article>
+        </div>
+      </section>
+
+      <section class="section downloads" id="downloads">
+        <div class="section-heading light"><span data-i18n="downloads.eyebrow">LATEST RELEASE</span><h2 data-i18n="downloads.title">Choose your platform.</h2><p><span data-i18n="downloads.copy">Downloads come directly from GitHub Releases.</span> <strong data-release-version></strong></p></div>
+        <div class="download-grid">
+          <article><div class="platform-icon windows">⊞</div><div><h3>Windows</h3><p data-i18n="downloads.windows">Windows 10/11 · x64 installer</p></div><a data-download="windows" href="https://github.com/gabuvns/plumbago/releases/latest" data-i18n="downloads.button">Download</a></article>
+          <article><div class="platform-icon linux">◆</div><div><h3>Linux</h3><p data-i18n="downloads.linux">x64 · AppImage</p></div><a data-download="linux" href="https://github.com/gabuvns/plumbago/releases/latest" data-i18n="downloads.button">Download</a></article>
+          <article><div class="platform-icon apple">●</div><div><h3>macOS</h3><p data-i18n="downloads.macArm">Apple Silicon · DMG</p></div><a data-download="mac-arm64" href="https://github.com/gabuvns/plumbago/releases/latest" data-i18n="downloads.button">Download</a></article>
+          <article><div class="platform-icon apple">●</div><div><h3>macOS</h3><p data-i18n="downloads.macIntel">Intel · DMG</p></div><a data-download="mac-x64" href="https://github.com/gabuvns/plumbago/releases/latest" data-i18n="downloads.button">Download</a></article>
+        </div>
+        <p class="release-fallback" data-release-status data-i18n="downloads.loading">Looking for the latest release…</p>
+      </section>
+
+      <section class="section workflow" id="how">
+        <div class="section-heading"><span data-i18n="how.eyebrow">A QUIET WORKFLOW</span><h2 data-i18n="how.title">From idea to published post.</h2></div>
+        <ol>
+          <li><span>01</span><div><h3 data-i18n="how.connect">Connect your blog</h3><p data-i18n="how.connectCopy">Choose any existing Hugo project, including one stored inside WSL.</p></div></li>
+          <li><span>02</span><div><h3 data-i18n="how.write">Write and add images</h3><p data-i18n="how.writeCopy">Plum works with your existing Markdown, front matter, and page bundles.</p></div></li>
+          <li><span>03</span><div><h3 data-i18n="how.publish">Preview and sync</h3><p data-i18n="how.publishCopy">Open Hugo’s real preview, then commit and push when you are ready.</p></div></li>
+        </ol>
+      </section>
+    </main>
+
+    <footer><div class="logo"><img src="icon.svg" alt="" /><span>Plum</span></div><p data-i18n="footer.copy">A friendly Hugo UI manager. Licensed under GPL-3.0.</p><a href="https://github.com/gabuvns/plumbago/releases" data-i18n="footer.releases">All releases</a></footer>
+  </body>
+</html>

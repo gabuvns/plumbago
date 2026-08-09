@@ -1,0 +1,83 @@
+name: Build release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-latest
+            command: npx electron-builder --linux AppImage --x64 --publish never
+            artifact: linux-x64
+            files: release/*.AppImage
+          - name: Windows x64
+            os: windows-latest
+            command: npx electron-builder --win nsis --x64 --publish never
+            artifact: windows-x64
+            files: release/*.exe
+          - name: macOS Apple Silicon
+            os: macos-latest
+            command: npx electron-builder --mac dmg --arm64 --publish never
+            artifact: macos-arm64
+            files: release/*.dmg
+          - name: macOS Intel
+            os: macos-15-intel
+            command: npx electron-builder --mac dmg --x64 --publish never
+            artifact: macos-x64
+            files: release/*.dmg
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify version matches release tag
+        if: github.event_name == 'release'
+        shell: bash
+        run: node -e "const v=require('./package.json').version; if ('v'+v !== process.env.RELEASE_TAG) { console.error('Release tag must be v'+v); process.exit(1) }"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build renderer
+        run: npm run build
+      - name: Package application
+        run: ${{ matrix.command }}
+      - name: Upload packaged application
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  publish:
+    name: Attach downloads to release
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Download packaged applications
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-*"
+          path: artifacts
+          merge-multiple: true
+      - name: Attach applications to GitHub Release
+        run: gh release upload "$RELEASE_TAG" artifacts/* --repo "${{ github.repository }}" --clobber
