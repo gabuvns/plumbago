@@ -30,6 +30,15 @@ test('cria, edita, lista e adiciona imagens a um page bundle Hugo', async (t) =>
   const context = await service.validateBlog(temporaryRoot)
   assert.match(context.hugo, /^hugo v/)
 
+  const gitConfig = await service.saveGitConfig(temporaryRoot, {
+    name: 'Autora Plum',
+    email: 'autora@example.com',
+    remote: 'https://github.com/example/plum-blog.git',
+  })
+  assert.equal(gitConfig.name, 'Autora Plum')
+  assert.equal(gitConfig.email, 'autora@example.com')
+  assert.equal(gitConfig.remote, 'https://github.com/example/plum-blog.git')
+
   const created = await service.createPost(temporaryRoot, { title: 'Meu Primeiro Post', language: 'pt-br' })
   assert.equal(created.id, 'content/posts/meu-primeiro-post/index.pt-br.md')
   assert.equal(created.title, 'Meu Primeiro Post')

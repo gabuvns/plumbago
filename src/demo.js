@@ -11,7 +11,8 @@ const bodies = {
 }
 
 function fullPost(summary) {
-  return { ...summary, tags: ['Processo', 'Arte'], translationKey: summary.id.split('/')[2], body: bodies[summary.id] || '', assets: [] }
+  const assets = summary.id === samplePosts[0].id ? ['estudo-plum.svg'] : []
+  return { ...summary, tags: ['Processo', 'Arte'], translationKey: summary.id.split('/')[2], body: bodies[summary.id] || '', assets }
 }
 
 export function createDemoBridge() {
@@ -23,9 +24,12 @@ export function createDemoBridge() {
     readPost: async (id) => fullPost(posts.find((post) => post.id === id)),
     savePost: async (post) => { posts = posts.map((item) => item.id === post.id ? { ...item, ...post } : item); return post },
     createPost: async (input) => { const summary = { id: `content/posts/novo-post/index.${input.language}.md`, title: input.title, description: '', date: '2026-08-08', draft: true, language: input.language, featuredImage: '' }; posts.unshift(summary); return fullPost(summary) },
-    importImages: async () => [],
-    readAsset: async () => '',
+    importImages: async () => [{ name: 'nova-imagem.svg', markdown: '![Descrição da imagem](nova-imagem.svg)' }],
+    importDroppedImages: async () => [{ name: 'imagem-arrastada.svg', markdown: '![Descrição da imagem](imagem-arrastada.svg)' }],
+    readAsset: async (_postId, name) => `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#6d3157"/><stop offset="1" stop-color="#d8b7c9"/></linearGradient></defs><rect width="800" height="500" fill="url(#g)"/><text x="400" y="270" text-anchor="middle" fill="white" font-size="42" font-family="sans-serif">${name}</text></svg>`)}`,
     gitStatus: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [' M content/posts/cores-do-inverno/index.pt-br.md'] }),
+    gitConfig: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', name: 'Artista Plum', email: 'artista@example.com', changes: [] }),
+    saveGitConfig: async (config) => ({ branch: 'main', ...config, changes: [] }),
     syncGit: async () => ({ log: ['Alterações salvas em um commit.', 'Conteúdo enviado ao repositório remoto.'], status: { branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [] } }),
     openPreview: async () => true,
   }

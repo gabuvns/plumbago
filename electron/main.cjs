@@ -46,6 +46,8 @@ function registerIpc() {
   ipcMain.handle('plum:save-post', (_event, post) => service.savePost(requireBlog(), post))
   ipcMain.handle('plum:create-post', (_event, input) => service.createPost(requireBlog(), input))
   ipcMain.handle('plum:git-status', () => service.gitStatus(requireBlog()))
+  ipcMain.handle('plum:git-config', () => service.gitConfig(requireBlog()))
+  ipcMain.handle('plum:save-git-config', (_event, config) => service.saveGitConfig(requireBlog(), config))
   ipcMain.handle('plum:sync-git', (_event, message) => service.syncGit(requireBlog(), message))
   ipcMain.handle('plum:read-asset', (_event, postId, name) => service.readAsset(requireBlog(), postId, name))
   ipcMain.handle('plum:import-images', async (_event, postId) => {
@@ -56,6 +58,7 @@ function registerIpc() {
     })
     return result.canceled ? [] : service.importImages(requireBlog(), postId, result.filePaths)
   })
+  ipcMain.handle('plum:import-image-paths', (_event, postId, sourcePaths) => service.importImages(requireBlog(), postId, sourcePaths))
   ipcMain.handle('plum:open-preview', async () => {
     const root = requireBlog()
     if (!previewProcess || previewProcess.exitCode !== null) {

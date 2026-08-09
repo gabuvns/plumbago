@@ -206,6 +206,7 @@ function uniqueAssetName(name, usedNames) {
 }
 
 async function importImages(root, postId, sourcePaths) {
+  if (!Array.isArray(sourcePaths)) throw new Error('Lista de imagens inválida.')
   const postAbsolute = contentPath(root, postId)
   const directory = path.dirname(postAbsolute)
   const existing = new Set((await fs.readdir(directory)).map((name) => name.toLowerCase()))
@@ -234,6 +235,31 @@ async function gitStatus(root) {
   const remote = await run(root, 'git', ['remote', 'get-url', 'origin']).then((result) => result.stdout).catch(() => '')
   const changes = await run(root, 'git', ['status', '--porcelain=v1']).then((result) => result.stdout.split('\n').filter(Boolean)).catch(() => [])
   return { branch, remote, changes }
+}
+
+async function gitConfig(root) {
+  const status = await gitStatus(root)
+  const [name, email] = await Promise.all([
+    run(root, 'git', ['config', '--local', '--get', 'user.name']).then((result) => result.stdout).catch(() => ''),
+    run(root, 'git', ['config', '--local', '--get', 'user.email']).then((result) => result.stdout).catch(() => ''),
+  ])
+  return { ...status, name, email }
+}
+
+async function saveGitConfig(root, config) {
+  const name = String(config.name || '').trim()
+  const email = String(config.email || '').trim()
+  const remote = String(config.remote || '').trim()
+
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Informe um e-mail Git válido.')
+  if (name) await run(root, 'git', ['config', '--local', 'user.name', name])
+  if (email) await run(root, 'git', ['config', '--local', 'user.email', email])
+
+  if (remote) {
+    const hasOrigin = await run(root, 'git', ['remote']).then((result) => result.stdout.split('\n').includes('origin'))
+    await run(root, 'git', hasOrigin ? ['remote', 'set-url', 'origin', remote] : ['remote', 'add', 'origin', remote])
+  }
+  return gitConfig(root)
 }
 
 async function syncGit(root, message) {
@@ -271,6 +297,7 @@ async function syncGit(root, message) {
 
 module.exports = {
   createPost,
+  gitConfig,
   gitStatus,
   importImages,
   listPosts,
@@ -278,6 +305,7 @@ module.exports = {
   readPost,
   runtimeFor,
   savePost,
+  saveGitConfig,
   slugify,
   spawnLongRunning,
   syncGit,
