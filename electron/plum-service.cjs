@@ -18,7 +18,7 @@ async function fetchText(url) {
   const timeout = setTimeout(() => controller.abort(), 12_000)
   try {
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Plum-Hugo-UI/0.3' },
+      headers: { 'User-Agent': 'Plum-Hugo-UI/0.4.0' },
       signal: controller.signal,
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)

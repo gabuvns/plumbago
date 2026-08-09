@@ -3,6 +3,7 @@ name: Build release
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -47,6 +48,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Verify version matches release tag
+        if: github.event_name == 'release'
         shell: bash
         run: node -e "const v=require('./package.json').version; if ('v'+v !== process.env.RELEASE_TAG) { console.error('Release tag must be v'+v); process.exit(1) }"
       - name: Install dependencies
@@ -64,6 +66,7 @@ jobs:
 
   publish:
     name: Attach downloads to release
+    if: github.event_name == 'release'
     needs: build
     runs-on: ubuntu-latest
     env:
