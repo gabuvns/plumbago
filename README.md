@@ -2,7 +2,7 @@
 
 **A Hugo UI manager.** Um aplicativo desktop para escrever, organizar e publicar blogs Hugo sem depender da linha de comando no dia a dia.
 
-Site e downloads: [gabu.dev.br/plumbago](https://gabu.dev.br/plumbago/)
+Site e downloads: [gabuvns.github.io/plumbago](https://gabuvns.github.io/plumbago/)
 
 Código e releases: [github.com/gabuvns/plumbago](https://github.com/gabuvns/plumbago)
 
