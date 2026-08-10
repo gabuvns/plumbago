@@ -1,93 +1,121 @@
 # Plumbago
 
-**A Hugo UI manager.** A desktop application for writing, organizing, and publishing Hugo blogs without relying on the command line for everyday work.
+**Write your Hugo blog without living in the terminal.**
 
-Website and downloads: [gabuvns.github.io/plumbago](https://gabuvns.github.io/plumbago/)
+Plumbago is a desktop app for creating, editing, and publishing Hugo sites. You keep the speed and portability of plain Markdown, Hugo, and Git, but everyday work happens through a friendly interface.
 
-Source code and releases: [github.com/gabuvns/plumbago](https://github.com/gabuvns/plumbago)
+[Visit the website](https://gabuvns.github.io/plumbago/) · [Download the latest release](https://github.com/gabuvns/plumbago/releases/latest)
 
-Plumbago was designed first for Windows + WSL. It opens the blog folder through Windows file integration and runs Hugo and Git inside the corresponding WSL distribution. On Linux and macOS, it runs those tools natively.
+## Why Plumbago exists
 
-## What Plumbago can do
+Hugo is wonderfully fast, but publishing a simple post can ask a writer to remember folders, front matter, terminal commands, image paths, Git commits, and deployment details. Plumbago handles that routine while leaving the site itself completely standard.
 
-- open an existing Hugo site without changing its structure;
-- create a new Hugo site, initialize its Git repository, and configure its title and language;
-- search the official Hugo theme gallery, verify each theme’s Hugo version requirements, test a real build, and roll back failed installations automatically;
-- detect the Hugo runtime, open the correct official installation guide, and copy a safe diagnostic summary for support;
-- check GitHub Releases for new Plumbago versions, verify their update metadata, and install updates from the settings screen;
-- find Markdown posts inside `content/posts`;
-- create page bundles with the `hugo new content` command;
-- edit the title, description, date, tags, draft state, and Markdown content;
-- save automatically after typing while retaining a manual save button;
-- switch between Markdown, visual editing, side-by-side writing, and a sanitized preview;
-- schedule posts and filter the post list by published, scheduled, or draft status;
-- open a library containing the images attached to a post;
-- import images through the file picker or drag and drop, prevent filename collisions, and insert the corresponding Markdown with alternative text and captions;
-- inspect image dimensions and size, reuse an existing image, or set it as the featured image;
-- import posts, drafts, labels, dates, redirects, and remote images from a Blogger XML backup;
-- start `hugo server` and open the real site preview;
-- show the current branch, remote, and changed files;
-- validate the Hugo build before publishing and show the live GitHub Actions deployment status;
-- synchronize with any Git remote through commit, pull with rebase, and push;
-- connect a GitHub account, create or select a repository, and configure GitHub Pages from a guided screen;
-- reuse an authenticated GitHub CLI session when it is available in the blog environment;
-- run a publishing health check for Hugo, Git, author identity, remote, GitHub, deployment workflow, and website build;
-- configure the author, email address, and `origin` remote from the application menu;
-- edit the public site title, URL, language, and copyright;
-- provide an English interface by default, with Brazilian Portuguese also available;
-- preserve front matter fields that Plumbago does not know yet.
+Your posts are still Markdown. Your images still live beside them. Your repository still works with Hugo and Git when Plumbago is closed.
 
-## Development
+## What a normal day looks like
 
-Prerequisites:
+Open your blog, choose a post, and start writing. Plumbago saves as you type, while a visible **Save now** button is always available. You can write in Markdown, use the visual editor, work side by side with a preview, or inspect the final rendered article.
 
-- Node.js 20 or newer;
-- Hugo Extended available in the same environment as the blog;
-- Git configured, including remote authentication for synchronization.
+When the post needs an image, drag it into the app. Plumbago copies it into the page bundle, avoids filename collisions, and helps add alternative text or a caption. When the article is ready, preview the real Hugo site and publish. Plumbago checks that Hugo can build the website before it creates a Git version and uploads anything.
+
+Behind the scenes, a post remains pleasantly ordinary:
+
+```text
+content/posts/my-post/
+├── index.en-us.md
+├── index.pt-br.md
+└── cover.jpg
+```
+
+## Start in a few minutes
+
+1. [Download Plumbago](https://github.com/gabuvns/plumbago/releases/latest) for Windows, Linux, or macOS.
+2. Open an existing Hugo site or let Plumbago create a new one.
+3. If Hugo is missing or outdated, use the installation and diagnostics screen for the correct official instructions.
+4. Create a draft and write your first post.
+5. Connect a Git repository when you are ready to publish.
+
+Plumbago can connect an existing GitHub repository or create one for you. The guided publishing setup can also add the Hugo deployment workflow and configure GitHub Pages, so a first-time blogger does not need to assemble the hosting pieces by hand.
+
+## Made for Windows + WSL
+
+Windows users can keep their Hugo project inside WSL and select it through `\\wsl.localhost`. Plumbago detects the distribution and runs Hugo and Git inside that Linux environment, where the project's tools and credentials already live.
+
+On Linux and macOS, those tools run natively. The same blog stays portable across all three platforms.
+
+## More than an editor
+
+Plumbago can also help you:
+
+- create a Hugo site and initialize Git;
+- browse the official Hugo theme gallery;
+- check a theme's Hugo requirements and roll back a failed installation;
+- organize drafts, scheduled posts, published posts, tags, and featured images;
+- import posts and images from a Blogger XML backup;
+- configure site title, language, URL, and copyright;
+- inspect Git, GitHub Pages, deployment, and Hugo health in one place;
+- synchronize with any Git remote;
+- check for and install new Plumbago releases.
+
+The interface is available in English by default and Brazilian Portuguese.
+
+## Your files stay yours
+
+Plumbago does not replace Hugo or hide your blog in a proprietary format. It preserves front matter fields it does not understand, does not upload content merely because you saved it, and validates a build before publishing.
+
+Git authentication stays with the operating system, WSL, SSH, or the GitHub CLI whenever possible. If you connect GitHub with a token, Plumbago stores it with Electron's encrypted `safeStorage`; it is never written into the blog.
+
+Theme changes are tested before activation. Failed theme installations restore the previous configuration. Blogger imports preserve the original export and do not silently overwrite existing posts.
+
+## Prefer writing in Obsidian?
+
+[Publish to Plumbago](https://github.com/gabuvns/plumbago-obsidian-plugin) is the companion Obsidian plugin. It lets Obsidian remain your writing home while it validates and copies posts and images into Plumbago's Hugo structure.
+
+## Contributing
+
+Plumbago uses React and Vite for the renderer and Electron for desktop integration. You will need Node.js 20 or newer, plus Hugo Extended and Git in the environment where the test blog runs.
 
 ```bash
 npm install
 npm run dev
 ```
 
-To open only the demonstration interface in a browser:
+To work on the renderer without starting Electron:
 
 ```bash
 npm run dev:web
 ```
 
-## Checks
+Before opening a pull request, run both gates:
 
 ```bash
 npm test
 npm run check
 ```
 
-The tests create temporary Hugo sites and Git repositories to exercise site creation, editing, images, themes, and synchronization. They also protect translation parity, Electron bridge channels, the Plumbago identity, the official color palette, and the CI configuration. No user blog is modified.
+The test suite creates disposable Hugo sites and Git repositories. It covers content, images, themes, WSL command handling, synchronization, localization, Electron bridge contracts, product identity, and release workflows without changing a real blog.
 
-The CI workflow runs these tests and the production build on every push and every pull request.
+For detailed architecture, safety, testing, and contribution rules, read [AGENTS.md](AGENTS.md).
 
-## Architecture
-
-The renderer is organized by product feature. `src/app/` owns application state and orchestration, `src/features/` contains the editor and user workflows, `src/components/` contains reusable UI, and `src/lib/` contains framework-independent helpers. `src/App.jsx` remains a small compatibility entry point.
-
-The Electron side follows the same boundary. `electron/core/` contains low-level HTTP and native/WSL process execution. `electron/services/` contains the content, GitHub, publishing, site, and theme domains. `electron/plumbago-service.cjs` is a stable public facade used by the main process and tests.
+## Architecture at a glance
 
 ```text
 src/
-├── app/                 application orchestration and bridge selection
-├── components/          shared layout and UI primitives
-├── features/            blog, editor, media, posts, publishing, and settings
-└── lib/                 date and error helpers
+├── app/          application orchestration
+├── components/   shared UI
+├── features/     editor and product workflows
+└── lib/          framework-independent helpers
 electron/
-├── core/                HTTP and native/WSL command execution
-├── services/            content, GitHub, publishing, site, and themes
-└── plumbago-service.cjs stable service facade
+├── core/         HTTP, updates, and native/WSL execution
+├── services/     content, GitHub, publishing, site, and themes
+└── plumbago-service.cjs  stable service facade
 ```
 
-## Local packages
+The renderer has no direct filesystem or process access. A narrow preload bridge sends validated work to the Electron service layer. This keeps platform details out of the UI and makes browser-only development possible through the demo bridge.
 
-Use the command for the platform where the package is being built:
+## Building an installer
+
+Use the command for the target platform:
 
 ```bash
 npm run package:win
@@ -95,40 +123,16 @@ npm run package:linux
 npm run package:mac
 ```
 
-Generated files are placed in `release/`. Git operations reuse the authentication configured on the system or in WSL. For GitHub API features, Plumbago can reuse an authenticated GitHub CLI session, complete the browser device flow when a client ID is configured, or store a personal access token encrypted through Electron `safeStorage`. Tokens are never written to blog files.
+Packages are written to `release/`. Building Windows packages from Linux may require Wine; building on the target operating system is usually the least surprising route.
 
-## Automated releases
+## Releases and website
 
-When a GitHub Release is published with a tag matching the `package.json` version prefixed with `v`—for example, `v0.5.0`—the workflow automatically creates:
+A published GitHub release tagged `v<package-version>` starts the cross-platform workflow. It builds a Windows x64 installer, a Linux x64 AppImage, and DMGs for Intel and Apple Silicon Macs, then attaches them to the same release.
 
-- an NSIS installer for Windows x64;
-- an AppImage for Linux x64;
-- DMGs for Intel and Apple Silicon Macs.
+The macOS packages are currently unsigned, so macOS updates remain a manual download. Windows and Linux releases include the metadata used by the in-app updater.
 
-All four packages are attached to the same release. Windows and Linux builds also publish the checksummed metadata used by the in-app updater. The macOS application links to the release page until signed builds are available. To publish from the command line:
-
-```bash
-gh release create v0.5.0 --generate-notes
-```
-
-Before creating another release, update the version in `package.json` and `package-lock.json`.
-
-## GitHub Pages
-
-The contents of `site/` are automatically published by the GitHub Pages workflow after changes reach the `main` branch. The page fetches the latest release and directs each download button to the corresponding package.
-
-## How WSL integration works
-
-When the selected folder starts with `\\wsl.localhost\<distro>\...`, Plumbago extracts the distribution name and Linux path. Hugo and Git run through a login shell in that distribution so tools installed through APT, Snap, or the user's own environment can be found. Every command and argument is quoted individually before execution.
-
-## Roadmap
-
-1. Custom domains and guided DNS checks.
-2. Configurable content sections and front matter formats.
-3. Version history and guided conflict resolution.
-4. Signed macOS installers, automatic macOS updates, and Hugo/Git onboarding.
-5. Optional analytics and newsletter integrations.
+The project website lives in `site/` and deploys to the standard GitHub Pages address after changes reach `main`.
 
 ## License
 
-GNU General Public License v3.0 (`GPL-3.0-only`).
+Plumbago is licensed under the GNU General Public License v3.0 (`GPL-3.0-only`).
