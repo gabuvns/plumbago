@@ -287,6 +287,34 @@ button { color: inherit; }
 .github-settings-card { display: flex; align-items: center; gap: 14px; }
 .github-settings-card .settings-heading { min-width: 0; flex: 1; }
 .github-settings-card .button { flex: none; }
+.git-settings-readiness { display: flex; align-items: center; gap: 10px; margin-top: 13px; padding: 11px 12px; color: #94434b; border: 1px solid #e5c4c7; border-radius: 8px; background: #fff4f5; }
+.git-settings-readiness.warning { color: #80611f; border-color: #ead69f; background: #fff9e8; }
+.git-settings-readiness > div { min-width: 0; flex: 1; }
+.git-settings-readiness strong, .git-settings-readiness span { display: block; }
+.git-settings-readiness strong { color: #4f4842; font-size: 9px; }
+.git-settings-readiness span { margin-top: 3px; color: #857c75; font-size: 8px; line-height: 1.4; }
+.git-settings-readiness .button { flex: none; }
+
+.git-setup { min-height: 340px; padding: 20px 24px; background: var(--cream); }
+.git-setup-loading { min-height: 300px; display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--muted); font-size: 11px; }
+.git-environment { display: flex; align-items: center; gap: 9px; padding: 10px 12px; color: var(--brand); border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.git-environment span { min-width: 0; }
+.git-environment small, .git-environment strong { display: block; }
+.git-environment small { color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; }
+.git-environment strong { margin-top: 2px; color: var(--ink); font-size: 10px; }
+.git-setup-state { min-height: 245px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 24px 28px 12px; text-align: center; }
+.git-setup-icon { width: 52px; height: 52px; display: grid; place-items: center; color: white; border-radius: 50%; background: var(--brand); }
+.git-setup-state.error .git-setup-icon { background: #a64750; }
+.git-setup-state.warning .git-setup-icon { color: #292644; background: var(--gold); }
+.git-setup-state.ready .git-setup-icon { background: var(--green); }
+.git-setup-state h3 { margin: 12px 0 5px; color: var(--ink); font: 600 20px Georgia, serif; }
+.git-setup-state p { max-width: 480px; margin: 0 0 13px; color: var(--muted); font-size: 10px; line-height: 1.55; white-space: pre-line; }
+.git-setup-state code { max-width: 100%; display: block; overflow: auto; margin-bottom: 13px; padding: 9px 11px; color: #4f495c; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font: 9px Consolas, monospace; white-space: nowrap; }
+.git-setup-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; }
+.git-setup-state details { width: min(100%, 490px); margin-top: 13px; color: var(--muted); font-size: 8px; text-align: left; }
+.git-setup-state summary { cursor: pointer; }
+.git-setup-state pre { max-height: 90px; overflow: auto; padding: 8px; border-radius: 6px; background: var(--paper); white-space: pre-wrap; }
+.git-setup-footer { display: flex; justify-content: flex-end; gap: 7px; padding: 12px 21px; border-top: 1px solid var(--line); background: var(--paper); }
 
 .github-setup { max-height: calc(100vh - 125px); overflow: auto; }
 .github-loading, .github-empty { min-height: 300px; display: grid; place-content: center; justify-items: center; gap: 9px; padding: 30px; color: #918880; text-align: center; }

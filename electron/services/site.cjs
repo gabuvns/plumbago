@@ -3,6 +3,7 @@ const path = require('node:path')
 const YAML = require('yaml')
 const { run, runtimeFor } = require('../core/runtime.cjs')
 const { slugify } = require('./content.cjs')
+const { ensureGitRepository, gitVersion } = require('./git.cjs')
 const { compatibilityMessage, inspectThemeCompatibility } = require('./theme-compatibility.cjs')
 const { resolveTheme } = require('./themes.cjs')
 
@@ -89,17 +90,6 @@ async function updateSiteConfig(root, updates) {
   return config
 }
 
-async function ensureGitRepository(root) {
-  const gitEntry = await fs.stat(path.join(root, '.git')).catch(() => null)
-  if (gitEntry) return
-  try {
-    await run(root, 'git', ['init', '-b', 'main'])
-  } catch {
-    await run(root, 'git', ['init'])
-    await run(root, 'git', ['branch', '-M', 'main'])
-  }
-}
-
 async function validateBlog(root) {
   const entries = await fs.readdir(root)
   const config = CONFIG_FILES.find((candidate) => entries.includes(candidate))
@@ -110,7 +100,7 @@ async function validateBlog(root) {
   const runtime = runtimeFor(root)
   const [hugo, git] = await Promise.all([
     run(root, 'hugo', ['version']).then((value) => value.stdout).catch(() => null),
-    run(root, 'git', ['--version']).then((value) => value.stdout).catch(() => null),
+    gitVersion(root).then((value) => value.status === 'ready' ? value.version : null),
   ])
   const rawConfig = await fs.readFile(path.join(root, config), 'utf8').catch(() => '')
   const configuredTheme = readThemeValue(rawConfig, config)

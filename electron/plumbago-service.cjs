@@ -1,6 +1,7 @@
 // Stable public facade for Electron. Implementation lives in focused core and service modules.
 const runtime = require('./core/runtime.cjs')
 const content = require('./services/content.cjs')
+const git = require('./services/git.cjs')
 const github = require('./services/github.cjs')
 const publishing = require('./services/publishing.cjs')
 const site = require('./services/site.cjs')
@@ -13,6 +14,7 @@ async function importBloggerExport(root, filePath, options = {}) {
 
 module.exports = {
   ...content,
+  ...git,
   ...github,
   ...publishing,
   ...site,

@@ -37,7 +37,11 @@ async function run(root, command, args = [], options = {}) {
     return { stdout: result.stdout.trim(), stderr: result.stderr.trim() }
   } catch (error) {
     const detail = [error.stderr, error.stdout, error.message].filter(Boolean).join('\n').trim()
-    throw new Error(detail || `Não foi possível executar ${command}.`)
+    const wrapped = new Error(detail || `Não foi possível executar ${command}.`)
+    wrapped.code = error.code === 'ENOENT' || error.code === 127 ? 'COMMAND_NOT_FOUND' : 'COMMAND_FAILED'
+    wrapped.command = command
+    wrapped.exitCode = typeof error.code === 'number' ? error.code : null
+    throw wrapped
   }
 }
 

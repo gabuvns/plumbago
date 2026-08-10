@@ -8,9 +8,11 @@ const {
   githubWorkflowStatus,
   parseGitHubRemote,
 } = require('./github.cjs')
+const { gitReadiness, requireGitRepository } = require('./git.cjs')
 const { siteMetadata, updateSiteConfig, validateBlog } = require('./site.cjs')
 
 async function createGitHubRepository(root, token, input) {
+  await requireGitRepository(root)
   const name = String(input?.name || '').trim()
   if (!/^[A-Za-z0-9_.-]{1,100}$/.test(name)) throw new Error('Choose a valid repository name.')
   const repository = await githubRequest(token, '/user/repos', {
@@ -41,6 +43,7 @@ async function createGitHubRepository(root, token, input) {
 }
 
 async function connectGitHubRepository(root, token, fullName, protocol = 'ssh') {
+  await requireGitRepository(root)
   if (!/^[\w.-]+\/[\w.-]+$/.test(String(fullName || ''))) throw new Error('Choose a valid GitHub repository.')
   const repository = await githubRequest(token, `/repos/${fullName}`)
   if (!repository.permissions?.push) throw new Error('Your GitHub account does not have permission to publish to this repository.')
@@ -89,6 +92,7 @@ async function configureGitHubPages(root, token) {
 }
 
 async function gitStatus(root) {
+  await requireGitRepository(root)
   const branch = await run(root, 'git', ['branch', '--show-current']).then((result) => result.stdout).catch(() => '')
   const remote = await run(root, 'git', ['remote', 'get-url', 'origin']).then((result) => result.stdout).catch(() => '')
   const changes = await run(root, 'git', ['status', '--porcelain=v1']).then((result) => result.stdout.split('\n').filter(Boolean)).catch(() => [])
@@ -96,6 +100,7 @@ async function gitStatus(root) {
 }
 
 async function gitConfig(root) {
+  await requireGitRepository(root)
   const status = await gitStatus(root)
   const [name, email] = await Promise.all([
     run(root, 'git', ['config', '--local', '--get', 'user.name']).then((result) => result.stdout).catch(() => ''),
@@ -105,6 +110,7 @@ async function gitConfig(root) {
 }
 
 async function saveGitConfig(root, config) {
+  await requireGitRepository(root)
   const name = String(config.name || '').trim()
   const email = String(config.email || '').trim()
   const remote = String(config.remote || '').trim()
@@ -121,6 +127,7 @@ async function saveGitConfig(root, config) {
 }
 
 async function syncGit(root, message) {
+  await requireGitRepository(root)
   const log = []
   await run(root, 'git', ['add', '--all'])
   const staged = await run(root, 'git', ['diff', '--cached', '--name-only'])
@@ -180,14 +187,41 @@ async function publishBlog(root, message) {
 
 async function publishingHealth(root) {
   const checks = []
+  const result = (publishing = null) => ({
+    checks,
+    ready: checks.every((check) => check.state !== 'error'),
+    score: checks.filter((check) => check.state === 'ok').length,
+    total: checks.length,
+    publishing,
+  })
   let context
   try {
     context = await validateBlog(root)
     checks.push({ id: 'hugo', state: context.hugo ? 'ok' : 'error', detail: context.hugo || 'Hugo was not found.', action: 'hugo' })
-    checks.push({ id: 'git', state: context.git ? 'ok' : 'error', detail: context.git || 'Git was not found.', action: 'settings' })
   } catch (error) {
     return { checks: [{ id: 'blog', state: 'error', detail: error.message, action: 'settings' }], ready: false }
   }
+
+  const readiness = await gitReadiness(root)
+  checks.push({
+    id: 'git',
+    state: readiness.git.status === 'ready' ? 'ok' : 'error',
+    detail: readiness.git.version || readiness.git.details || `Git was not found in ${readiness.environment.label}.`,
+    action: 'git',
+  })
+  if (readiness.git.status !== 'ready') return result()
+
+  checks.push({
+    id: 'repository',
+    state: readiness.repository.status === 'ready' ? 'ok' : readiness.repository.ready ? 'warning' : 'error',
+    detail: readiness.repository.status === 'ready'
+      ? 'This blog has its own Git repository.'
+      : readiness.repository.status === 'parent-repository'
+        ? `This blog is part of the repository at ${readiness.repository.topLevel}.`
+        : readiness.repository.details || 'Initialize version history before publishing.',
+    action: readiness.repository.ready ? 'settings' : 'git',
+  })
+  if (!readiness.repository.ready) return result()
 
   const config = await gitConfig(root)
   checks.push({
@@ -236,13 +270,7 @@ async function publishingHealth(root) {
           : 'Publish once to verify the live website.',
     action: 'publish',
   })
-  return {
-    checks,
-    ready: checks.every((check) => check.state !== 'error'),
-    score: checks.filter((check) => check.state === 'ok').length,
-    total: checks.length,
-    publishing,
-  }
+  return result(publishing)
 }
 
 module.exports = {

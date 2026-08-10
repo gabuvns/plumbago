@@ -36,6 +36,20 @@ test('identifica blogs em pastas do WSL abertas pelo Windows', () => {
   ])
 })
 
+test('oferece instalação do Git específica para Windows, WSL e macOS', () => {
+  assert.deepEqual(service.gitInstallAssistance({ kind: 'wsl', distro: 'Ubuntu-24.04' }), {
+    mode: 'command',
+    command: 'sudo apt update && sudo apt install -y git',
+    url: 'https://git-scm.com/install/linux',
+  })
+  assert.deepEqual(service.gitInstallAssistance({ kind: 'native', platform: 'win32' }), {
+    mode: 'automatic',
+    command: 'winget install --id Git.Git -e --source winget',
+    url: 'https://git-scm.com/install/windows',
+  })
+  assert.equal(service.gitInstallAssistance({ kind: 'native', platform: 'darwin' }).command, 'xcode-select --install')
+})
+
 test('direciona a ajuda do Hugo para o ambiente correto', async () => {
   const { hugoDiagnostics, hugoInstallUrl } = await import('../src/lib/hugo.js')
   assert.equal(hugoInstallUrl({ kind: 'wsl', distro: 'Ubuntu-24.04' }), 'https://gohugo.io/installation/linux/')
@@ -220,6 +234,41 @@ test('cria um novo site Hugo com configuração e repositório Git', async (t) =
   assert.equal(settings.title, 'Caderno publicado')
   assert.equal(settings.baseURL, 'https://ana.github.io/caderno/')
   assert.equal(settings.copyright, '© Ana')
+})
+
+test('detecta e inicializa com segurança um blog Hugo sem repositório Git', async (t) => {
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-git-readiness')
+  t.after(() => fs.rm(temporaryRoot, { recursive: true, force: true }))
+  await execFileAsync('hugo', ['new', 'site', temporaryRoot, '--force'])
+
+  const before = await service.gitReadiness(temporaryRoot)
+  assert.equal(before.git.status, 'ready')
+  assert.equal(before.repository.status, 'uninitialized')
+  assert.equal(before.ready, false)
+  await assert.rejects(
+    service.saveGitConfig(temporaryRoot, { name: 'Plumbago Tests' }),
+    /has not been initialized as a Git repository/,
+  )
+
+  const initialized = await service.ensureGitRepository(temporaryRoot)
+  assert.equal(initialized.ready, true)
+  assert.equal(initialized.repository.status, 'ready')
+  assert.ok(await fs.stat(path.join(temporaryRoot, '.git')))
+  assert.equal((await service.ensureGitRepository(temporaryRoot)).ready, true)
+})
+
+test('reconhece um blog que faz parte de um repositório pai', async (t) => {
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-parent-repository')
+  const blogRoot = path.join(temporaryRoot, 'sites', 'blog')
+  t.after(() => fs.rm(temporaryRoot, { recursive: true, force: true }))
+  await execFileAsync('git', ['init', '-b', 'main'], { cwd: temporaryRoot })
+  await fs.mkdir(path.dirname(blogRoot), { recursive: true })
+  await execFileAsync('hugo', ['new', 'site', blogRoot])
+
+  const readiness = await service.gitReadiness(blogRoot)
+  assert.equal(readiness.ready, true)
+  assert.equal(readiness.repository.status, 'parent-repository')
+  assert.equal(path.resolve(readiness.repository.topLevel), path.resolve(temporaryRoot))
 })
 
 test('cria, edita, lista e adiciona imagens a um page bundle Hugo', async (t) => {

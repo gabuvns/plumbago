@@ -31,7 +31,7 @@ content/posts/my-post/
 
 1. [Download Plumbago](https://github.com/gabuvns/plumbago/releases/latest) for Windows, Linux, or macOS.
 2. Open an existing Hugo site or let Plumbago create a new one.
-3. If Hugo is missing or outdated, use the installation and diagnostics screen for the correct official instructions.
+3. If Hugo or Git is missing, use the guided setup for the exact environment where the blog lives.
 4. Create a draft and write your first post.
 5. Connect a Git repository when you are ready to publish.
 
@@ -40,6 +40,8 @@ Plumbago can connect an existing GitHub repository or create one for you. The gu
 ## Made for Windows + WSL
 
 Windows users can keep their Hugo project inside WSL and select it through `\\wsl.localhost`. Plumbago detects the distribution and runs Hugo and Git inside that Linux environment, where the project's tools and credentials already live.
+
+Plumbago checks Git in that exact environment, explains whether it is missing from Windows or a specific WSL distribution, and provides the appropriate installation command. After installing, **Check again** continues the interrupted publishing task. Existing Hugo folders without version history can be initialized safely from the same screen; initialization remains local until you explicitly connect and publish to a remote repository.
 
 On Linux and macOS, those tools run natively. The same blog stays portable across all three platforms.
 

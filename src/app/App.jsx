@@ -12,6 +12,7 @@ import { GitHubSetupModal } from '../features/publishing/GitHubSetupModal'
 import { PublishModal } from '../features/publishing/PublishModal'
 import { PublishingHealthModal } from '../features/publishing/PublishingHealthModal'
 import { SettingsModal } from '../features/settings/SettingsModal'
+import { GitSetupModal } from '../features/setup/GitSetupModal'
 import { ThemeManagerModal } from '../features/themes/ThemeManagerModal'
 import { useI18n } from '../i18n'
 import { friendlyError } from '../lib/errors'
@@ -36,6 +37,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [githubOpen, setGitHubOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
+  const [gitSetupOpen, setGitSetupOpen] = useState(false)
   const [bloggerOpen, setBloggerOpen] = useState(false)
   const [themesOpen, setThemesOpen] = useState(false)
   const [publishingStatus, setPublishingStatus] = useState(null)
@@ -44,6 +46,7 @@ export default function App() {
   const [publishLog, setPublishLog] = useState([])
   const [toast, setToast] = useState(null)
   const savePromiseRef = useRef(null)
+  const pendingGitActionRef = useRef(null)
   const tRef = useRef(t)
   tRef.current = t
 
@@ -251,8 +254,47 @@ export default function App() {
     try { setPublishingStatus(await api.publishingStatus()) } catch (error) { notify(friendlyError(error, t), 'error') }
   }, [notify, t])
 
-  async function showPublish() {
-    if (dirty && !(await performSave(post))) return
+  const requestGitSetup = useCallback((nextAction = null) => {
+    pendingGitActionRef.current = nextAction
+    setGitSetupOpen(true)
+  }, [])
+
+  const ensureGitReady = useCallback(async (nextAction) => {
+    try {
+      const status = await api.gitReadiness()
+      if (status.ready) await nextAction()
+      else requestGitSetup(nextAction)
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+    }
+  }, [notify, requestGitSetup, t])
+
+  const finishGitSetup = useCallback(async () => {
+    const nextAction = pendingGitActionRef.current
+    pendingGitActionRef.current = null
+    setGitSetupOpen(false)
+    try {
+      const nextContext = await api.getContext()
+      if (nextContext) setContext(nextContext)
+      if (nextAction) await nextAction()
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+    }
+  }, [notify, t])
+
+  useEffect(() => {
+    if (!ready || !context.root) return
+    api.gitReadiness()
+      .then((status) => { if (!status.ready) requestGitSetup() })
+      .catch((error) => notify(friendlyError(error, t), 'error'))
+  }, [context.root, notify, ready, requestGitSetup, t])
+
+  function closeGitSetup() {
+    pendingGitActionRef.current = null
+    setGitSetupOpen(false)
+  }
+
+  async function openPublish() {
     try {
       setPublishingStatus(await api.publishingStatus())
       setPublishPhase('ready')
@@ -261,6 +303,18 @@ export default function App() {
       setSettingsOpen(false)
       setPublishOpen(true)
     } catch (error) { notify(friendlyError(error, t), 'error') }
+  }
+
+  async function showPublish() {
+    if (dirty && !(await performSave(post))) return
+    setSettingsOpen(false)
+    await ensureGitReady(openPublish)
+  }
+
+  async function showGitHub() {
+    setSettingsOpen(false)
+    setPublishOpen(false)
+    await ensureGitReady(async () => setGitHubOpen(true))
   }
 
   async function publish(message) {
@@ -283,7 +337,8 @@ export default function App() {
 
   function handleHealthAction(action) {
     setHealthOpen(false)
-    if (action === 'github') setGitHubOpen(true)
+    if (action === 'github') showGitHub()
+    else if (action === 'git') requestGitSetup(() => setHealthOpen(true))
     else if (action === 'publish') showPublish()
     else if (action === 'preview') api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))
     else if (action === 'hugo') api.openPublishingUrl(hugoInstallUrl(context.runtime)).catch((error) => notify(friendlyError(error, t), 'error'))
@@ -312,13 +367,14 @@ export default function App() {
       </main>
       {newPostOpen && <NewPostModal onClose={() => setNewPostOpen(false)} onCreate={create} busy={busy} />}
       {createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}
-      {publishOpen && <PublishModal status={publishingStatus} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onRefresh={refreshPublishingStatus} onSettings={() => { setPublishOpen(false); setGitHubOpen(true) }} />}
+      {publishOpen && <PublishModal status={publishingStatus} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onRefresh={refreshPublishingStatus} onSettings={showGitHub} />}
       {imagesOpen && post && <ImageLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertExistingImage} onFeatured={(name) => setPost((current) => ({ ...current, featuredImage: name }))} />}
       {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} onDeactivate={deactivateTheme} busy={busy} notify={notify} />}
       {githubOpen && <GitHubSetupModal context={context} onClose={() => setGitHubOpen(false)} onPublish={showPublish} notify={notify} />}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
+      {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
       {bloggerOpen && <BloggerImportModal onClose={() => setBloggerOpen(false)} onImported={handleBloggerImported} notify={notify} />}
-      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onGitHub={() => { setSettingsOpen(false); setGitHubOpen(true) }} notify={notify} />}
+      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} notify={notify} />}
       {toast && <div className={`toast ${toast.kind}`}>{toast.kind === 'success' && <Check size={17} />}{toast.message}</div>}
     </div>
   )
