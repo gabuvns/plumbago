@@ -75,7 +75,7 @@ Theme changes are tested before activation. Failed theme installations restore t
 
 ## Contributing
 
-Plumbago uses React and Vite for the renderer and Electron for desktop integration. You will need Node.js 20 or newer, plus Hugo Extended and Git in the environment where the test blog runs.
+Plumbago uses React and Vite for the renderer and Electron for desktop integration. You will need Node.js 22.12 or newer, plus Hugo Extended and Git in the environment where the test blog runs.
 
 ```bash
 npm install
