@@ -201,8 +201,7 @@ test('identifica repositórios GitHub e calcula a URL padrão do Pages', () => {
   assert.equal(service.parseGitHubRemote('/tmp/remote.git'), null)
   assert.equal(service.defaultGitHubPagesUrl(ssh), 'https://ana.github.io/meu-blog/')
   assert.equal(service.defaultGitHubPagesUrl({ ...ssh, repository: 'ana.github.io' }), 'https://ana.github.io/')
-  const workflow = service.githubPagesWorkflow('main', '0.148.2')
-  assert.match(workflow, /branches: \["main"\]/)
+  const workflow = service.githubPagesWorkflow('feature/draft', '0.148.2')
   assert.match(workflow, /HUGO_VERSION: 0\.148\.2/)
   assert.match(workflow, /actions\/checkout@v7/)
   assert.match(workflow, /actions\/configure-pages@v6/)
@@ -210,7 +209,7 @@ test('identifica repositórios GitHub e calcula a URL padrão do Pages', () => {
   assert.match(workflow, /actions\/deploy-pages@v5/)
   assert.match(workflow, /dart-sass-\$\{DART_SASS_VERSION\}-linux-x64/)
   assert.match(workflow, /cron: "17 \* \* \* \*"/)
-  assert.deepEqual(YAML.parse(workflow).on.push.branches, ['main'])
+  assert.deepEqual(YAML.parse(workflow).on.push.branches, ['main', 'master'])
 })
 
 test('cria um novo site Hugo com configuração e repositório Git', async (t) => {
