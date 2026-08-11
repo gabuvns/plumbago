@@ -81,13 +81,13 @@ Definition of done: a deterministic pre-publish review catches common discoverab
 
 ### 0.12.0 — Real editorial calendar
 
-Status: planned
+Status: released in [v0.12.0](https://github.com/gabuvns/plumbago/releases/tag/v0.12.0)
 
-- [ ] Display drafts, scheduled posts, and published posts on a timezone-aware calendar.
-- [ ] Schedule, reschedule, cancel, and immediately publish through direct manipulation.
-- [ ] Publish scheduled content even while Plumbago is closed.
-- [ ] Record scheduled run status and explain missed publications.
-- [ ] Prevent accidental early publication of future content.
+- [x] Display drafts, scheduled posts, and published posts on a timezone-aware calendar.
+- [x] Schedule, reschedule, cancel, and immediately publish through direct manipulation.
+- [x] Publish scheduled content even while Plumbago is closed.
+- [x] Record scheduled run status and explain missed publications.
+- [x] Prevent accidental early publication of future content.
 
 Definition of done: scheduled publishing is reliable without requiring the desktop app to remain running.
 
@@ -117,4 +117,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.10.0` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, and a blog-wide media library with diagnostics and optimization. It is the stable starting point for the remaining roadmap.
+Version `0.12.0` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, and a real editorial calendar with background scheduled publishing. It is the stable starting point for the remaining roadmap.

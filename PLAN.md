@@ -117,7 +117,7 @@ Goal: before publishing, a writer can run one deterministic review, understand e
 - [x] Create the release commit and `v0.11.0` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.11.0) and verify every platform asset.
 
-## Active milestone: 0.12.0 — Real editorial calendar
+## Completed milestone: 0.12.0 — Real editorial calendar
 
 Goal: a writer can see the publication plan, move posts to meaningful dates, and rely on scheduled publishing even when the Plumbago desktop app is closed.
 
@@ -140,5 +140,30 @@ Goal: a writer can see the publication plan, move posts to meaningful dates, and
 - [x] Browser demos cover unscheduled, scheduled, rescheduled, overdue, and publish-now flows without console errors.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 0.12.0 and bump package metadata.
-- [ ] Create the release commit and `v0.12.0` tag.
+- [x] Create the release commit and `v0.12.0` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.0) and verify every platform asset.
+
+## Active milestone: 0.13.0 — Taxonomy manager
+
+Goal: a writer can understand and reorganize tags, categories, and custom Hugo taxonomies across a large blog without bulk-editing front matter by hand.
+
+### Product work
+
+- [ ] Discover Hugo's configured taxonomies and preserve theme-specific or multilingual front matter shapes.
+- [ ] Add a searchable taxonomy workspace with term counts, language, unpublished usage, spelling variants, empty terms, and unclassified posts.
+- [ ] Filter the main post list by one or more taxonomy terms and clear filters without losing the current post.
+- [ ] Rename or merge terms through an exact affected-post preview, conflict detection, and an automatic recovery point.
+- [ ] Add and remove terms from selected posts without rewriting unknown front matter or unrelated content.
+- [ ] Explain term aliases, URL changes, and multilingual implications before applying destructive organization changes.
+- [ ] Add responsive keyboard-accessible interactions and complete EN-US/PT-BR copy.
+
+### Release gate
+
+- [ ] EN-US and PT-BR keys remain in parity.
+- [ ] TOML/YAML/JSON front matter, custom taxonomy, multilingual, merge, recovery, IPC, and product-contract tests pass.
+- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [ ] Browser demos cover browsing, filtering, adding, renaming, merging, variants, unclassified posts, and recovery without console errors.
+- [ ] A relevant Electron package is built and inspected.
+- [ ] Close `CHANGELOG.md` as 0.13.0 and bump package metadata.
+- [ ] Create the release commit and `v0.13.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
