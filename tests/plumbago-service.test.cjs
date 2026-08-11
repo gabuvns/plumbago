@@ -654,6 +654,65 @@ featuredImage: hero.svg
   await assert.rejects(service.mediaPreview(root, '../../outside.png'), /valid image/i)
 })
 
+test('reviews SEO and quality deterministically and applies only previewable safe fixes', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-site-review')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await execFileAsync('hugo', ['new', 'site', root, '--force', '--format', 'toml'])
+  await fs.writeFile(path.join(root, 'hugo.toml'), 'baseURL = "http://localhost:1313/"\nlanguageCode = "en-US"\ntitle = "Review garden"\n')
+  await service.saveHostingSettings(root, { hostingProvider: 'other', publicUrl: 'https://garden.example/blog/' })
+  const bundle = path.join(root, 'content', 'posts', 'winter')
+  await fs.mkdir(bundle, { recursive: true })
+  const postId = 'content/posts/winter/index.en-us.md'
+  await fs.writeFile(path.join(root, postId), `---
+title: Winter Notes
+date: 2026-08-11
+draft: false
+---
+
+#### A skipped heading
+
+[A missing page](/missing-page/)
+
+[This post through the configured subpath](/blog/posts/winter/)
+
+![](hero.svg "Kept caption")
+`)
+  await fs.writeFile(path.join(bundle, 'hero.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="#558B6E"/></svg>')
+  await fs.writeFile(path.join(root, 'content', 'posts', 'winter.en-us.md'), '---\ntitle: Winter Notes\ndate: 2026-08-10\ndraft: true\n---\n')
+
+  let review = await service.siteReview(root)
+  const rules = new Set(review.findings.map((item) => item.rule))
+  assert.equal(review.summary.ready, false)
+  assert.ok(review.summary.postsChecked >= 2)
+  assert.ok(rules.has('internal-link-broken'))
+  assert.deepEqual(review.findings.filter((item) => item.rule === 'internal-link-broken').map((item) => item.values.destination), ['/missing-page/'])
+  assert.ok(rules.has('post-slug-collision'))
+  assert.ok(rules.has('post-title-duplicate'))
+  assert.ok(rules.has('heading-level-skipped'))
+  assert.ok(rules.has('image-alt-missing'))
+  assert.ok(rules.has('site-base-url-mismatch'))
+  assert.equal(await fs.stat(path.join(root, '.plumbago', 'review-output')).catch(() => null), null)
+  assert.equal(await fs.stat(path.join(root, '.plumbago', 'review-cache')).catch(() => null), null)
+
+  const description = review.findings.find((item) => item.rule === 'post-description-missing' && item.postId === postId)
+  assert.equal(description.fix.field, 'description')
+  await service.applyReviewFix(root, { findingId: description.id, value: 'A concise guide to winter colors, materials, and observations from the garden.' })
+  assert.match((await service.readPost(root, postId)).description, /winter colors/)
+
+  review = await service.siteReview(root)
+  const alt = review.findings.find((item) => item.rule === 'image-alt-missing' && item.postId === postId)
+  await service.applyReviewFix(root, { findingId: alt.id, value: 'A green rectangle used as a winter color study' })
+  assert.match((await service.readPost(root, postId)).body, /!\[A green rectangle used as a winter color study\]\(hero\.svg "Kept caption"\)/)
+
+  review = await service.siteReview(root)
+  const address = review.findings.find((item) => item.rule === 'site-base-url-mismatch')
+  assert.deepEqual(address.fix, { kind: 'exact', field: 'baseURL', before: 'http://localhost:1313/', after: 'https://garden.example/blog/' })
+  await service.applyReviewFix(root, { findingId: address.id })
+  assert.equal((await service.siteSettings(root)).baseURL, 'https://garden.example/blog/')
+  await assert.rejects(service.applyReviewFix(root, { findingId: 'not-a-current-finding', value: 'unsafe' }), /changed|safe fix/i)
+  await assert.rejects(service.publishBlog(root, 'Should not publish'), /blocking site review/i)
+})
+
 test('compares and restores one post version without changing unrelated work', async (t) => {
   const root = await makeTemporaryDirectory('plumbago-history')
   t.after(() => fs.rm(root, { recursive: true, force: true }))
@@ -813,6 +872,8 @@ test('sincroniza commits com um remoto Git e reutiliza o upstream', async (t) =>
   assert.match(first.log.join('\n'), /Conteúdo enviado/)
 
   await fs.writeFile(path.join(blogRoot, 'README.md'), '# Blog Plumbago\n', 'utf8')
+  const prePublishReview = await service.siteReview(blogRoot)
+  assert.equal(prePublishReview.summary.errors, 0, JSON.stringify(prePublishReview.findings, null, 2))
   const second = await service.publishBlog(blogRoot, 'Segunda sincronização')
   assert.deepEqual(second.status.changes, [])
   assert.match(second.log.join('\n'), /Novidades remotas aplicadas/)

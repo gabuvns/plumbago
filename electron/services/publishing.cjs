@@ -11,6 +11,7 @@ const {
 } = require('./github.cjs')
 const { gitReadiness, requireGitRepository } = require('./git.cjs')
 const { ensureBundleLanguages } = require('./languages.cjs')
+const { siteReview } = require('./review.cjs')
 const { hostingSettings, saveHostingSettings, siteMetadata, updateSiteConfig, validateBlog } = require('./site.cjs')
 
 async function createGitHubRepository(root, token, input) {
@@ -227,6 +228,13 @@ async function publishingStatus(root) {
 async function publishBlog(root, message, options = {}) {
   const languages = await ensureBundleLanguages(root)
   await validateBlog(root)
+  const review = await siteReview(root)
+  if (review.summary.errors > 0) {
+    const error = new Error(`Resolve ${review.summary.errors} blocking site review finding${review.summary.errors === 1 ? '' : 's'} before publishing.`)
+    error.code = 'REVIEW_BLOCKED'
+    error.review = review
+    throw error
+  }
   await run(root, 'hugo', ['--renderToMemory', '--minify'])
   const synced = await syncGit(root, message, options)
   return {

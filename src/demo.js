@@ -45,6 +45,19 @@ export function createDemoBridge() {
     { id: 'static/images/estudo-plumbago-copy.svg', name: 'estudo-plumbago-copy.svg', extension: 'svg', scope: 'static', size: 18432, width: 800, height: 500, ownerPostIds: [], ownerTitles: [], references: [], usageCount: 0, missingAltCount: 0, duplicateIds: ['content/posts/cultivando-ideias/estudo-plumbago.svg'], duplicate: true, oversized: false, removable: true },
     { id: 'assets/hero-wide.svg', name: 'hero-wide.svg', extension: 'svg', scope: 'assets', size: 2384000, width: 2400, height: 1350, ownerPostIds: [], ownerTitles: [], references: [], usageCount: 0, missingAltCount: 0, duplicateIds: [], duplicate: false, oversized: true, removable: true },
   ]
+  let reviewFindings = [
+    { id: 'review-broken-link', rule: 'internal-link-broken', severity: 'error', scope: 'post', postId: samplePosts[1].id, postTitle: samplePosts[1].title, path: '', values: { destination: '/estudos/inverno/' }, detail: '', fix: null },
+    { id: 'review-description', rule: 'post-description-missing', severity: 'warning', scope: 'post', postId: samplePosts[2].id, postTitle: samplePosts[2].title, path: '', values: {}, detail: '', fix: { kind: 'text', field: 'description', before: '', placeholder: 'review.fix.descriptionPlaceholder' } },
+    { id: 'review-alt', rule: 'image-alt-missing', severity: 'warning', scope: 'post', postId: samplePosts[0].id, postTitle: samplePosts[0].title, path: 'content/posts/cultivando-ideias/estudo-plumbago.svg', values: { destination: 'estudo-plumbago.svg' }, detail: '', fix: { kind: 'text', field: 'alt', before: '', placeholder: 'review.fix.altPlaceholder' } },
+    { id: 'review-social', rule: 'post-social-image-missing', severity: 'recommendation', scope: 'post', postId: samplePosts[1].id, postTitle: samplePosts[1].title, path: '', values: {}, detail: '', fix: null },
+    { id: 'review-robots', rule: 'output-robots-missing', severity: 'recommendation', scope: 'output', postId: '', postTitle: '', path: '', values: {}, detail: '', fix: null },
+  ]
+  const demoReview = () => {
+    const scenario = demoQuery.get('review') || 'issues'
+    const findings = scenario === 'clean' ? [] : scenario === 'recommendations' ? reviewFindings.filter((item) => item.severity === 'recommendation') : reviewFindings
+    const summary = { total: findings.length, errors: findings.filter((item) => item.severity === 'error').length, warnings: findings.filter((item) => item.severity === 'warning').length, recommendations: findings.filter((item) => item.severity === 'recommendation').length, fixable: findings.filter((item) => item.fix).length, postsChecked: posts.length }
+    return { findings, summary: { ...summary, ready: summary.errors === 0, score: Math.max(0, 100 - summary.errors * 20 - summary.warnings * 6 - summary.recommendations * 2) }, checkedAt: new Date().toISOString() }
+  }
   let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   const demoQuery = new URLSearchParams(window.location.search)
   let githubConnected = demoQuery.get('github') !== 'signin'
@@ -182,6 +195,13 @@ export function createDemoBridge() {
       return item
     },
     deleteMediaTrashItem: async (id) => { const item = mediaTrash.find((entry) => entry.id === id); mediaTrash = mediaTrash.filter((entry) => entry.id !== id); return item },
+    siteReview: async () => demoReview(),
+    applyReviewFix: async ({ findingId, value }) => {
+      const finding = reviewFindings.find((item) => item.id === findingId)
+      if (!finding?.fix || finding.fix.kind === 'text' && !String(value || '').trim()) throw new Error('Enter a value before applying this fix.')
+      reviewFindings = reviewFindings.filter((item) => item.id !== findingId)
+      return { findingId, rule: finding.rule, result: true }
+    },
     gitStatus: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [' M content/posts/cores-do-inverno/index.pt-br.md'] }),
     gitReadiness: async () => ({ ready: true, environment: { kind: 'native', platform: 'linux', label: 'linux' }, git: { status: 'ready', version: 'git version 2.43.0', executable: '/usr/bin/git', details: '' }, repository: { status: 'ready', ready: true, topLevel: '/home/voce/blog', details: '' }, assistance: { mode: 'command', command: 'sudo apt update && sudo apt install -y git', url: 'https://git-scm.com/install/linux' } }),
     installGit: async () => true,

@@ -114,6 +114,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/features/publishing/DeploymentSetupModal.jsx',
     'src/features/history/HistoryModal.jsx',
     'src/features/media/MediaLibrary.jsx',
+    'src/features/review/ReviewModal.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
@@ -131,6 +132,10 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/media/references.cjs',
     'electron/services/media/trash.cjs',
     'electron/services/publishing.cjs',
+    'electron/services/review.cjs',
+    'electron/services/review/content.cjs',
+    'electron/services/review/index.cjs',
+    'electron/services/review/output.cjs',
     'electron/services/site.cjs',
     'electron/services/trash.cjs',
     'electron/services/updates.cjs',
@@ -233,4 +238,28 @@ test('keeps blog-wide media reusable, diagnosable, optimized, and recoverable', 
   assert.match(operations, /withoutEnlargement/)
   assert.match(trash, /item\.usageCount > 0/)
   assert.equal(packageJson.dependencies.sharp, '0.35.3')
+})
+
+test('keeps deterministic site review and previewable safe fixes in the publish path', () => {
+  const app = read('src/app/App.jsx')
+  const sidebar = read('src/components/layout/Sidebar.jsx')
+  const modal = read('src/features/review/ReviewModal.jsx')
+  const publishing = read('electron/services/publishing.cjs')
+  const review = read('electron/services/review/index.cjs')
+  const content = read('electron/services/review/content.cjs')
+  const output = read('electron/services/review/output.cjs')
+
+  assert.match(app, /api\.siteReview\(\)/)
+  assert.match(app, /<ReviewModal/)
+  assert.match(sidebar, /sidebar\.review/)
+  assert.match(modal, /review-impact/)
+  assert.match(modal, /api\.applyReviewFix/)
+  assert.match(publishing, /review\.summary\.errors > 0/)
+  assert.match(review, /before-review-fix/)
+  assert.match(content, /internal-link-broken/)
+  assert.match(content, /post-slug-collision/)
+  assert.match(content, /image-alt-missing/)
+  assert.match(output, /output-sitemap-missing/)
+  assert.match(output, /\.plumbago\/review-cache/)
+  assert.doesNotMatch(modal, /rewrite|generate.*prose/i)
 })

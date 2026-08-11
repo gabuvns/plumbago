@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.11.0 — 2026-08-11
+
+- Add a deterministic SEO and quality review for Hugo settings, front matter, Markdown, media references, generated output, and the production build.
+- Find blocking broken links, missing media, invalid dates and canonical addresses, slug collisions, and failed or invalid Hugo output before publication.
+- Explain non-blocking metadata, social image, alternative text, heading, sitemap, RSS, robots, base URL, and canonical recommendations in plain language.
+- Apply only explicit, previewable safe fixes for descriptions, alternative text, the site title, and the production base URL, protected by recovery points.
+- Run the review again immediately before publishing, block only errors, and keep publishing available when warnings or recommendations remain.
+- Add a responsive bilingual review workspace with severity filters, affected-post shortcuts, clean states, and accessible compact navigation.
+
 ## 0.10.0 — 2026-08-11
 
 - Add a blog-wide media library for page bundles, `content`, `static`, and Hugo assets without moving existing files.

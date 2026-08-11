@@ -14,6 +14,7 @@ import { GitHubSetupModal } from '../features/publishing/GitHubSetupModal'
 import { DeploymentSetupModal } from '../features/publishing/DeploymentSetupModal'
 import { PublishModal } from '../features/publishing/PublishModal'
 import { PublishingHealthModal } from '../features/publishing/PublishingHealthModal'
+import { ReviewModal } from '../features/review/ReviewModal'
 import { SettingsModal } from '../features/settings/SettingsModal'
 import { GitSetupModal } from '../features/setup/GitSetupModal'
 import { HugoSetupModal } from '../features/setup/HugoSetupModal'
@@ -47,12 +48,14 @@ export default function App() {
   const [deployOpen, setDeployOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [gitSetupOpen, setGitSetupOpen] = useState(false)
   const [hugoSetupOpen, setHugoSetupOpen] = useState(false)
   const [bloggerOpen, setBloggerOpen] = useState(false)
   const [themesOpen, setThemesOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [publishingStatus, setPublishingStatus] = useState(null)
+  const [publishingReview, setPublishingReview] = useState(null)
   const [publishPhase, setPublishPhase] = useState('ready')
   const [publishError, setPublishError] = useState('')
   const [publishLog, setPublishLog] = useState([])
@@ -472,7 +475,9 @@ export default function App() {
 
   async function openPublish() {
     try {
-      setPublishingStatus(await api.publishingStatus())
+      const [status, review] = await Promise.all([api.publishingStatus(), api.siteReview()])
+      setPublishingStatus(status)
+      setPublishingReview(review)
       setPublishPhase('ready')
       setPublishError('')
       setPublishLog([])
@@ -501,6 +506,19 @@ export default function App() {
   }
 
   async function publish(message) {
+    try {
+      const review = await api.siteReview()
+      setPublishingReview(review)
+      if (review.summary.errors > 0) {
+        setPublishOpen(false)
+        setReviewOpen(true)
+        notify(t('review.notice.publishBlocked'), 'error')
+        return
+      }
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+      return
+    }
     setBusy(true)
     setPublishPhase('publishing')
     setPublishError('')
@@ -544,12 +562,21 @@ export default function App() {
     await Promise.all([refreshPosts(preferredId, true), refreshSiteSettings()])
   }
 
+  async function showReview() {
+    if (dirty && !(await performSave(post))) return
+    setReviewOpen(true)
+  }
+
+  async function handleReviewChanged() {
+    await Promise.all([refreshPosts(activeId, true), refreshSiteSettings()])
+  }
+
   if (!ready) return <div className="app-loading"><div className="welcome-mark"><span>p</span></div><LoaderCircle className="spin" /></div>
   if (!context.root) return <><Welcome onChoose={chooseBlog} onCreate={() => setCreateBlogOpen(true)} busy={busy} />{createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}{toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>}</>
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onReview={showReview} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} />
       <main className="content-area">
         <header className="topbar">
@@ -562,12 +589,13 @@ export default function App() {
       {newPostOpen && <NewPostModal onClose={() => setNewPostOpen(false)} onCreate={create} busy={busy} />}
       {deleteTarget && <DeletePostModal post={deleteTarget} busy={busy} onClose={() => setDeleteTarget(null)} onDelete={removePost} />}
       {createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}
-      {publishOpen && <PublishModal status={publishingStatus} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onRefresh={refreshPublishingStatus} onSettings={showGitHub} />}
+      {publishOpen && <PublishModal status={publishingStatus} review={publishingReview} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onReview={() => { setPublishOpen(false); setReviewOpen(true) }} onRefresh={refreshPublishingStatus} onSettings={showGitHub} />}
       {imagesOpen && <MediaLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertMedia} onFeatured={setFeaturedMedia} onChanged={refreshAfterMediaChange} prepare={prepareMediaMutation} notify={notify} />}
       {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} onDeactivate={deactivateTheme} onRefreshContext={refreshContext} onManageHugo={() => setHugoSetupOpen(true)} onSiteSettingsChanged={setSite} busy={busy} notify={notify} />}
       {githubOpen && <GitHubSetupModal context={context} onClose={() => { setGitHubOpen(false); refreshSiteSettings().catch(() => {}) }} onDeploy={showDeploy} notify={notify} />}
       {deployOpen && <DeploymentSetupModal context={context} onClose={() => { setDeployOpen(false); refreshSiteSettings().catch(() => {}) }} onGitHub={() => { setDeployOpen(false); setGitHubOpen(true) }} onSiteChanged={setSite} notify={notify} />}
       {historyOpen && <HistoryModal post={post} onClose={() => setHistoryOpen(false)} onPostRestored={handleHistoryPostRestored} onSiteRestored={handleHistorySiteRestored} notify={notify} />}
+      {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} notify={notify} />}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
       {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} notify={notify} />}

@@ -291,6 +291,8 @@ function registerIpc() {
   ipcMain.handle('plumbago:media-trash-list', () => service.listMediaTrash(requireBlog()))
   ipcMain.handle('plumbago:media-trash-restore', (_event, id) => service.restoreMediaTrashItem(requireBlog(), id))
   ipcMain.handle('plumbago:media-trash-delete', (_event, id) => service.deleteMediaTrashItem(requireBlog(), id))
+  ipcMain.handle('plumbago:site-review', () => service.siteReview(requireBlog()))
+  ipcMain.handle('plumbago:apply-review-fix', (_event, input) => service.applyReviewFix(requireBlog(), input))
   ipcMain.handle('plumbago:import-images', async (_event, postId) => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile', 'multiSelections'],

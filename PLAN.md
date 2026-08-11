@@ -95,22 +95,22 @@ Goal: before publishing, a writer can run one deterministic review, understand e
 
 ### Product work
 
-- [ ] Build a provider-neutral review service for site settings, front matter, Markdown, generated output, and Hugo build health.
-- [ ] Check titles, descriptions, slugs, canonical addresses, publish state, dates, and social images without theme-specific assumptions.
-- [ ] Detect broken internal links, missing image alternatives, skipped heading levels, duplicate titles, and slug collisions.
-- [ ] Validate sitemap, RSS, robots directives, production base URL, and the production Hugo build.
-- [ ] Separate blocking errors from recommendations and explain why each finding matters in plain language.
-- [ ] Offer individual safe fixes with an exact impact preview; never rewrite prose or delete data automatically.
-- [ ] Add a pre-publish review step while keeping publishing available when only recommendations remain.
-- [ ] Add a responsive bilingual review workspace with filters, progress, empty states, and links to affected posts.
+- [x] Build a provider-neutral review service for site settings, front matter, Markdown, generated output, and Hugo build health.
+- [x] Check titles, descriptions, slugs, canonical addresses, publish state, dates, and social images without theme-specific assumptions.
+- [x] Detect broken internal links, missing image alternatives, skipped heading levels, duplicate titles, and slug collisions.
+- [x] Validate sitemap, RSS, robots directives, production base URL, and the production Hugo build.
+- [x] Separate blocking errors from recommendations and explain why each finding matters in plain language.
+- [x] Offer individual safe fixes with an exact impact preview; never rewrite prose or delete data automatically.
+- [x] Add a pre-publish review step while keeping publishing available when only recommendations remain.
+- [x] Add a responsive bilingual review workspace with filters, progress, empty states, and links to affected posts.
 
 ### Release gate
 
-- [ ] EN-US and PT-BR keys remain in parity.
-- [ ] Metadata, link, heading, output, safe-fix, IPC, and product-contract tests pass.
-- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
-- [ ] Browser demos cover a clean site, blocking findings, recommendations, and one safe fix without console errors.
-- [ ] A relevant Electron package is built and inspected.
-- [ ] Close `CHANGELOG.md` as 0.11.0 and bump package metadata.
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] Metadata, link, heading, output, safe-fix, IPC, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser demos cover a clean site, blocking findings, recommendations, and one safe fix without console errors.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 0.11.0 and bump package metadata.
 - [ ] Create the release commit and `v0.11.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.

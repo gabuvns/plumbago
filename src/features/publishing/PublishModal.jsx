@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, ArrowUpRight, Check, Clock3, Cloud, GitBranch, LoaderCircle, Settings, UploadCloud } from 'lucide-react'
+import { AlertCircle, ArrowUpRight, Check, Clock3, Cloud, FileSearch, GitBranch, LoaderCircle, Settings, UploadCloud } from 'lucide-react'
 import { api } from '../../app/api'
 import { Modal } from '../../components/ui/Modal'
 import { useI18n } from '../../i18n'
 
-export function PublishModal({ status, busy, phase, error, log, onClose, onPublish, onRefresh, onSettings }) {
+export function PublishModal({ status, review, busy, phase, error, log, onClose, onPublish, onReview, onRefresh, onSettings }) {
   const { t, locale } = useI18n()
   const [message, setMessage] = useState(t('publish.defaultMessage', { date: new Intl.DateTimeFormat(locale).format(new Date()) }))
   const deployment = status?.deployment?.state || 'unknown'
@@ -44,6 +44,7 @@ export function PublishModal({ status, busy, phase, error, log, onClose, onPubli
         <div className={phase === 'publishing' ? 'active' : phase === 'complete' ? 'done' : ''}><span>{phase === 'publishing' ? <LoaderCircle className="spin" size={13} /> : phase === 'complete' ? <Check size={13} /> : '2'}</span><div><strong>{t('publish.stepUpload')}</strong><small>{t('publish.stepUploadCopy')}</small></div></div>
         <div className={deployment === 'live' ? 'done' : deployment === 'deploying' ? 'active' : ''}><span>{deployment === 'live' ? <Check size={13} /> : deployment === 'deploying' ? <LoaderCircle className="spin" size={13} /> : '3'}</span><div><strong>{t('publish.stepLive')}</strong><small>{t('publish.stepLiveCopy')}</small></div></div>
       </div>
+      {phase !== 'complete' && review && <div className={`publish-review ${review.summary.errors ? 'blocked' : 'ready'}`}><span>{review.summary.errors ? <AlertCircle size={17} /> : <Check size={17} />}</span><div><strong>{t(review.summary.errors ? 'publish.reviewBlocked' : 'publish.reviewReady', { count: review.summary.errors })}</strong><p>{t(review.summary.errors ? 'publish.reviewBlockedCopy' : 'publish.reviewReadyCopy', { warnings: review.summary.warnings, recommendations: review.summary.recommendations })}</p></div><button type="button" className="button quiet" onClick={onReview}><FileSearch size={14} /> {t('publish.openReview')}</button></div>}
       {log?.length > 0 && <details className="publish-details"><summary>{t('publish.details')}</summary>{log.map((entry) => <code key={entry}>{entry}</code>)}</details>}
       <form className="modal-form publish-form" onSubmit={(event) => { event.preventDefault(); onPublish(message) }}>
         {phase !== 'complete' && status?.remote && <label>{t('publish.message')}<input value={message} onChange={(event) => setMessage(event.target.value)} /></label>}
@@ -52,7 +53,7 @@ export function PublishModal({ status, busy, phase, error, log, onClose, onPubli
           {!status?.remote && <button type="button" className="button primary" onClick={onSettings}><Settings size={16} /> {t('publish.setup')}</button>}
           {phase === 'complete' && <button type="button" className="button quiet" onClick={onRefresh} disabled={busy}><Clock3 size={15} /> {t('publish.check')}</button>}
           {phase === 'complete' && status?.liveUrl && <button type="button" className="button primary" onClick={() => api.openPublishingUrl(status.liveUrl)}><ArrowUpRight size={15} /> {t('publish.viewSite')}</button>}
-          {status?.remote && phase !== 'complete' && <button className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />} {phase === 'error' ? t('publish.retry') : t('publish.now')}</button>}
+          {status?.remote && phase !== 'complete' && <button className="button primary" disabled={busy || review?.summary.errors > 0}>{busy ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />} {phase === 'error' ? t('publish.retry') : t('publish.now')}</button>}
         </footer>
       </form>
     </Modal>

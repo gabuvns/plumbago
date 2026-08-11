@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('plumbago', {
   listMediaTrash: () => ipcRenderer.invoke('plumbago:media-trash-list'),
   restoreMediaTrashItem: (id) => ipcRenderer.invoke('plumbago:media-trash-restore', id),
   deleteMediaTrashItem: (id) => ipcRenderer.invoke('plumbago:media-trash-delete', id),
+  siteReview: () => ipcRenderer.invoke('plumbago:site-review'),
+  applyReviewFix: (input) => ipcRenderer.invoke('plumbago:apply-review-fix', input),
   gitStatus: () => ipcRenderer.invoke('plumbago:git-status'),
   gitReadiness: () => ipcRenderer.invoke('plumbago:git-readiness'),
   installGit: () => ipcRenderer.invoke('plumbago:install-git'),
