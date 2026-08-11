@@ -1,7 +1,7 @@
 const samplePosts = [
-  { id: 'content/posts/cultivando-ideias/index.pt-br.md', title: 'Cultivando ideias com calma', description: 'Notas sobre processo criativo, referências e espaço para experimentar.', date: '2026-08-07', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-1' },
-  { id: 'content/posts/cores-do-inverno/index.pt-br.md', title: 'As cores do inverno', description: 'Uma pequena coleção de estudos de cor.', date: '2026-08-04', draft: true, language: 'pt-br', featuredImage: '', revision: 'demo-2' },
-  { id: 'content/posts/primeiro-caderno/index.en-us.md', title: 'Notes from the first sketchbook', description: 'A look back at the first pages.', date: '2026-07-28', draft: false, language: 'en-us', featuredImage: '', revision: 'demo-3' },
+  { id: 'content/posts/cultivando-ideias/index.pt-br.md', title: 'Cultivando ideias com calma', description: 'Notas sobre processo criativo, referências e espaço para experimentar.', date: '2026-08-07', publishDate: '', expiryDate: '', lastmod: '', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-1' },
+  { id: 'content/posts/cores-do-inverno/index.pt-br.md', title: 'As cores do inverno', description: 'Uma pequena coleção de estudos de cor.', date: '2026-08-04', publishDate: '2026-08-18T13:30:00.000Z', expiryDate: '', lastmod: '', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-2' },
+  { id: 'content/posts/primeiro-caderno/index.en-us.md', title: 'Notes from the first sketchbook', description: 'A look back at the first pages.', date: '2026-07-28', publishDate: '', expiryDate: '', lastmod: '', draft: true, language: 'en-us', featuredImage: '', revision: 'demo-3' },
 ]
 
 const bodies = {
@@ -22,6 +22,30 @@ const demoThemes = [
 function fullPost(summary) {
   const assets = summary.id === samplePosts[0].id ? ['estudo-plumbago.svg'] : []
   return { ...summary, tags: ['Processo', 'Arte'], translationKey: summary.id.split('/')[2], body: bodies[summary.id] || '', assets }
+}
+
+function demoWallToIso(value, timeZone) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
+  if (!match) throw new Error('Choose a complete date and time.')
+  const desired = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]), hour: Number(match[4]), minute: Number(match[5]) }
+  const target = Date.UTC(desired.year, desired.month - 1, desired.day, desired.hour, desired.minute)
+  const partsAt = (instant) => Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(instant)).filter((part) => part.type !== 'literal').map((part) => [part.type, Number(part.value)]))
+  let guess = target
+  for (let index = 0; index < 4; index += 1) {
+    const parts = partsAt(guess)
+    guess = target - (Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute) - guess)
+  }
+  return new Date(guess).toISOString()
+}
+
+function demoCalendarPreview(posts, input) {
+  const { postId, action, publishLocal, expiryLocal, timeZone } = input
+  const item = posts.find((post) => post.id === postId)
+  if (!item) throw new Error('Post not found.')
+  const publishDate = action === 'publish-now' ? input.publishInstant || '2026-08-11T12:00:00.000Z' : action === 'cancel' ? '' : demoWallToIso(publishLocal, timeZone)
+  const next = { ...item, draft: action === 'cancel', publishDate, expiryDate: action === 'schedule' && expiryLocal ? demoWallToIso(expiryLocal, timeZone) : action === 'schedule' ? '' : item.expiryDate }
+  const fields = ['draft', 'publishDate', 'expiryDate']
+  return { action, timeZone, ambiguous: false, post: { id: item.id, title: item.title, revision: item.revision }, changes: fields.filter((field) => item[field] !== next[field]).map((field) => ({ field, before: item[field], after: next[field] })), next }
 }
 
 export function createDemoBridge() {
@@ -60,6 +84,8 @@ export function createDemoBridge() {
   }
   let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   const demoQuery = new URLSearchParams(window.location.search)
+  let demoTimeZone = 'America/Sao_Paulo'
+  let demoAutomationEnabled = demoQuery.get('calendar') !== 'automation-off'
   let githubConnected = demoQuery.get('github') !== 'signin'
   let cloudflareConnected = demoQuery.get('cloudflare') !== 'signin'
   let demoDeployment = demoQuery.get('deploy') === 'progress'
@@ -96,7 +122,7 @@ export function createDemoBridge() {
       context = { ...context, theme: '' }
       return context
     },
-    siteSettings: async () => ({ title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', languageCode: 'pt-BR', copyright: '© 2026 Você', hostingProvider: 'github-pages', publicUrl: 'https://voce.github.io/blog/', hostingConfigured: true, theme: context.theme, config: 'hugo.toml' }),
+    siteSettings: async () => ({ title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', languageCode: 'pt-BR', copyright: '© 2026 Você', timeZone: demoTimeZone, hostingProvider: 'github-pages', publicUrl: 'https://voce.github.io/blog/', hostingConfigured: true, theme: context.theme, config: 'hugo.toml' }),
     saveSiteSettings: async (input) => ({ ...input, publicUrl: input.hostingProvider === 'none' ? '' : input.publicUrl, hostingConfigured: input.hostingProvider !== 'none' && Boolean(input.publicUrl), theme: context.theme, config: 'hugo.toml' }),
     openTheme: async () => true,
     listPosts: async () => posts,
@@ -202,6 +228,32 @@ export function createDemoBridge() {
       reviewFindings = reviewFindings.filter((item) => item.id !== findingId)
       return { findingId, rule: finding.rule, result: true }
     },
+    editorialCalendar: async () => {
+      const now = '2026-08-11T12:00:00.000Z'
+      const items = posts.map((item) => {
+        const expired = item.expiryDate && new Date(item.expiryDate) <= new Date(now)
+        const scheduled = !item.draft && item.publishDate && new Date(item.publishDate) > new Date(now)
+        const state = expired ? 'expired' : item.draft ? item.publishDate ? 'scheduled-draft' : 'unscheduled' : scheduled ? 'scheduled' : 'published'
+        const effectiveAt = expired ? item.expiryDate : ['unscheduled', 'scheduled-draft'].includes(state) ? '' : item.publishDate || `${item.date}T12:00:00.000Z`
+        return { ...item, state, effectiveAt, source: effectiveAt ? item.publishDate ? 'publishDate' : 'date' : '' }
+      })
+      if (demoQuery.get('calendar') === 'overdue') items[0] = { ...items[0], state: 'expired', expiryDate: '2026-08-10T12:00:00.000Z', effectiveAt: '2026-08-10T12:00:00.000Z', source: 'expiryDate' }
+      const states = ['published', 'scheduled', 'unscheduled', 'draft', 'scheduled-draft', 'expired']
+      const summary = { total: items.length, ...Object.fromEntries(states.map((state) => [state, items.filter((item) => item.state === state).length])) }
+      const next = items.filter((item) => item.state === 'scheduled').sort((left, right) => left.effectiveAt.localeCompare(right.effectiveAt))[0] || null
+      return { timeZone: demoTimeZone, timeZoneConfigured: true, now, items, summary, next, automation: { provider: 'github-pages', supported: true, enabled: demoAutomationEnabled, workflow: '.github/workflows/plumbago-pages.yml', repository: { fullName: 'voce/blog' }, branch: 'main', intervalMinutes: 30, overdue: demoQuery.get('calendar') === 'overdue', lastRun: demoAutomationEnabled ? { state: demoQuery.get('calendar') === 'overdue' ? 'failed' : 'success', updatedAt: '2026-08-11T11:43:00.000Z', runUrl: 'https://github.com/voce/blog/actions' } : { state: 'not-configured', updatedAt: '' } } }
+    },
+    previewCalendarChange: async (input) => demoCalendarPreview(posts, input),
+    applyCalendarChange: async (input) => {
+      const preview = demoCalendarPreview(posts, input)
+      const saved = { ...preview.next, revision: `demo-${Date.now()}` }
+      posts = posts.map((item) => item.id === input.postId ? saved : item)
+      return { action: input.action, changes: preview.changes, post: fullPost(saved), recoveryPoint: { id: 'demo-calendar-recovery' } }
+    },
+    saveCalendarTimeZone: async (value) => { demoTimeZone = value; return { timeZone: value, changed: true } },
+    enableCalendarAutomation: async () => { demoAutomationEnabled = true; return true },
+    disableCalendarAutomation: async () => { demoAutomationEnabled = false; return true },
+    runCalendarAutomationNow: async () => ({ requestedAt: new Date().toISOString() }),
     gitStatus: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [' M content/posts/cores-do-inverno/index.pt-br.md'] }),
     gitReadiness: async () => ({ ready: true, environment: { kind: 'native', platform: 'linux', label: 'linux' }, git: { status: 'ready', version: 'git version 2.43.0', executable: '/usr/bin/git', details: '' }, repository: { status: 'ready', ready: true, topLevel: '/home/voce/blog', details: '' }, assistance: { mode: 'command', command: 'sudo apt update && sudo apt install -y git', url: 'https://git-scm.com/install/linux' } }),
     installGit: async () => true,

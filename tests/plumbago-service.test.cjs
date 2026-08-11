@@ -95,6 +95,33 @@ test('normaliza a resposta real do Device Flow para a interface', () => {
   })
 })
 
+test('encrypts Cloudflare credentials before sending a GitHub Actions secret', async (t) => {
+  const sodium = require('libsodium-wrappers')
+  await sodium.ready
+  const pair = sodium.crypto_box_keypair()
+  const originalFetch = global.fetch
+  t.after(() => { global.fetch = originalFetch })
+  let encryptedValue = ''
+  global.fetch = async (url, options = {}) => {
+    if (String(url).endsWith('/actions/secrets/public-key')) return {
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({ key_id: 'test-key', key: sodium.to_base64(pair.publicKey, sodium.base64_variants.ORIGINAL) }),
+    }
+    const body = JSON.parse(options.body)
+    encryptedValue = body.encrypted_value
+    assert.equal(body.key_id, 'test-key')
+    return { ok: true, status: 204, headers: new Headers(), json: async () => null }
+  }
+  const secret = 'api-token-used-by-the-test'
+  await service.saveGitHubActionsSecret('github-token', { fullName: 'writer/blog' }, 'CLOUDFLARE_API_TOKEN', secret)
+  assert.ok(encryptedValue)
+  assert.doesNotMatch(encryptedValue, new RegExp(secret))
+  const opened = sodium.crypto_box_seal_open(sodium.from_base64(encryptedValue, sodium.base64_variants.ORIGINAL), pair.publicKey, pair.privateKey)
+  assert.equal(sodium.to_string(opened), secret)
+})
+
 test('oferece instalação do Git específica para Windows, WSL e macOS', () => {
   assert.deepEqual(service.gitInstallAssistance({ kind: 'wsl', distro: 'Ubuntu-24.04' }), {
     mode: 'command',
@@ -282,8 +309,11 @@ test('identifica repositórios GitHub e calcula a URL padrão do Pages', () => {
   assert.match(workflow, /actions\/upload-pages-artifact@v5/)
   assert.match(workflow, /actions\/deploy-pages@v5/)
   assert.match(workflow, /dart-sass-\$\{DART_SASS_VERSION\}-linux-x64/)
-  assert.match(workflow, /cron: "17 \* \* \* \*"/)
+  assert.match(workflow, /cron: "13,43 \* \* \* \*"/)
+  assert.match(workflow, /timezone: "Etc\/UTC"/)
+  assert.doesNotMatch(workflow, /--buildFuture|buildFuture/)
   assert.deepEqual(YAML.parse(workflow).on.push.branches, ['main', 'master', 'feature/draft'])
+  assert.equal(YAML.parse(service.githubPagesWorkflow('main', '0.148.2', { scheduled: false })).on.schedule, undefined)
 })
 
 test('prepara assets portáveis para o Direct Upload do Cloudflare', async (t) => {
@@ -542,6 +572,83 @@ test('cria, edita, lista e adiciona imagens a um page bundle Hugo', async (t) =>
   await service.restoreTrashItem(temporaryRoot, removed.trashId)
   assert.ok(await fs.stat(path.join(temporaryRoot, published.id)))
   assert.ok(await fs.stat(path.join(temporaryRoot, 'content', 'posts', 'meu-primeiro-post', imported[0].name)))
+})
+
+test('agenda, reagenda, cancela e publica conteúdo Hugo no fuso do blog sem perder front matter', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-calendar')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await execFileAsync('hugo', ['new', 'site', root, '--force'])
+  await execFileAsync('git', ['init', '-b', 'main'], { cwd: root })
+  const created = await service.createPost(root, { title: 'Post no calendário', language: 'pt-br' })
+  const absolute = path.join(root, created.id)
+  const original = await fs.readFile(absolute, 'utf8')
+  const withUnknown = original.startsWith('+++')
+    ? original.replace('+++', '+++\ncustomFlag = "keep-me"')
+    : original.replace('---', '---\ncustomFlag: keep-me')
+  await fs.writeFile(absolute, withUnknown, 'utf8')
+
+  const timezone = await service.saveCalendarTimeZone(root, 'America/Sao_Paulo')
+  assert.equal(timezone.changed, true)
+  assert.match(await fs.readFile(path.join(root, 'hugo.toml'), 'utf8'), /timeZone\s*=\s*"America\/Sao_Paulo"/)
+
+  const preview = await service.previewCalendarChange(root, {
+    postId: created.id,
+    action: 'schedule',
+    timeZone: 'America/Sao_Paulo',
+    publishLocal: '2030-06-15T09:30',
+    expiryLocal: '2030-06-16T09:30',
+  })
+  assert.equal(preview.next.publishDate, '2030-06-15T12:30:00.000Z')
+  assert.equal(preview.next.expiryDate, '2030-06-16T12:30:00.000Z')
+  assert.equal(preview.next.draft, false)
+  assert.deepEqual(preview.changes.map((change) => change.field), ['draft', 'publishDate', 'expiryDate'])
+
+  const scheduled = await service.applyCalendarChange(root, {
+    postId: created.id,
+    action: 'schedule',
+    timeZone: 'America/Sao_Paulo',
+    publishLocal: '2030-06-15T09:30',
+    expiryLocal: '2030-06-16T09:30',
+  })
+  assert.equal(scheduled.post.draft, false)
+  assert.equal(scheduled.recoveryPoint.reason, 'before-calendar-change')
+  assert.match(await fs.readFile(absolute, 'utf8'), /customFlag\s*(?:=|:)\s*["']?keep-me/)
+
+  const calendar = await service.editorialCalendar(root, {}, { now: '2026-08-11T12:00:00.000Z' })
+  assert.equal(calendar.timeZone, 'America/Sao_Paulo')
+  assert.equal(calendar.summary.scheduled, 1)
+  assert.equal(calendar.next.id, created.id)
+
+  const cancelled = await service.applyCalendarChange(root, { postId: created.id, action: 'cancel', timeZone: 'America/Sao_Paulo' })
+  assert.equal(cancelled.post.draft, true)
+  assert.equal(cancelled.post.publishDate, '')
+  assert.equal(cancelled.post.expiryDate, '2030-06-16T12:30:00.000Z')
+
+  const publishPreview = await service.previewCalendarChange(root, { postId: created.id, action: 'publish-now', timeZone: 'America/Sao_Paulo' })
+  const published = await service.applyCalendarChange(root, { postId: created.id, action: 'publish-now', timeZone: 'America/Sao_Paulo', publishInstant: publishPreview.next.publishDate })
+  assert.equal(published.post.draft, false)
+  assert.equal(published.post.publishDate, publishPreview.next.publishDate)
+
+  assert.throws(() => service.zonedDateTimeToIso('2026-03-08T02:30', 'America/New_York'), /does not exist/i)
+  assert.equal(service.zonedDateTimeToIso('2026-11-01T01:30', 'America/New_York').ambiguous, true)
+})
+
+test('gera um relógio Cloudflare portátil sem gravar credenciais no workflow', () => {
+  const workflow = service.calendarCloudflareWorkflow({
+    branch: 'feature/calendar',
+    projectName: 'meu-blog',
+    liveUrl: 'https://meu-blog.pages.dev/',
+    hugoVersion: '0.158.0',
+    timeZone: 'America/Sao_Paulo',
+  })
+  const parsed = YAML.parse(workflow)
+  assert.deepEqual(parsed.on.push.branches, ['main', 'master', 'feature/calendar'])
+  assert.equal(parsed.on.schedule[0].cron, '13,43 * * * *')
+  assert.equal(parsed.on.schedule[0].timezone, 'America/Sao_Paulo')
+  assert.match(workflow, /secrets\.CLOUDFLARE_API_TOKEN/)
+  assert.match(workflow, /cloudflare\/wrangler-action@v3/)
+  assert.doesNotMatch(workflow, /--buildFuture|buildFuture/)
+  assert.doesNotMatch(workflow, /api-token-used-by-the-test/)
 })
 
 test('keeps shared page-bundle assets when only one translation goes to trash', async (t) => {

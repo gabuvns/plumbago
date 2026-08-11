@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, Check, Eye, FileText, Globe2, LoaderCircle, Menu, PanelLeftClose, Plus, Rocket, UploadCloud } from 'lucide-react'
 import { Sidebar } from '../components/layout/Sidebar'
 import { CreateBlogModal } from '../features/blogs/CreateBlogModal'
@@ -14,7 +14,6 @@ import { GitHubSetupModal } from '../features/publishing/GitHubSetupModal'
 import { DeploymentSetupModal } from '../features/publishing/DeploymentSetupModal'
 import { PublishModal } from '../features/publishing/PublishModal'
 import { PublishingHealthModal } from '../features/publishing/PublishingHealthModal'
-import { ReviewModal } from '../features/review/ReviewModal'
 import { SettingsModal } from '../features/settings/SettingsModal'
 import { GitSetupModal } from '../features/setup/GitSetupModal'
 import { HugoSetupModal } from '../features/setup/HugoSetupModal'
@@ -22,6 +21,9 @@ import { ThemeManagerModal } from '../features/themes/ThemeManagerModal'
 import { useI18n } from '../i18n'
 import { friendlyError } from '../lib/errors'
 import { api, emptyContext } from './api'
+
+const EditorialCalendar = lazy(() => import('../features/calendar/EditorialCalendar').then((module) => ({ default: module.EditorialCalendar })))
+const ReviewModal = lazy(() => import('../features/review/ReviewModal').then((module) => ({ default: module.ReviewModal })))
 
 function savedSnapshot(value) {
   return JSON.stringify(value?.repairedNestedFrontMatter ? { ...value, repairedNestedFrontMatter: false } : value)
@@ -48,6 +50,7 @@ export default function App() {
   const [deployOpen, setDeployOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [gitSetupOpen, setGitSetupOpen] = useState(false)
   const [hugoSetupOpen, setHugoSetupOpen] = useState(false)
@@ -92,6 +95,8 @@ export default function App() {
         description: saved.description,
         date: saved.date,
         publishDate: saved.publishDate,
+        expiryDate: saved.expiryDate,
+        lastmod: saved.lastmod,
         draft: saved.draft,
         tags: saved.tags,
         language: saved.language,
@@ -567,6 +572,11 @@ export default function App() {
     setReviewOpen(true)
   }
 
+  async function showCalendar() {
+    if (dirty && !(await performSave(post))) return
+    setCalendarOpen(true)
+  }
+
   async function handleReviewChanged() {
     await Promise.all([refreshPosts(activeId, true), refreshSiteSettings()])
   }
@@ -576,7 +586,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onReview={showReview} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onCalendar={showCalendar} onReview={showReview} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} />
       <main className="content-area">
         <header className="topbar">
@@ -595,7 +605,8 @@ export default function App() {
       {githubOpen && <GitHubSetupModal context={context} onClose={() => { setGitHubOpen(false); refreshSiteSettings().catch(() => {}) }} onDeploy={showDeploy} notify={notify} />}
       {deployOpen && <DeploymentSetupModal context={context} onClose={() => { setDeployOpen(false); refreshSiteSettings().catch(() => {}) }} onGitHub={() => { setDeployOpen(false); setGitHubOpen(true) }} onSiteChanged={setSite} notify={notify} />}
       {historyOpen && <HistoryModal post={post} onClose={() => setHistoryOpen(false)} onPostRestored={handleHistoryPostRestored} onSiteRestored={handleHistorySiteRestored} notify={notify} />}
-      {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} notify={notify} />}
+      {calendarOpen && <Suspense fallback={<div className="app-loading"><LoaderCircle className="spin" /></div>}><EditorialCalendar onClose={() => setCalendarOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} onDeploy={() => { setCalendarOpen(false); setDeployOpen(true) }} notify={notify} /></Suspense>}
+      {reviewOpen && <Suspense fallback={<div className="app-loading"><LoaderCircle className="spin" /></div>}><ReviewModal onClose={() => setReviewOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} notify={notify} /></Suspense>}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
       {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} notify={notify} />}

@@ -293,6 +293,13 @@ function registerIpc() {
   ipcMain.handle('plumbago:media-trash-delete', (_event, id) => service.deleteMediaTrashItem(requireBlog(), id))
   ipcMain.handle('plumbago:site-review', () => service.siteReview(requireBlog()))
   ipcMain.handle('plumbago:apply-review-fix', (_event, input) => service.applyReviewFix(requireBlog(), input))
+  ipcMain.handle('plumbago:editorial-calendar', async () => service.editorialCalendar(requireBlog(), { githubToken: await optionalGitHubToken() }))
+  ipcMain.handle('plumbago:calendar-preview-change', (_event, input) => service.previewCalendarChange(requireBlog(), input))
+  ipcMain.handle('plumbago:calendar-apply-change', (_event, input) => service.applyCalendarChange(requireBlog(), input))
+  ipcMain.handle('plumbago:calendar-save-timezone', (_event, timeZone) => service.saveCalendarTimeZone(requireBlog(), timeZone))
+  ipcMain.handle('plumbago:calendar-enable-automation', async (_event, input) => service.enableCalendarAutomation(requireBlog(), input, { githubToken: await ensureGitHubToken(), cloudflareToken: input?.provider === 'cloudflare-pages' ? await ensureCloudflareToken() : cloudflareToken }))
+  ipcMain.handle('plumbago:calendar-disable-automation', async () => service.disableCalendarAutomation(requireBlog(), { githubToken: await ensureGitHubToken() }))
+  ipcMain.handle('plumbago:calendar-run-automation', async () => service.runCalendarAutomationNow(requireBlog(), { githubToken: await ensureGitHubToken() }))
   ipcMain.handle('plumbago:import-images', async (_event, postId) => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile', 'multiSelections'],

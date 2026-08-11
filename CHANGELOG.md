@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.12.0 — 2026-08-11
+
+- Add a timezone-aware editorial calendar with month, week, agenda, and unscheduled views for published, scheduled, draft, conflicting, and expired Hugo content.
+- Schedule, reschedule, return to draft, or publish immediately through drag and drop, accessible day targets, and an exact front-matter preview protected by a local recovery point.
+- Keep schedules portable in standard Hugo `draft`, `date`, `publishDate`, and `expiryDate` fields while preserving unknown front matter and the blog's IANA timezone.
+- Add a twice-hourly GitHub Actions publication clock so GitHub Pages or Cloudflare Pages rebuilds content that becomes due while Plumbago is closed, without building future posts early.
+- Encrypt Cloudflare credentials as GitHub Actions secrets, require explicit consent before creating the workflow, and remove the secrets when background publishing is disabled.
+- Show the next due post, provider state, last workflow run, delayed or failed publication diagnostics, and safe run-now controls in a responsive bilingual workspace.
+
 ## 0.11.0 — 2026-08-11
 
 - Add a deterministic SEO and quality review for Hugo settings, front matter, Markdown, media references, generated output, and the production build.

@@ -1,7 +1,7 @@
-import { Activity, Download, FileSearch, FileText, History, ImagePlus, MoreHorizontal, Palette, Settings } from 'lucide-react'
+import { Activity, CalendarDays, Download, FileSearch, FileText, History, ImagePlus, MoreHorizontal, Palette, Settings } from 'lucide-react'
 import { useI18n } from '../../i18n'
 
-export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, onReview, onHealth, onImport, onSettings }) {
+export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, onCalendar, onReview, onHealth, onImport, onSettings }) {
   const { t, locale } = useI18n()
   return (
     <aside className="sidebar">
@@ -11,6 +11,7 @@ export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, 
         <button className="nav-item" aria-label={t('sidebar.images')} title={t('sidebar.images')} onClick={onImages}><ImagePlus size={18} /><span>{t('sidebar.images')}</span></button>
         <button className="nav-item" aria-label={t('sidebar.themes')} title={t('sidebar.themes')} onClick={onThemes}><Palette size={18} /><span>{t('sidebar.themes')}</span>{context.theme && <small>✓</small>}</button>
         <button className="nav-item" aria-label={t('sidebar.history')} title={t('sidebar.history')} onClick={onHistory}><History size={18} /><span>{t('sidebar.history')}</span></button>
+        <button className="nav-item" aria-label={t('sidebar.calendar')} title={t('sidebar.calendar')} onClick={onCalendar}><CalendarDays size={18} /><span>{t('sidebar.calendar')}</span></button>
         <button className="nav-item" aria-label={t('sidebar.review')} title={t('sidebar.review')} onClick={onReview}><FileSearch size={18} /><span>{t('sidebar.review')}</span></button>
         <button className="nav-item" aria-label={t('sidebar.publishing')} title={t('sidebar.publishing')} onClick={onHealth}><Activity size={18} /><span>{t('sidebar.publishing')}</span></button>
         <button className="nav-item" aria-label={t('sidebar.import')} title={t('sidebar.import')} onClick={onImport}><Download size={18} /><span>{t('sidebar.import')}</span></button>

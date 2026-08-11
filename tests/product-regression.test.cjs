@@ -115,6 +115,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/features/history/HistoryModal.jsx',
     'src/features/media/MediaLibrary.jsx',
     'src/features/review/ReviewModal.jsx',
+    'src/features/calendar/EditorialCalendar.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
@@ -136,6 +137,12 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/review/content.cjs',
     'electron/services/review/index.cjs',
     'electron/services/review/output.cjs',
+    'electron/services/calendar.cjs',
+    'electron/services/calendar/index.cjs',
+    'electron/services/calendar/content.cjs',
+    'electron/services/calendar/automation.cjs',
+    'electron/services/calendar/time.cjs',
+    'electron/services/calendar/workflow-time.cjs',
     'electron/services/site.cjs',
     'electron/services/trash.cjs',
     'electron/services/updates.cjs',
@@ -262,4 +269,28 @@ test('keeps deterministic site review and previewable safe fixes in the publish 
   assert.match(output, /output-sitemap-missing/)
   assert.match(output, /\.plumbago\/review-cache/)
   assert.doesNotMatch(modal, /rewrite|generate.*prose/i)
+})
+
+test('keeps the editorial calendar portable, recoverable, timezone-aware, and runnable while the app is closed', () => {
+  const app = read('src/app/App.jsx')
+  const sidebar = read('src/components/layout/Sidebar.jsx')
+  const modal = read('src/features/calendar/EditorialCalendar.jsx')
+  const preload = read('electron/preload.cjs')
+  const content = read('electron/services/calendar/content.cjs')
+  const automation = read('electron/services/calendar/automation.cjs')
+  const time = read('electron/services/calendar/time.cjs')
+  const site = read('electron/services/site.cjs')
+
+  assert.match(app, /<EditorialCalendar/)
+  assert.match(sidebar, /sidebar\.calendar/)
+  assert.match(modal, /api\.previewCalendarChange/)
+  assert.match(modal, /api\.applyCalendarChange/)
+  assert.match(modal, /api\.enableCalendarAutomation/)
+  assert.match(preload, /editorialCalendar:/)
+  assert.match(content, /before-calendar-change/)
+  assert.match(content, /expiryDate/)
+  assert.match(time, /This local time does not exist/)
+  assert.match(automation, /saveGitHubActionsSecret/)
+  assert.match(automation, /CLOUDFLARE_API_TOKEN/)
+  assert.doesNotMatch(site, /CLOUDFLARE_API_TOKEN/)
 })

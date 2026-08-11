@@ -106,9 +106,10 @@ async function configureGitHubPages(root, token) {
 
   const branch = status.branch || 'main'
   const hugoVersion = context.hugo?.match(/hugo v(\d+\.\d+\.\d+)/i)?.[1] || '0.128.0'
+  const metadata = await siteMetadata(root)
   const workflowDirectory = path.join(root, '.github', 'workflows')
   const workflowPath = path.join(workflowDirectory, 'plumbago-pages.yml')
-  const workflowContents = githubPagesWorkflow(branch, hugoVersion)
+  const workflowContents = githubPagesWorkflow(branch, hugoVersion, { timeZone: metadata.timeZone })
   const previousWorkflow = await fs.readFile(workflowPath, 'utf8').catch(() => '')
   const workflowChanged = previousWorkflow !== workflowContents
   await fs.mkdir(workflowDirectory, { recursive: true })

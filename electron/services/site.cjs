@@ -47,6 +47,7 @@ async function siteMetadata(root) {
     baseURL: String(readConfigValue(raw, config, 'baseURL') || ''),
     languageCode: String(readConfigValue(raw, config, 'languageCode') || ''),
     copyright: String(readConfigValue(raw, config, 'copyright') || ''),
+    timeZone: String(readConfigValue(raw, config, 'timeZone') || ''),
   }
 }
 
@@ -163,6 +164,7 @@ async function saveSiteSettings(root, input) {
   let baseURL = String(input?.baseURL || '').trim()
   const languageCode = String(input?.languageCode || '').trim()
   const copyright = String(input?.copyright || '').trim()
+  const timeZone = String(input?.timeZone || '').trim()
   if (!title) throw new Error('Give your blog a title.')
   if (baseURL) {
     let parsed
@@ -173,7 +175,7 @@ async function saveSiteSettings(root, input) {
   }
   const recoveryPoint = await createRecoveryPoint(root, { reason: 'before-settings-change', label: 'Before changing blog settings', paths: await siteConfigurationPaths(root) })
   try {
-    await updateSiteConfig(root, { title, baseURL, languageCode, copyright })
+    await updateSiteConfig(root, { title, baseURL, languageCode, copyright, ...(timeZone ? { timeZone } : {}) })
     const currentHosting = await hostingSettings(root, baseURL)
     const hostingProvider = Object.hasOwn(input || {}, 'hostingProvider') ? input.hostingProvider : currentHosting.hostingProvider
     const publicUrl = Object.hasOwn(input || {}, 'publicUrl') ? input.publicUrl : (currentHosting.publicUrl || baseURL)
