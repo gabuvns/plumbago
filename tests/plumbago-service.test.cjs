@@ -61,6 +61,22 @@ test('usa a identidade noreply do GitHub sem expor o email pessoal', () => {
   assert.equal(service.githubCommitEmail({ id: 123456, login: 'writer' }), '123456+writer@users.noreply.github.com')
 })
 
+test('normaliza a resposta real do Device Flow para a interface', () => {
+  assert.deepEqual(service.normalizeGitHubDeviceCode({
+    device_code: 'device-code',
+    user_code: 'ABCD-EFGH',
+    verification_uri: 'https://github.com/login/device',
+    expires_in: 900,
+    interval: 5,
+  }), {
+    deviceCode: 'device-code',
+    userCode: 'ABCD-EFGH',
+    verificationUri: 'https://github.com/login/device',
+    expiresIn: 900,
+    interval: 5,
+  })
+})
+
 test('oferece instalação do Git específica para Windows, WSL e macOS', () => {
   assert.deepEqual(service.gitInstallAssistance({ kind: 'wsl', distro: 'Ubuntu-24.04' }), {
     mode: 'command',

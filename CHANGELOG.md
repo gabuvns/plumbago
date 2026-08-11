@@ -6,6 +6,7 @@
 
 - Add a versioned product roadmap with a tested GitHub Release after each major milestone.
 - Make browser-based GitHub Device Flow the primary connection path, keep token and GitHub CLI fallbacks, and package the public OAuth client identity into official builds.
+- Normalize GitHub's Device Flow response so the one-time authorization code is displayed and polled correctly in production.
 - Default new GitHub remotes to HTTPS and pass authorization to native or WSL Git only through transient environment variables.
 - Create or connect a safe repository and upload the verified Hugo source from one primary action, with recoverable retry after partial failures.
 

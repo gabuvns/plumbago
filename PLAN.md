@@ -18,8 +18,8 @@ Goal: a first-time writer can authorize GitHub, create or select a safe reposito
 - [x] Connect only empty repositories from the setup wizard; direct writers with existing history to clone and open it.
 - [x] Preserve partial progress and offer upload retry without recreating the repository.
 - [x] Explain expired authorization, missing permission, and GitHub API limits.
-- [ ] Register the official Plumbago OAuth App and configure its public Client ID in GitHub Actions.
-- [ ] Verify the real Device Flow against the registered app.
+- [x] Register the official Plumbago OAuth App and configure its public Client ID in GitHub Actions.
+- [x] Verify the real Device Flow against the registered app.
 
 ### Release gate
 
@@ -30,7 +30,7 @@ Goal: a first-time writer can authorize GitHub, create or select a safe reposito
 - [x] `npm audit --audit-level=high` reports no vulnerabilities.
 - [x] Browser demo covers sign-in, repository creation, initial upload, and retry state without console errors.
 - [x] A packaged Electron app contains the injected OAuth Client ID metadata.
-- [ ] Validate a release package using the official Client ID.
+- [x] Validate a release package using the official Client ID.
 - [x] Close `CHANGELOG.md` as 0.7.0 and bump package metadata.
 - [x] Create the release commit.
 - [ ] Create the `v0.7.0` tag.

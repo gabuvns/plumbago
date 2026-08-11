@@ -3,7 +3,18 @@ const { run } = require('../core/runtime.cjs')
 
 async function beginGitHubSignIn(clientId) {
   if (!clientId) throw new Error('GitHub sign-in is not configured in this Plumbago build.')
-  return postForm('https://github.com/login/device/code', { client_id: clientId, scope: 'repo read:user' })
+  const payload = await postForm('https://github.com/login/device/code', { client_id: clientId, scope: 'repo read:user' })
+  return normalizeGitHubDeviceCode(payload)
+}
+
+function normalizeGitHubDeviceCode(payload = {}) {
+  return {
+    deviceCode: String(payload.device_code || ''),
+    userCode: String(payload.user_code || ''),
+    verificationUri: String(payload.verification_uri || ''),
+    expiresIn: Number(payload.expires_in || 0),
+    interval: Number(payload.interval || 5),
+  }
 }
 
 async function completeGitHubSignIn(clientId, deviceCode) {
@@ -197,5 +208,6 @@ module.exports = {
   githubPagesWorkflow,
   githubWorkflowStatus,
   listGitHubRepositories,
+  normalizeGitHubDeviceCode,
   parseGitHubRemote,
 }
