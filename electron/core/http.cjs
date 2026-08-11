@@ -1,4 +1,6 @@
-const USER_AGENT = 'Plumbago-Hugo-UI/0.5.0'
+const { version } = require('../../package.json')
+
+const USER_AGENT = `Plumbago-Hugo-UI/${version}`
 
 async function fetchText(url) {
   const controller = new AbortController()
@@ -41,6 +43,19 @@ async function postForm(url, values) {
   }
 }
 
+function githubErrorMessage(status, payload, headers = new Headers()) {
+  const detail = payload?.errors?.map((item) => item.message || item.code).filter(Boolean).join(', ')
+  const reason = detail || payload?.message || ''
+  const fallback = status === 401
+    ? 'Your GitHub authorization expired. Disconnect and sign in again.'
+    : status === 403
+      ? headers.get('x-ratelimit-remaining') === '0'
+        ? 'GitHub API limits were reached. Wait a few minutes and try again.'
+        : 'GitHub denied this action. Reconnect the account or choose a repository where you have write access.'
+      : `GitHub returned HTTP ${status}.`
+  return [fallback, reason && reason !== fallback ? reason : ''].filter(Boolean).join(' ')
+}
+
 async function githubRequest(token, route, options = {}) {
   if (!token) throw new Error('Connect a GitHub account first.')
   const controller = new AbortController()
@@ -60,8 +75,7 @@ async function githubRequest(token, route, options = {}) {
     })
     const payload = response.status === 204 ? null : await response.json().catch(() => null)
     if (!response.ok) {
-      const detail = payload?.errors?.map((item) => item.message || item.code).filter(Boolean).join(', ')
-      const error = new Error(detail || payload?.message || `GitHub returned HTTP ${response.status}.`)
+      const error = new Error(githubErrorMessage(response.status, payload, response.headers))
       error.status = response.status
       throw error
     }
@@ -71,4 +85,4 @@ async function githubRequest(token, route, options = {}) {
   }
 }
 
-module.exports = { fetchJson, fetchText, githubRequest, postForm }
+module.exports = { fetchJson, fetchText, githubErrorMessage, githubRequest, postForm }

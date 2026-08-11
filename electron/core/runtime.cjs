@@ -21,9 +21,28 @@ function wslCommandArgs(runtime, command, args = []) {
   return ['-d', runtime.distro, '--cd', runtime.workingDirectory, '--', '/bin/bash', '-lc', commandLine]
 }
 
+function commandEnvironment(extraEnvironment = {}, forwardToWsl = false) {
+  const environment = { ...process.env, ...extraEnvironment }
+  if (!forwardToWsl || !Object.keys(extraEnvironment).length) return environment
+
+  const existing = String(process.env.WSLENV || '').split(':').filter(Boolean)
+  const forwarded = new Set(existing.map((entry) => entry.split('/')[0]))
+  for (const key of Object.keys(extraEnvironment)) {
+    if (!forwarded.has(key)) existing.push(key)
+  }
+  environment.WSLENV = existing.join(':')
+  return environment
+}
+
 async function run(root, command, args = [], options = {}) {
   const runtime = runtimeFor(root)
-  const commandOptions = { maxBuffer: 8 * 1024 * 1024, windowsHide: true, ...options }
+  const { env: extraEnvironment, ...executionOptions } = options
+  const commandOptions = {
+    maxBuffer: 8 * 1024 * 1024,
+    windowsHide: true,
+    ...executionOptions,
+    ...(extraEnvironment ? { env: commandEnvironment(extraEnvironment, runtime.kind === 'wsl' && process.platform === 'win32') } : {}),
+  }
   try {
     if (runtime.kind === 'wsl' && process.platform === 'win32') {
       const result = await execFileAsync(
@@ -64,4 +83,4 @@ function spawnLongRunning(root, command, args = []) {
   return spawn(command, args, { cwd: root, stdio: 'ignore' })
 }
 
-module.exports = { executablePath, run, runtimeFor, spawnLongRunning, wslCommandArgs }
+module.exports = { commandEnvironment, executablePath, run, runtimeFor, spawnLongRunning, wslCommandArgs }

@@ -7,6 +7,8 @@ const { execFile } = require('node:child_process')
 const { promisify } = require('node:util')
 const YAML = require('yaml')
 const service = require('../electron/plumbago-service.cjs')
+const runtimeService = require('../electron/core/runtime.cjs')
+const httpService = require('../electron/core/http.cjs')
 const themeCompatibility = require('../electron/services/theme-compatibility.cjs')
 
 const execFileAsync = promisify(execFile)
@@ -34,6 +36,29 @@ test('identifica blogs em pastas do WSL abertas pelo Windows', () => {
     '-lc',
     `exec 'hugo' 'new' 'post/it'"'"'s-ready.md'`,
   ])
+})
+
+test('encaminha autenticação HTTPS do GitHub sem gravar o token no remoto', () => {
+  const token = 'github-token-used-only-for-this-test'
+  const authentication = service.githubGitEnvironment(token)
+  assert.equal(authentication.GIT_CONFIG_COUNT, '1')
+  assert.equal(authentication.GIT_CONFIG_KEY_0, 'http.https://github.com/.extraheader')
+  assert.equal(authentication.GIT_TERMINAL_PROMPT, '0')
+  assert.equal(Buffer.from(authentication.GIT_CONFIG_VALUE_0.replace('Authorization: Basic ', ''), 'base64').toString(), `x-access-token:${token}`)
+
+  const environment = runtimeService.commandEnvironment(authentication, true)
+  assert.match(environment.WSLENV, /GIT_CONFIG_VALUE_0/)
+  assert.equal(process.env.GIT_CONFIG_VALUE_0, undefined)
+})
+
+test('explica autorização expirada, permissão insuficiente e limite da API do GitHub', () => {
+  assert.match(httpService.githubErrorMessage(401, { message: 'Bad credentials' }), /authorization expired/i)
+  assert.match(httpService.githubErrorMessage(403, { message: 'Resource not accessible' }), /denied this action/i)
+  assert.match(httpService.githubErrorMessage(403, { message: 'rate limit exceeded' }, new Headers({ 'x-ratelimit-remaining': '0' })), /limits were reached/i)
+})
+
+test('usa a identidade noreply do GitHub sem expor o email pessoal', () => {
+  assert.equal(service.githubCommitEmail({ id: 123456, login: 'writer' }), '123456+writer@users.noreply.github.com')
 })
 
 test('oferece instalação do Git específica para Windows, WSL e macOS', () => {

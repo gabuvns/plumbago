@@ -4,6 +4,7 @@ const { githubRequest } = require('../core/http.cjs')
 const { run } = require('../core/runtime.cjs')
 const {
   defaultGitHubPagesUrl,
+  githubAccount,
   githubPagesWorkflow,
   githubWorkflowStatus,
   parseGitHubRemote,
@@ -16,6 +17,7 @@ async function createGitHubRepository(root, token, input) {
   await requireGitRepository(root)
   const name = String(input?.name || '').trim()
   if (!/^[A-Za-z0-9_.-]{1,100}$/.test(name)) throw new Error('Choose a valid repository name.')
+  await ensureGitHubIdentity(root, token)
   const repository = await githubRequest(token, '/user/repos', {
     method: 'POST',
     body: {
@@ -35,6 +37,8 @@ async function createGitHubRepository(root, token, input) {
       name: repository.name,
       owner: repository.owner.login,
       private: repository.private,
+      empty: true,
+      defaultBranch: repository.default_branch || '',
       url: repository.html_url,
       sshUrl: repository.ssh_url,
       cloneUrl: repository.clone_url,
@@ -43,14 +47,53 @@ async function createGitHubRepository(root, token, input) {
   }
 }
 
-async function connectGitHubRepository(root, token, fullName, protocol = 'ssh') {
+async function connectGitHubRepository(root, token, fullName, protocol = 'https') {
   await requireGitRepository(root)
   if (!/^[\w.-]+\/[\w.-]+$/.test(String(fullName || ''))) throw new Error('Choose a valid GitHub repository.')
   const repository = await githubRequest(token, `/repos/${fullName}`)
   if (!repository.permissions?.push) throw new Error('Your GitHub account does not have permission to publish to this repository.')
+  const currentRemote = await run(root, 'git', ['remote', 'get-url', 'origin']).then((result) => result.stdout).catch(() => '')
+  const currentRepository = parseGitHubRemote(currentRemote)
+  if (Number(repository.size || 0) > 0 && currentRepository?.fullName.toLowerCase() !== repository.full_name.toLowerCase()) {
+    throw new Error('This repository already contains files. Clone or open that repository first so Plumbago never overwrites unrelated history.')
+  }
+  await ensureGitHubIdentity(root, token)
   const remote = protocol === 'https' ? repository.clone_url : repository.ssh_url
   const config = await saveGitConfig(root, { remote })
-  return { repository: { fullName: repository.full_name, url: repository.html_url }, config }
+  return {
+    repository: {
+      fullName: repository.full_name,
+      name: repository.name,
+      owner: repository.owner.login,
+      private: repository.private,
+      empty: Number(repository.size || 0) === 0,
+      defaultBranch: repository.default_branch || '',
+      url: repository.html_url,
+    },
+    config,
+  }
+}
+
+function githubGitEnvironment(token) {
+  const value = String(token || '').trim()
+  if (!value) return {}
+  const authorization = Buffer.from(`x-access-token:${value}`).toString('base64')
+  return {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+    GIT_CONFIG_VALUE_0: `Authorization: Basic ${authorization}`,
+    GIT_TERMINAL_PROMPT: '0',
+  }
+}
+
+async function ensureGitHubIdentity(root, token) {
+  const config = await gitConfig(root)
+  if (config.name && config.email) return config
+  const account = await githubAccount(token)
+  return saveGitConfig(root, {
+    name: config.name || account.name,
+    email: config.email || account.commitEmail,
+  })
 }
 
 async function configureGitHubPages(root, token) {
@@ -128,7 +171,7 @@ async function saveGitConfig(root, config) {
   return gitConfig(root)
 }
 
-async function syncGit(root, message) {
+async function syncGit(root, message, options = {}) {
   await requireGitRepository(root)
   const log = []
   await run(root, 'git', ['add', '--all'])
@@ -142,21 +185,25 @@ async function syncGit(root, message) {
 
   const remotes = await run(root, 'git', ['remote']).then((result) => result.stdout.split('\n').filter(Boolean))
   if (!remotes.includes('origin')) throw new Error('Configure um remoto Git chamado origin antes de sincronizar.')
+  const remote = await run(root, 'git', ['remote', 'get-url', 'origin']).then((result) => result.stdout)
+  const authenticatedGit = /^https:\/\/github\.com\//i.test(remote) && options.githubToken
+    ? { env: githubGitEnvironment(options.githubToken) }
+    : {}
 
   const hasUpstream = await run(root, 'git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
     .then(() => true)
     .catch(() => false)
   if (hasUpstream) {
     try {
-      await run(root, 'git', ['pull', '--rebase'])
+      await run(root, 'git', ['pull', '--rebase'], authenticatedGit)
     } catch (error) {
       await run(root, 'git', ['rebase', '--abort']).catch(() => {})
       throw new Error(`O Git encontrou um conflito ao trazer as novidades remotas e desfez o rebase com segurança.\n${error.message}`)
     }
     log.push('Novidades remotas aplicadas.')
-    await run(root, 'git', ['push'])
+    await run(root, 'git', ['push'], authenticatedGit)
   } else {
-    await run(root, 'git', ['push', '--set-upstream', 'origin', 'HEAD'])
+    await run(root, 'git', ['push', '--set-upstream', 'origin', 'HEAD'], authenticatedGit)
   }
   log.push('Conteúdo enviado ao repositório remoto.')
   return { log, status: await gitStatus(root) }
@@ -173,11 +220,11 @@ async function publishingStatus(root) {
   return { ...status, repository, site: { ...metadata, ...hosting }, liveUrl: hosting.publicUrl, deployment }
 }
 
-async function publishBlog(root, message) {
+async function publishBlog(root, message, options = {}) {
   const languages = await ensureBundleLanguages(root)
   await validateBlog(root)
   await run(root, 'hugo', ['--renderToMemory', '--minify'])
-  const synced = await syncGit(root, message)
+  const synced = await syncGit(root, message, options)
   return {
     log: [
       ...(languages.changed ? ['Hugo language settings updated so page-bundle images publish correctly.'] : []),
@@ -287,6 +334,8 @@ module.exports = {
   createGitHubRepository,
   gitConfig,
   gitStatus,
+  ensureGitHubIdentity,
+  githubGitEnvironment,
   publishBlog,
   publishingHealth,
   publishingStatus,

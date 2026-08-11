@@ -61,7 +61,7 @@ jobs:
       - name: Build renderer
         run: npm run build
       - name: Package application
-        run: ${{ matrix.command }}
+        run: ${{ matrix.command }} --config.extraMetadata.plumbago.githubOAuthClientId="${{ vars.PLUMBAGO_GITHUB_CLIENT_ID }}"
       - name: Upload packaged application
         uses: actions/upload-artifact@v7
         with:

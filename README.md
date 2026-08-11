@@ -6,6 +6,8 @@ Plumbago is a desktop app for creating, editing, and publishing Hugo sites. You 
 
 [Visit the website](https://gabuvns.github.io/plumbago/) · [Download the latest release](https://github.com/gabuvns/plumbago/releases/latest)
 
+Development follows a milestone-based [product roadmap](ROADMAP.md) and an actively maintained [delivery plan](PLAN.md), with a tested downloadable release after every major feature.
+
 ## Why Plumbago exists
 
 Hugo is wonderfully fast, but publishing a simple post can ask a writer to remember folders, front matter, terminal commands, image paths, Git commits, and deployment details. Plumbago handles that routine while leaving the site itself completely standard.
@@ -38,6 +40,8 @@ Plumbago checks the content folder every few seconds. Posts created or changed b
 5. Connect a Git repository when you are ready to publish.
 
 Plumbago can connect an existing GitHub repository or create one for you. The guided publishing setup can also add the Hugo deployment workflow and configure GitHub Pages, so a first-time blogger does not need to assemble the hosting pieces by hand.
+
+Official builds offer **Continue with GitHub** through a one-time browser code. After authorization, Plumbago can create an empty repository and upload the verified Hugo source from the same action. HTTPS is the default so new writers do not need to prepare SSH keys; the credential is supplied to Git only for the network operation and is never stored in the remote URL or blog files. If Git author details are missing, Plumbago uses the account name and GitHub's private `users.noreply.github.com` address instead of exposing the writer's personal email. GitHub CLI, SSH, and fine-grained tokens remain available as explicit fallbacks.
 
 ## Made for Windows + WSL
 

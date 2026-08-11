@@ -1,6 +1,7 @@
 const { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } = require('electron')
 const fs = require('node:fs/promises')
 const path = require('node:path')
+const packageMetadata = require('../package.json')
 const service = require('./plumbago-service.cjs')
 const updater = require('./core/updater.cjs')
 
@@ -15,7 +16,7 @@ let encryptedGitHubToken = ''
 let bloggerImportPath = ''
 let ignoreGitHubCli = false
 
-const GITHUB_CLIENT_ID = process.env.PLUMBAGO_GITHUB_CLIENT_ID || ''
+const GITHUB_CLIENT_ID = process.env.PLUMBAGO_GITHUB_CLIENT_ID || packageMetadata.plumbago?.githubOAuthClientId || ''
 
 const settingsPath = () => path.join(app.getPath('userData'), 'settings.json')
 const legacySettingsPath = () => path.join(app.getPath('appData'), 'Plum', 'settings.json')
@@ -58,6 +59,11 @@ async function ensureGitHubToken() {
     if (githubToken) githubTokenSource = 'github-cli'
   }
   if (!githubToken) throw new Error('Connect a GitHub account first.')
+  return githubToken
+}
+
+async function optionalGitHubToken() {
+  await ensureGitHubToken().catch(() => '')
   return githubToken
 }
 
@@ -115,9 +121,9 @@ function registerIpc() {
   ipcMain.handle('plumbago:initialize-git', () => service.ensureGitRepository(requireBlog()))
   ipcMain.handle('plumbago:git-config', () => service.gitConfig(requireBlog()))
   ipcMain.handle('plumbago:save-git-config', (_event, config) => service.saveGitConfig(requireBlog(), config))
-  ipcMain.handle('plumbago:sync-git', (_event, message) => service.syncGit(requireBlog(), message))
+  ipcMain.handle('plumbago:sync-git', async (_event, message) => service.syncGit(requireBlog(), message, { githubToken: await optionalGitHubToken() }))
   ipcMain.handle('plumbago:publishing-status', () => service.publishingStatus(requireBlog()))
-  ipcMain.handle('plumbago:publish-blog', (_event, message) => service.publishBlog(requireBlog(), message))
+  ipcMain.handle('plumbago:publish-blog', async (_event, message) => service.publishBlog(requireBlog(), message, { githubToken: await optionalGitHubToken() }))
   ipcMain.handle('plumbago:open-publishing-url', async (_event, value) => {
     let url
     try { url = new URL(String(value || '')) } catch { throw new Error('Invalid publishing URL.') }

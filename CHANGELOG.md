@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.7.0 — 2026-08-10
+
+- Add a versioned product roadmap with a tested GitHub Release after each major milestone.
+- Make browser-based GitHub Device Flow the primary connection path, keep token and GitHub CLI fallbacks, and package the public OAuth client identity into official builds.
+- Default new GitHub remotes to HTTPS and pass authorization to native or WSL Git only through transient environment variables.
+- Create or connect a safe repository and upload the verified Hugo source from one primary action, with recoverable retry after partial failures.
+
 ## 0.6.0 — 2026-08-10
 
 - Refresh the post list every few seconds so content created or changed in Obsidian and other editors appears automatically.

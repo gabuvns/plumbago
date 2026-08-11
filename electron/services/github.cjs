@@ -3,7 +3,7 @@ const { run } = require('../core/runtime.cjs')
 
 async function beginGitHubSignIn(clientId) {
   if (!clientId) throw new Error('GitHub sign-in is not configured in this Plumbago build.')
-  return postForm('https://github.com/login/device/code', { client_id: clientId, scope: 'repo read:user user:email' })
+  return postForm('https://github.com/login/device/code', { client_id: clientId, scope: 'repo read:user' })
 }
 
 async function completeGitHubSignIn(clientId, deviceCode) {
@@ -22,13 +22,19 @@ async function completeGitHubSignIn(clientId, deviceCode) {
   return { state: states[payload.error] || 'error', description: payload.error_description || '' }
 }
 
+function githubCommitEmail(account) {
+  return `${account.id}+${account.login}@users.noreply.github.com`
+}
+
 async function githubAccount(token) {
   const account = await githubRequest(token, '/user')
   return {
+    id: account.id,
     login: account.login,
     name: account.name || account.login,
     avatarUrl: account.avatar_url,
     profileUrl: account.html_url,
+    commitEmail: githubCommitEmail(account),
   }
 }
 
@@ -47,6 +53,8 @@ async function listGitHubRepositories(token) {
     sshUrl: repository.ssh_url,
     cloneUrl: repository.clone_url,
     permissions: repository.permissions || {},
+    empty: Number(repository.size || 0) === 0,
+    defaultBranch: repository.default_branch || '',
   }))
 }
 
@@ -185,6 +193,7 @@ module.exports = {
   defaultGitHubPagesUrl,
   githubAccount,
   githubCliToken,
+  githubCommitEmail,
   githubPagesWorkflow,
   githubWorkflowStatus,
   listGitHubRepositories,

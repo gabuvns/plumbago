@@ -93,6 +93,16 @@ test('publica os metadados necessários para atualizações automáticas', () =>
   assert.match(linux.files, /latest-linux\.yml/)
 })
 
+test('empacota a identidade OAuth pública usada pelo login do GitHub', () => {
+  const packageJson = JSON.parse(read('package.json'))
+  const workflow = read('.github/workflows/release.yml')
+  const main = read('electron/main.cjs')
+  assert.equal(packageJson.plumbago.githubOAuthClientId, '')
+  assert.match(workflow, /PLUMBAGO_GITHUB_CLIENT_ID/)
+  assert.match(workflow, /extraMetadata\.plumbago\.githubOAuthClientId/)
+  assert.match(main, /packageMetadata\.plumbago\?\.githubOAuthClientId/)
+})
+
 test('mantém as entradas principais como fachadas modulares', () => {
   const rendererEntry = read('src/App.jsx')
   const electronEntry = read('electron/plumbago-service.cjs')
@@ -132,4 +142,17 @@ test('mantém a sincronização externa, exclusão e atalhos local/público vis�
   assert.match(preload, /deletePost:/)
   assert.match(messages, /'top\.preview': 'View local site'/)
   assert.match(messages, /'top\.publicSite': 'View public site'/)
+})
+
+test('mantém o GitHub Device Flow como caminho principal e envia o primeiro commit por HTTPS', () => {
+  const setup = read('src/features/publishing/GitHubSetupModal.jsx')
+  const publishing = read('electron/services/publishing.cjs')
+  assert.match(setup, /useState\('https'\)/)
+  assert.match(setup, /api\.beginGitHubSignIn\(\)/)
+  assert.match(setup, /api\.publishBlog\(t\('github\.initialCommitMessage'\)\)/)
+  assert.match(setup, /<details className="github-token-option">/)
+  assert.match(read('electron/services/github.cjs'), /scope: 'repo read:user'/)
+  assert.doesNotMatch(read('electron/services/github.cjs'), /scope: '[^']*user:email/)
+  assert.match(publishing, /GIT_CONFIG_VALUE_0/)
+  assert.doesNotMatch(publishing, /remote.*x-access-token/i)
 })
