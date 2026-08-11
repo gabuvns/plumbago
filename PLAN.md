@@ -2,9 +2,9 @@
 
 This file tracks the active milestone. The longer product sequence and definitions of done live in [ROADMAP.md](ROADMAP.md).
 
-## Completed milestone: 0.7.0 — GitHub Connect
+## Completed milestone: 0.7.1 — GitHub Connect
 
-[v0.7.0](https://github.com/gabuvns/plumbago/releases/tag/v0.7.0) was published on 2026-08-11 with Windows, Linux, macOS Intel, and macOS Apple Silicon downloads.
+[v0.7.1](https://github.com/gabuvns/plumbago/releases/tag/v0.7.1) supersedes `v0.7.0` with the complete Device Flow IPC fix and Windows, Linux, macOS Intel, and macOS Apple Silicon downloads.
 
 - [x] Register the official OAuth App and inject its public Client ID into official packages.
 - [x] Verify the complete Device Flow against the real GitHub account and revoke the disposable test token.

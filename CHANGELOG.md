@@ -2,11 +2,14 @@
 
 ## Unreleased
 
+## 0.7.1 — 2026-08-11
+
+- Complete the Device Flow response normalization at the Electron IPC boundary so the authorization code is copied, opened, displayed, and polled correctly in official builds.
+
 ## 0.7.0 — 2026-08-10
 
 - Add a versioned product roadmap with a tested GitHub Release after each major milestone.
 - Make browser-based GitHub Device Flow the primary connection path, keep token and GitHub CLI fallbacks, and package the public OAuth client identity into official builds.
-- Normalize GitHub's Device Flow response so the one-time authorization code is displayed and polled correctly in production.
 - Default new GitHub remotes to HTTPS and pass authorization to native or WSL Git only through transient environment variables.
 - Create or connect a safe repository and upload the verified Hugo source from one primary action, with recoverable retry after partial failures.
 

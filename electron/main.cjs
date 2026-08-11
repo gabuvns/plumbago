@@ -150,15 +150,9 @@ function registerIpc() {
   ipcMain.handle('plumbago:github-begin-sign-in', async () => {
     ignoreGitHubCli = false
     const flow = await service.beginGitHubSignIn(GITHUB_CLIENT_ID)
-    clipboard.writeText(flow.user_code)
-    await shell.openExternal(flow.verification_uri)
-    return {
-      deviceCode: flow.device_code,
-      userCode: flow.user_code,
-      verificationUri: flow.verification_uri,
-      expiresIn: flow.expires_in,
-      interval: flow.interval,
-    }
+    clipboard.writeText(flow.userCode)
+    await shell.openExternal(flow.verificationUri)
+    return flow
   })
   ipcMain.handle('plumbago:github-complete-sign-in', async (_event, deviceCode) => {
     void _event

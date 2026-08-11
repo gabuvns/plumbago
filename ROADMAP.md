@@ -19,7 +19,7 @@ Every milestone must:
 
 ### 0.7.0 — GitHub Connect
 
-Status: released on 2026-08-11 — [v0.7.0](https://github.com/gabuvns/plumbago/releases/tag/v0.7.0)
+Status: released on 2026-08-11 — [v0.7.1](https://github.com/gabuvns/plumbago/releases/tag/v0.7.1)
 
 - [x] Make **Continue with GitHub** the primary authentication path without asking the writer to create a token.
 - [x] Explain and recover from missing, expired, denied, or insufficient authorization.

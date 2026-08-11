@@ -146,6 +146,7 @@ test('mantém a sincronização externa, exclusão e atalhos local/público vis�
 
 test('mantém o GitHub Device Flow como caminho principal e envia o primeiro commit por HTTPS', () => {
   const setup = read('src/features/publishing/GitHubSetupModal.jsx')
+  const main = read('electron/main.cjs')
   const publishing = read('electron/services/publishing.cjs')
   assert.match(setup, /useState\('https'\)/)
   assert.match(setup, /api\.beginGitHubSignIn\(\)/)
@@ -153,6 +154,9 @@ test('mantém o GitHub Device Flow como caminho principal e envia o primeiro com
   assert.match(setup, /<details className="github-token-option">/)
   assert.match(read('electron/services/github.cjs'), /scope: 'repo read:user'/)
   assert.doesNotMatch(read('electron/services/github.cjs'), /scope: '[^']*user:email/)
+  assert.match(main, /clipboard\.writeText\(flow\.userCode\)/)
+  assert.match(main, /shell\.openExternal\(flow\.verificationUri\)/)
+  assert.doesNotMatch(main, /flow\.(?:user_code|verification_uri|device_code)/)
   assert.match(publishing, /GIT_CONFIG_VALUE_0/)
   assert.doesNotMatch(publishing, /remote.*x-access-token/i)
 })
