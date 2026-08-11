@@ -4,6 +4,7 @@ import { Sidebar } from '../components/layout/Sidebar'
 import { CreateBlogModal } from '../features/blogs/CreateBlogModal'
 import { Editor } from '../features/editor/Editor'
 import { BloggerImportModal } from '../features/importing/BloggerImportModal'
+import { HistoryModal } from '../features/history/HistoryModal'
 import { ImageLibrary } from '../features/media/ImageLibrary'
 import { Welcome } from '../features/onboarding/Welcome'
 import { DeletePostModal } from '../features/posts/DeletePostModal'
@@ -45,6 +46,7 @@ export default function App() {
   const [githubOpen, setGitHubOpen] = useState(false)
   const [deployOpen, setDeployOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [gitSetupOpen, setGitSetupOpen] = useState(false)
   const [hugoSetupOpen, setHugoSetupOpen] = useState(false)
   const [bloggerOpen, setBloggerOpen] = useState(false)
@@ -292,7 +294,7 @@ export default function App() {
     if (!deleteTarget) return
     setBusy(true)
     try {
-      const removed = await api.deletePost(deleteTarget.id)
+      await api.deletePost(deleteTarget.id)
       const remaining = posts.filter((item) => item.id !== deleteTarget.id)
       setPosts(remaining)
       if (activeId === deleteTarget.id) {
@@ -309,7 +311,7 @@ export default function App() {
         setSaveError(null)
       }
       setDeleteTarget(null)
-      notify(removed.preservedAssets?.length ? t('notice.postDeletedAssets', { count: removed.preservedAssets.length }) : t('notice.postDeleted'))
+      notify(t('notice.postDeleted'))
     } catch (error) {
       notify(friendlyError(error, t), 'error')
     } finally {
@@ -499,12 +501,22 @@ export default function App() {
     notify(t('notice.bloggerImported', { count: result.posts.length }))
   }
 
+  async function handleHistoryPostRestored(restoredPost) {
+    await refreshPosts(restoredPost.id, true)
+  }
+
+  async function handleHistorySiteRestored(preferredId) {
+    const nextContext = await api.getContext()
+    if (nextContext) setContext(nextContext)
+    await Promise.all([refreshPosts(preferredId, true), refreshSiteSettings()])
+  }
+
   if (!ready) return <div className="app-loading"><div className="welcome-mark"><span>p</span></div><LoaderCircle className="spin" /></div>
   if (!context.root) return <><Welcome onChoose={chooseBlog} onCreate={() => setCreateBlogOpen(true)} busy={busy} />{createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}{toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>}</>
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} />
       <main className="content-area">
         <header className="topbar">
@@ -522,6 +534,7 @@ export default function App() {
       {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} onDeactivate={deactivateTheme} onRefreshContext={refreshContext} onManageHugo={() => setHugoSetupOpen(true)} onSiteSettingsChanged={setSite} busy={busy} notify={notify} />}
       {githubOpen && <GitHubSetupModal context={context} onClose={() => { setGitHubOpen(false); refreshSiteSettings().catch(() => {}) }} onDeploy={showDeploy} notify={notify} />}
       {deployOpen && <DeploymentSetupModal context={context} onClose={() => { setDeployOpen(false); refreshSiteSettings().catch(() => {}) }} onGitHub={() => { setDeployOpen(false); setGitHubOpen(true) }} onSiteChanged={setSite} notify={notify} />}
+      {historyOpen && <HistoryModal post={post} onClose={() => setHistoryOpen(false)} onPostRestored={handleHistoryPostRestored} onSiteRestored={handleHistorySiteRestored} notify={notify} />}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
       {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} notify={notify} />}

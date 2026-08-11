@@ -26,6 +26,19 @@ function fullPost(summary) {
 
 export function createDemoBridge() {
   let posts = [...samplePosts]
+  let recoveryPoints = [
+    { id: 'demo-recovery-theme', reason: 'before-theme-change', label: '', createdAt: '2026-08-10T15:20:00.000Z', targets: ['hugo.toml', 'themes/hugo-papermod'] },
+    { id: 'demo-recovery-import', reason: 'before-import', label: '', createdAt: '2026-08-09T18:45:00.000Z', targets: ['content', 'hugo.toml'] },
+  ]
+  let trash = [{
+    id: 'demo-trash-1',
+    postId: 'content/posts/rascunho-descartado/index.pt-br.md',
+    title: 'Um rascunho que pode voltar',
+    deletedAt: '2026-08-10T11:15:00.000Z',
+    files: ['content/posts/rascunho-descartado/index.pt-br.md'],
+    assetCount: 0,
+    post: { id: 'content/posts/rascunho-descartado/index.pt-br.md', title: 'Um rascunho que pode voltar', description: 'Uma ideia guardada na lixeira.', date: '2026-08-03', draft: true, language: 'pt-br', featuredImage: '', revision: 'demo-trash' },
+  }]
   let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   const demoQuery = new URLSearchParams(window.location.search)
   let githubConnected = demoQuery.get('github') !== 'signin'
@@ -71,7 +84,56 @@ export function createDemoBridge() {
     readPost: async (id) => fullPost(posts.find((post) => post.id === id)),
     savePost: async (post) => { const saved = { ...post, revision: `demo-${Date.now()}` }; posts = posts.map((item) => item.id === post.id ? { ...item, ...saved } : item); return saved },
     createPost: async (input) => { const summary = { id: `content/posts/novo-post/index.${input.language}.md`, title: input.title, description: '', date: '2026-08-08', draft: true, language: input.language, featuredImage: '' }; posts.unshift(summary); return fullPost(summary) },
-    deletePost: async (id) => { posts = posts.filter((item) => item.id !== id); return { id, preservedAssets: [] } },
+    deletePost: async (id) => {
+      const post = posts.find((item) => item.id === id)
+      posts = posts.filter((item) => item.id !== id)
+      const trashId = `demo-trash-${Date.now()}`
+      trash.unshift({ id: trashId, postId: id, title: post?.title || id, deletedAt: new Date().toISOString(), files: [id], assetCount: 0, post })
+      return { id, trashId, movedAssets: [], preservedAssets: [] }
+    },
+    siteHistory: async () => ({
+      hasLocalChanges: true,
+      localChangeCount: 2,
+      entries: [
+        { hash: 'a'.repeat(40), createdAt: '2026-08-10T20:12:00.000Z', author: 'Artista Plumbago', subject: 'Publish new winter color notes', kind: 'content', files: [{ status: 'M', path: samplePosts[1].id }] },
+        { hash: 'b'.repeat(40), createdAt: '2026-08-09T14:30:00.000Z', author: 'Artista Plumbago', subject: 'Change the site title and theme', kind: 'theme', files: [{ status: 'M', path: 'hugo.toml' }, { status: 'A', path: 'themes/hugo-papermod' }] },
+        { hash: 'c'.repeat(40), createdAt: '2026-08-08T09:10:00.000Z', author: 'Artista Plumbago', subject: 'Create the blog', kind: 'site', files: [{ status: 'A', path: 'hugo.toml' }] },
+      ],
+    }),
+    postHistory: async (id) => ({ id, currentChanged: true, revisions: [
+      { hash: 'd'.repeat(40), createdAt: '2026-08-10T20:12:00.000Z', author: 'Artista Plumbago', subject: 'Refine the introduction' },
+      { hash: 'e'.repeat(40), createdAt: '2026-08-08T16:00:00.000Z', author: 'Artista Plumbago', subject: 'Create the first draft' },
+    ] }),
+    comparePostRevision: async () => ({ changes: [
+      { type: 'same', value: '---\ntitle: Cultivando ideias com calma\n---\n\n' },
+      { type: 'removed', value: 'A criatividade começa com uma ideia pronta.\n' },
+      { type: 'added', value: 'A criatividade nem sempre chega fazendo barulho. Às vezes ela começa como uma pergunta pequena.\n' },
+      { type: 'same', value: '\n## Um espaço para experimentar\n' },
+    ] }),
+    restorePostRevision: async (id) => {
+      const restored = { ...fullPost(posts.find((item) => item.id === id)), body: 'A criatividade começa com uma ideia pronta.\n\n## Um espaço para experimentar\n', revision: `demo-${Date.now()}` }
+      posts = posts.map((item) => item.id === id ? { ...item, ...restored } : item)
+      return { post: restored, recoveryPoint: recoveryPoints[0] }
+    },
+    listRecoveryPoints: async () => recoveryPoints,
+    createRecoveryPoint: async (label) => {
+      const point = { id: `demo-recovery-${Date.now()}`, reason: 'manual', label, createdAt: new Date().toISOString(), targets: ['content', 'hugo.toml'] }
+      recoveryPoints.unshift(point)
+      return point
+    },
+    restoreRecoveryPoint: async (id) => recoveryPoints.find((point) => point.id === id),
+    listTrash: async () => trash.map((entry) => ({ id: entry.id, postId: entry.postId, title: entry.title, deletedAt: entry.deletedAt, files: entry.files, assetCount: entry.assetCount })),
+    restoreTrashItem: async (id) => {
+      const item = trash.find((entry) => entry.id === id)
+      if (item?.post && !posts.some((post) => post.id === item.postId)) posts.unshift(item.post)
+      trash = trash.filter((entry) => entry.id !== id)
+      return item
+    },
+    deleteTrashItem: async (id) => {
+      const item = trash.find((entry) => entry.id === id)
+      trash = trash.filter((entry) => entry.id !== id)
+      return item
+    },
     hugoReadiness: async () => ({ ready: true, environment: { kind: 'wsl', distro: 'Ubuntu', label: 'WSL · Ubuntu' }, hugo: { status: 'ready', version: context.hugo, executable: context.hugoExecutable, extended: true, details: '' }, assistance: { mode: 'command', command: 'sudo apt update && sudo apt install -y hugo', url: 'https://gohugo.io/installation/linux/', repositoryMayLag: true }, wslDistributions: [] }),
     installHugo: async () => ({ ready: true, environment: { kind: 'native', platform: 'win32', label: 'win32' }, hugo: { status: 'ready', version: 'hugo v0.164.0+extended', executable: 'C:\\Program Files\\Hugo\\bin\\hugo.exe', extended: true, details: '' }, assistance: { mode: 'automatic', command: 'winget upgrade --id Hugo.Hugo.Extended -e --source winget', url: 'https://gohugo.io/installation/windows/' }, wslDistributions: ['Ubuntu'] }),
     useWslForBlog: async (distro) => { context = { ...context, root: `\\\\wsl.localhost\\${distro}\\home\\voce\\meu-blog`, runtime: { kind: 'wsl', distro }, hugoExecutable: '/usr/bin/hugo' }; return context },

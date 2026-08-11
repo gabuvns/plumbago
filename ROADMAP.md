@@ -45,13 +45,13 @@ Definition of done: after provider authorization and a few blog choices, one pri
 
 ### 0.9.0 — History and recovery
 
-Status: planned
+Status: release candidate
 
-- [ ] Browse post and site history without Git terminology.
-- [ ] Compare revisions and restore one post without reverting unrelated work.
-- [ ] Create automatic recovery points before imports, theme changes, and configuration changes.
-- [ ] Restore the last known-good site state after a failed operation.
-- [ ] Provide a recoverable trash flow for deleted posts and assets.
+- [x] Browse post and site history without Git terminology.
+- [x] Compare revisions and restore one post without reverting unrelated work.
+- [x] Create automatic recovery points before imports, theme changes, and configuration changes.
+- [x] Restore the last known-good site state after a failed operation.
+- [x] Provide a recoverable trash flow for deleted posts and assets.
 
 Definition of done: a writer can understand what changed and safely recover content without using the Git CLI.
 

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.9.0 — 2026-08-11
+
+- Add human-readable post and site history with saved-version dates, authors, change categories, and unpublished-change indicators.
+- Compare a saved post with the current Markdown and restore only that post while preserving unrelated work and an automatic undo point.
+- Create local recovery points before Blogger imports, theme changes, settings changes, and restore operations, with automatic rollback after protected failures.
+- Move deleted posts and their page-bundle assets to a recoverable local trash while preserving assets shared by translations.
+- Add a bilingual history and recovery workspace for post versions, whole-site activity, manual recovery points, trash restoration, and confirmed permanent deletion.
+- Keep recovery and trash data outside normal publishing through an isolated `.plumbago` state directory.
+
 ## 0.8.0 — 2026-08-11
 
 - Add a dedicated one-click deployment assistant for GitHub Pages and Cloudflare Pages with preflight, progress, logs, safe retry, redeploy, and provider switching.

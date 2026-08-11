@@ -8,6 +8,7 @@ const { XMLParser } = require('fast-xml-parser')
 const TurndownService = require('turndown')
 const { run } = require('../core/runtime.cjs')
 const { ensureContentLanguages } = require('./languages.cjs')
+const { movePostToTrash } = require('./trash.cjs')
 
 const IMAGE_EXTENSIONS = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.svg', '.webp'])
 
@@ -213,16 +214,7 @@ async function createPost(root, input) {
 }
 
 async function deletePost(root, id) {
-  const absolute = contentPath(root, id)
-  if (path.extname(absolute).toLowerCase() !== '.md') throw new Error('Only Markdown posts can be removed.')
-  await fs.rm(absolute)
-  const directory = path.dirname(absolute)
-  const remaining = await fs.readdir(directory).catch(() => [])
-  if (!remaining.length) await fs.rmdir(directory)
-  return {
-    id,
-    preservedAssets: remaining.filter((name) => IMAGE_EXTENSIONS.has(path.extname(name).toLowerCase())),
-  }
+  return movePostToTrash(root, id)
 }
 
 function uniqueAssetName(name, usedNames) {

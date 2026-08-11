@@ -1,7 +1,7 @@
-import { Activity, Download, FileText, ImagePlus, MoreHorizontal, Palette, Settings } from 'lucide-react'
+import { Activity, Download, FileText, History, ImagePlus, MoreHorizontal, Palette, Settings } from 'lucide-react'
 import { useI18n } from '../../i18n'
 
-export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHealth, onImport, onSettings }) {
+export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, onHealth, onImport, onSettings }) {
   const { t, locale } = useI18n()
   return (
     <aside className="sidebar">
@@ -10,6 +10,7 @@ export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHealth, o
         <button className="nav-item active"><FileText size={18} /><span>{t('sidebar.posts')}</span><small>⌘ 1</small></button>
         <button className="nav-item" onClick={onImages}><ImagePlus size={18} /><span>{t('sidebar.images')}</span></button>
         <button className="nav-item" onClick={onThemes}><Palette size={18} /><span>{t('sidebar.themes')}</span>{context.theme && <small>✓</small>}</button>
+        <button className="nav-item" onClick={onHistory}><History size={18} /><span>{t('sidebar.history')}</span></button>
         <button className="nav-item" onClick={onHealth}><Activity size={18} /><span>{t('sidebar.publishing')}</span></button>
         <button className="nav-item" onClick={onImport}><Download size={18} /><span>{t('sidebar.import')}</span></button>
       </nav>

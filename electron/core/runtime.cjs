@@ -36,7 +36,7 @@ function commandEnvironment(extraEnvironment = {}, forwardToWsl = false) {
 
 async function run(root, command, args = [], options = {}) {
   const runtime = runtimeFor(root)
-  const { env: extraEnvironment, ...executionOptions } = options
+  const { env: extraEnvironment, preserveOutput = false, ...executionOptions } = options
   const commandOptions = {
     maxBuffer: 8 * 1024 * 1024,
     windowsHide: true,
@@ -50,10 +50,10 @@ async function run(root, command, args = [], options = {}) {
         wslCommandArgs(runtime, command, args),
         commandOptions,
       )
-      return { stdout: result.stdout.trim(), stderr: result.stderr.trim() }
+      return { stdout: preserveOutput ? result.stdout : result.stdout.trim(), stderr: preserveOutput ? result.stderr : result.stderr.trim() }
     }
     const result = await execFileAsync(command, args, { ...commandOptions, cwd: root })
-    return { stdout: result.stdout.trim(), stderr: result.stderr.trim() }
+    return { stdout: preserveOutput ? result.stdout : result.stdout.trim(), stderr: preserveOutput ? result.stderr : result.stderr.trim() }
   } catch (error) {
     const detail = [error.stderr, error.stdout, error.message].filter(Boolean).join('\n').trim()
     const wrapped = new Error(detail || `Não foi possível executar ${command}.`)

@@ -112,6 +112,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/features/editor/Editor.jsx',
     'src/features/publishing/GitHubSetupModal.jsx',
     'src/features/publishing/DeploymentSetupModal.jsx',
+    'src/features/history/HistoryModal.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
@@ -120,9 +121,11 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/git.cjs',
     'electron/services/github.cjs',
     'electron/services/hugo.cjs',
+    'electron/services/history.cjs',
     'electron/services/languages.cjs',
     'electron/services/publishing.cjs',
     'electron/services/site.cjs',
+    'electron/services/trash.cjs',
     'electron/services/updates.cjs',
     'src/features/settings/UpdatePanel.jsx',
     'src/features/setup/HugoSetupModal.jsx',
@@ -179,4 +182,25 @@ test('keeps one-click deployment secure, resumable, and visible in the product',
   assert.match(cloudflare, /\/pages\/assets\/check-missing/)
   assert.match(cloudflare, /\/pages\/assets\/upload/)
   assert.match(cloudflare, /\/deployments/)
+})
+
+test('keeps post history, automatic recovery points, and recoverable deletion visible in the product', () => {
+  const app = read('src/app/App.jsx')
+  const sidebar = read('src/components/layout/Sidebar.jsx')
+  const modal = read('src/features/history/HistoryModal.jsx')
+  const site = read('electron/services/site.cjs')
+  const service = read('electron/plumbago-service.cjs')
+
+  assert.match(app, /<HistoryModal/)
+  assert.match(sidebar, /sidebar\.history/)
+  assert.match(modal, /api\.comparePostRevision/)
+  assert.match(modal, /api\.restorePostRevision/)
+  assert.match(modal, /api\.restoreRecoveryPoint/)
+  assert.match(modal, /api\.restoreTrashItem/)
+  assert.match(modal, /api\.deleteTrashItem/)
+  assert.match(service, /services\/history\.cjs/)
+  assert.match(service, /services\/trash\.cjs/)
+  assert.match(service, /before-import/)
+  assert.match(site, /before-theme-change/)
+  assert.match(site, /before-settings-change/)
 })

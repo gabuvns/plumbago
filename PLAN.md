@@ -44,21 +44,21 @@ Goal: writers can understand what changed, recover one post or the whole site af
 
 ### Product work
 
-- [ ] Add a human-readable history service for posts and site-wide changes.
-- [ ] Compare two post revisions and restore one post without reverting unrelated work.
-- [ ] Create automatic recovery points before imports, theme changes, and configuration changes.
-- [ ] Restore the last known-good site state after a failed protected operation.
-- [ ] Move deleted posts and page-bundle assets to a recoverable local trash instead of leaving orphaned files.
-- [ ] Add a history and trash interface with clear impact summaries, confirmation, and undo feedback.
+- [x] Add a human-readable history service for posts and site-wide changes.
+- [x] Compare two post revisions and restore one post without reverting unrelated work.
+- [x] Create automatic recovery points before imports, theme changes, and configuration changes.
+- [x] Restore the last known-good site state after a failed protected operation.
+- [x] Move deleted posts and page-bundle assets to a recoverable local trash instead of leaving orphaned files.
+- [x] Add a history and trash interface with clear impact summaries, confirmation, and undo feedback.
 
 ### Release gate
 
-- [ ] EN-US and PT-BR keys remain in parity.
-- [ ] History, comparison, checkpoint, restore, trash, IPC, and product-contract tests pass.
-- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
-- [ ] Browser demos cover post restore, recovery points, and trash without console errors.
-- [ ] A relevant Electron package is built and inspected.
-- [ ] Close `CHANGELOG.md` as 0.9.0 and bump package metadata.
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] History, comparison, checkpoint, restore, trash, IPC, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser demos cover post restore, recovery points, and trash without console errors.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 0.9.0 and bump package metadata.
 - [ ] Create the release commit and `v0.9.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
 

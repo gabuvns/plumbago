@@ -4,6 +4,7 @@ const YAML = require('yaml')
 const { executablePath, run, runtimeFor } = require('../core/runtime.cjs')
 const { slugify } = require('./content.cjs')
 const { ensureGitRepository, gitVersion } = require('./git.cjs')
+const { createRecoveryPoint, restoreRecoveryPoint, siteConfigurationPaths } = require('./history.cjs')
 const { CONFIG_FILES } = require('./languages.cjs')
 const { compatibilityMessage, inspectThemeCompatibility } = require('./theme-compatibility.cjs')
 const { resolveTheme } = require('./themes.cjs')
@@ -170,12 +171,18 @@ async function saveSiteSettings(root, input) {
     if (!parsed.pathname.endsWith('/')) parsed.pathname += '/'
     baseURL = parsed.href
   }
-  await updateSiteConfig(root, { title, baseURL, languageCode, copyright })
-  const currentHosting = await hostingSettings(root, baseURL)
-  const hostingProvider = Object.hasOwn(input || {}, 'hostingProvider') ? input.hostingProvider : currentHosting.hostingProvider
-  const publicUrl = Object.hasOwn(input || {}, 'publicUrl') ? input.publicUrl : (currentHosting.publicUrl || baseURL)
-  await saveHostingSettings(root, { hostingProvider, publicUrl })
-  return siteSettings(root)
+  const recoveryPoint = await createRecoveryPoint(root, { reason: 'before-settings-change', label: 'Before changing blog settings', paths: await siteConfigurationPaths(root) })
+  try {
+    await updateSiteConfig(root, { title, baseURL, languageCode, copyright })
+    const currentHosting = await hostingSettings(root, baseURL)
+    const hostingProvider = Object.hasOwn(input || {}, 'hostingProvider') ? input.hostingProvider : currentHosting.hostingProvider
+    const publicUrl = Object.hasOwn(input || {}, 'publicUrl') ? input.publicUrl : (currentHosting.publicUrl || baseURL)
+    await saveHostingSettings(root, { hostingProvider, publicUrl })
+    return siteSettings(root)
+  } catch (error) {
+    await restoreRecoveryPoint(root, recoveryPoint.id, { createUndo: false }).catch(() => {})
+    throw error
+  }
 }
 
 async function updateSiteConfig(root, updates) {
@@ -225,9 +232,15 @@ async function installTheme(root, slug) {
 }
 
 async function deactivateTheme(root) {
-  await validateBlog(root)
-  await updateSiteConfig(root, { theme: '' })
-  return validateBlog(root)
+  const context = await validateBlog(root)
+  const recoveryPoint = await createRecoveryPoint(root, { reason: 'before-theme-change', label: 'Before deactivating the theme', paths: [context.config] })
+  try {
+    await updateSiteConfig(root, { theme: '' })
+    return validateBlog(root)
+  } catch (error) {
+    await restoreRecoveryPoint(root, recoveryPoint.id, { createUndo: false }).catch(() => {})
+    throw error
+  }
 }
 
 async function installResolvedTheme(root, theme) {
@@ -237,6 +250,8 @@ async function installResolvedTheme(root, theme) {
   const existing = await fs.stat(themeRoot).catch(() => null)
   const configPath = path.join(root, originalContext.config)
   const originalConfig = await fs.readFile(configPath, 'utf8')
+  const recoveryPaths = [originalContext.config, '.gitmodules', ...(!existing ? [`themes/${theme.folder}`] : [])]
+  const recoveryPoint = await createRecoveryPoint(root, { reason: 'before-theme-change', label: `Before applying ${theme.name || theme.folder}`, paths: recoveryPaths })
   let added = false
   if (!existing) {
     await fs.mkdir(path.dirname(themeRoot), { recursive: true })
@@ -261,6 +276,7 @@ async function installResolvedTheme(root, theme) {
       stage: 'compatibility',
       ...theme,
       compatibility,
+      recoveryPoint,
       deactivated,
       message: compatibilityMessage(compatibility),
       context: deactivated ? await validateBlog(root) : originalContext,
@@ -278,12 +294,13 @@ async function installResolvedTheme(root, theme) {
       stage: 'build',
       ...theme,
       compatibility,
+      recoveryPoint,
       message: 'The theme was not activated because the Hugo validation build failed.',
       details: error.message,
       context: await validateBlog(root),
     }
   }
-  return { ok: true, ...theme, compatibility, context: await validateBlog(root) }
+  return { ok: true, ...theme, compatibility, recoveryPoint, context: await validateBlog(root) }
 }
 
 function themeDirectoryPath(root, folder) {
