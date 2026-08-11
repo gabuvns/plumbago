@@ -32,7 +32,7 @@ Definition of done: a first-time user can authorize GitHub, connect a blog, and 
 
 ### 0.8.0 — One-click deploy
 
-Status: release candidate
+Status: released on 2026-08-11 — [v0.8.0](https://github.com/gabuvns/plumbago/releases/tag/v0.8.0)
 
 - [x] Add a provider-neutral deployment service and resumable provisioning state.
 - [x] Provision GitHub Pages, install the Hugo workflow, deploy, and discover the live URL.
