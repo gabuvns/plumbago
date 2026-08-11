@@ -2,40 +2,42 @@
 
 This file tracks the active milestone. The longer product sequence and definitions of done live in [ROADMAP.md](ROADMAP.md).
 
-## Active milestone: 0.7.0 — GitHub Connect
+## Completed milestone: 0.7.0 — GitHub Connect
 
-Goal: a first-time writer can authorize GitHub, create or select a safe repository, and upload the Hugo source without copying a credential or opening a terminal.
+[v0.7.0](https://github.com/gabuvns/plumbago/releases/tag/v0.7.0) was published on 2026-08-11 with Windows, Linux, macOS Intel, and macOS Apple Silicon downloads.
+
+- [x] Register the official OAuth App and inject its public Client ID into official packages.
+- [x] Verify the complete Device Flow against the real GitHub account and revoke the disposable test token.
+- [x] Connect or safely create a repository and upload the first verified Hugo commit over HTTPS.
+- [x] Pass 32 tests, the production build, dependency audit, release CI, and artifact verification.
+
+## Active milestone: 0.8.0 — One-click deploy
+
+Goal: after connecting a repository, a writer can choose a provider and take a valid local Hugo blog to a verified public URL without editing workflows, installing deployment CLIs, or opening a provider dashboard.
 
 ### Product work
 
-- [x] Make GitHub Device Flow the primary sign-in path.
-- [x] Encrypt the resulting token with Electron `safeStorage`.
-- [x] Keep GitHub CLI and fine-grained token authentication as fallback paths.
-- [x] Default new connections to HTTPS and preserve SSH as an advanced option.
-- [x] Pass HTTPS authorization to native and WSL Git without writing it to the remote URL or blog.
-- [x] Fill missing Git author details with the account name and GitHub noreply address.
-- [x] Create a repository and upload the verified Hugo source from one primary action.
-- [x] Connect only empty repositories from the setup wizard; direct writers with existing history to clone and open it.
-- [x] Preserve partial progress and offer upload retry without recreating the repository.
-- [x] Explain expired authorization, missing permission, and GitHub API limits.
-- [x] Register the official Plumbago OAuth App and configure its public Client ID in GitHub Actions.
-- [x] Verify the real Device Flow against the registered app.
+- [ ] Add a provider-neutral deployment contract and resumable per-blog provisioning state.
+- [ ] Replace the GitHub-specific Pages step with a dedicated deploy assistant.
+- [ ] Make GitHub Pages setup idempotent, upload the workflow commit, trigger deployment, and discover the actual public URL.
+- [ ] Add guided Cloudflare authorization with encrypted local token storage and account selection.
+- [ ] Create or reuse a Cloudflare Pages Direct Upload project without duplicates.
+- [ ] Build Hugo locally with the production URL and upload the generated site without requiring Wrangler.
+- [ ] Show preflight, provisioning, upload, build, verification, logs, actionable errors, and safe retry.
+- [ ] Preserve manual hosting as an advanced option.
+- [ ] Offer custom-domain guidance only after the first successful deployment.
 
 ### Release gate
 
-- [x] EN-US and PT-BR keys remain in parity.
-- [x] Service, runtime, packaging metadata, and product-contract tests added.
-- [x] `npm test` passes.
-- [x] `npm run check` passes.
-- [x] `npm audit --audit-level=high` reports no vulnerabilities.
-- [x] Browser demo covers sign-in, repository creation, initial upload, and retry state without console errors.
-- [x] A packaged Electron app contains the injected OAuth Client ID metadata.
-- [x] Validate a release package using the official Client ID.
-- [x] Close `CHANGELOG.md` as 0.7.0 and bump package metadata.
-- [x] Create the release commit.
-- [ ] Create the `v0.7.0` tag.
-- [ ] Publish the GitHub Release and wait for all platform assets.
+- [ ] EN-US and PT-BR keys remain in parity.
+- [ ] Provider, IPC, security, idempotency, and product-contract regression tests pass.
+- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [ ] Browser demos cover GitHub Pages and Cloudflare flows without console errors.
+- [ ] A relevant Electron package is built and inspected.
+- [ ] Close `CHANGELOG.md` as 0.8.0 and bump package metadata.
+- [ ] Create the release commit and `v0.8.0` tag.
+- [ ] Publish the GitHub Release and verify every platform asset.
 
-## Next milestone
+## Following milestone
 
-`0.8.0 — One-click deploy` starts only after 0.7.0 is downloadable. It will add provider-neutral provisioning, GitHub Pages deployment, and Cloudflare Pages Direct Upload. Deployment-specific work must not be folded into the authentication milestone merely because GitHub Pages already has partial support.
+`0.9.0 — History and recovery` begins only after `v0.8.0` is downloadable.
