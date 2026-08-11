@@ -1,6 +1,7 @@
 // Stable public facade for Electron. Implementation lives in focused core and service modules.
 const runtime = require('./core/runtime.cjs')
 const content = require('./services/content.cjs')
+const cloudflare = require('./services/cloudflare.cjs'), deployments = require('./services/deployments.cjs')
 const git = require('./services/git.cjs')
 const github = require('./services/github.cjs')
 const hugo = require('./services/hugo.cjs')
@@ -14,6 +15,8 @@ async function importBloggerExport(root, filePath, options = {}) {
 }
 module.exports = {
   ...content,
+  ...cloudflare,
+  ...deployments,
   ...git,
   ...github,
   ...hugo,
@@ -21,9 +24,6 @@ module.exports = {
   ...publishing,
   ...site,
   ...themes,
-  ...updates,
-  importBloggerExport,
-  runtimeFor: runtime.runtimeFor,
-  spawnLongRunning: runtime.spawnLongRunning,
-  wslCommandArgs: runtime.wslCommandArgs,
+  ...updates, importBloggerExport,
+  runtimeFor: runtime.runtimeFor, spawnLongRunning: runtime.spawnLongRunning, wslCommandArgs: runtime.wslCommandArgs,
 }

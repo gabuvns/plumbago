@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.8.0 — 2026-08-11
+
+- Add a dedicated one-click deployment assistant for GitHub Pages and Cloudflare Pages with preflight, progress, logs, safe retry, redeploy, and provider switching.
+- Make GitHub Pages provisioning idempotent, install and push the official Hugo workflow, trigger the build, and verify the actual public address.
+- Add guided Cloudflare API-token connection with operating-system encryption, account and project selection, and no credentials stored in the blog.
+- Create or reuse Cloudflare Pages projects safely, build Hugo locally with the final URL, and perform Direct Upload without requiring Wrangler.
+- Keep resumable deployment state local and ignored by Git while recovering cleanly from an interrupted local operation.
+- Offer provider details, the verified public-site shortcut, and custom-domain guidance only after a successful deployment.
+
 ## 0.7.1 — 2026-08-11
 
 - Complete the Device Flow response normalization at the Electron IPC boundary so the authorization code is copied, opened, displayed, and polled correctly in official builds.

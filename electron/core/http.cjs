@@ -79,7 +79,9 @@ async function githubRequest(token, route, options = {}) {
       error.status = response.status
       throw error
     }
-    return payload
+    return options.includeHeaders
+      ? { data: payload, headers: { oauthScopes: response.headers.get('x-oauth-scopes') || '' } }
+      : payload
   } finally {
     clearTimeout(timeout)
   }

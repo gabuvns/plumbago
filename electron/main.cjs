@@ -13,6 +13,8 @@ let previewProcess = null
 let githubToken = ''
 let githubTokenSource = ''
 let encryptedGitHubToken = ''
+let cloudflareToken = ''
+let encryptedCloudflareToken = ''
 let bloggerImportPath = ''
 let ignoreGitHubCli = false
 
@@ -21,18 +23,32 @@ const GITHUB_CLIENT_ID = process.env.PLUMBAGO_GITHUB_CLIENT_ID || packageMetadat
 const settingsPath = () => path.join(app.getPath('userData'), 'settings.json')
 const legacySettingsPath = () => path.join(app.getPath('appData'), 'Plum', 'settings.json')
 
-async function loadSettings() {
+function decryptStoredToken(value) {
+  if (!value || !safeStorage.isEncryptionAvailable()) return ''
   try {
-    const settings = JSON.parse(await fs.readFile(settingsPath(), 'utf8').catch(() => fs.readFile(legacySettingsPath(), 'utf8')))
-    encryptedGitHubToken = String(settings.githubToken || '')
-    if (encryptedGitHubToken && safeStorage.isEncryptionAvailable()) {
-      githubToken = safeStorage.decryptString(Buffer.from(encryptedGitHubToken, 'base64'))
-      githubTokenSource = 'plumbago'
-    }
-    if (settings.blogRoot) {
-      await service.validateBlog(settings.blogRoot)
-      blogRoot = settings.blogRoot
-    }
+    return safeStorage.decryptString(Buffer.from(value, 'base64'))
+  } catch {
+    return ''
+  }
+}
+
+async function loadSettings() {
+  let settings
+  try {
+    settings = JSON.parse(await fs.readFile(settingsPath(), 'utf8').catch(() => fs.readFile(legacySettingsPath(), 'utf8')))
+  } catch {
+    blogRoot = null
+    return
+  }
+  encryptedGitHubToken = String(settings.githubToken || '')
+  encryptedCloudflareToken = String(settings.cloudflareToken || '')
+  githubToken = decryptStoredToken(encryptedGitHubToken)
+  cloudflareToken = decryptStoredToken(encryptedCloudflareToken)
+  if (githubToken) githubTokenSource = 'plumbago'
+  if (!settings.blogRoot) return
+  try {
+    await service.validateBlog(settings.blogRoot)
+    blogRoot = settings.blogRoot
   } catch {
     blogRoot = null
   }
@@ -40,7 +56,21 @@ async function loadSettings() {
 
 async function persistSettings() {
   await fs.mkdir(path.dirname(settingsPath()), { recursive: true })
-  await fs.writeFile(settingsPath(), JSON.stringify({ blogRoot, githubToken: encryptedGitHubToken }, null, 2), 'utf8')
+  await fs.writeFile(settingsPath(), JSON.stringify({ blogRoot, githubToken: encryptedGitHubToken, cloudflareToken: encryptedCloudflareToken }, null, 2), 'utf8')
+}
+
+async function setCloudflareToken(token) {
+  cloudflareToken = String(token || '')
+  encryptedCloudflareToken = cloudflareToken && safeStorage.isEncryptionAvailable()
+    ? safeStorage.encryptString(cloudflareToken).toString('base64')
+    : ''
+  await persistSettings()
+  return { persistent: Boolean(encryptedCloudflareToken) }
+}
+
+async function ensureCloudflareToken() {
+  if (!cloudflareToken) throw new Error('Connect Cloudflare first.')
+  return cloudflareToken
 }
 
 async function setGitHubToken(token) {
@@ -141,8 +171,10 @@ function registerIpc() {
     await ensureGitHubToken().catch(() => '')
     if (!githubToken) return { configured: Boolean(GITHUB_CLIENT_ID), connected: false, account: null, persistent: false }
     try {
-      return { configured: true, connected: true, account: await service.githubAccount(githubToken), persistent: Boolean(encryptedGitHubToken) || githubTokenSource === 'github-cli', managedBy: githubTokenSource }
-    } catch {
+      const [account, authorization] = await Promise.all([service.githubAccount(githubToken), service.githubAuthorizationStatus(githubToken)])
+      return { configured: true, connected: true, account, authorization, persistent: Boolean(encryptedGitHubToken) || githubTokenSource === 'github-cli', managedBy: githubTokenSource }
+    } catch (error) {
+      if (error.status !== 401) throw error
       await setGitHubToken('')
       return { configured: true, connected: false, account: null, persistent: false }
     }
@@ -159,7 +191,7 @@ function registerIpc() {
     const result = await service.completeGitHubSignIn(GITHUB_CLIENT_ID, deviceCode)
     if (result.state !== 'complete') return result
     const storage = await setGitHubToken(result.token)
-    return { state: 'complete', account: await service.githubAccount(githubToken), ...storage }
+    return { state: 'complete', account: await service.githubAccount(githubToken), authorization: await service.githubAuthorizationStatus(githubToken), ...storage }
   })
   ipcMain.handle('plumbago:github-connect-token', async (_event, value) => {
     const token = String(value || '').trim()
@@ -167,7 +199,7 @@ function registerIpc() {
     const account = await service.githubAccount(token)
     ignoreGitHubCli = true
     const storage = await setGitHubToken(token)
-    return { account, ...storage }
+    return { account, authorization: await service.githubAuthorizationStatus(token), ...storage }
   })
   ipcMain.handle('plumbago:github-disconnect', async () => {
     ignoreGitHubCli = true
@@ -178,6 +210,39 @@ function registerIpc() {
   ipcMain.handle('plumbago:github-create-repository', async (_event, input) => service.createGitHubRepository(requireBlog(), await ensureGitHubToken(), input))
   ipcMain.handle('plumbago:github-connect-repository', async (_event, fullName, protocol) => service.connectGitHubRepository(requireBlog(), await ensureGitHubToken(), fullName, protocol))
   ipcMain.handle('plumbago:github-configure-pages', async () => service.configureGitHubPages(requireBlog(), await ensureGitHubToken()))
+  ipcMain.handle('plumbago:cloudflare-status', async () => {
+    if (!cloudflareToken) return { connected: false, persistent: false }
+    try {
+      await service.cloudflareTokenStatus(cloudflareToken)
+      return { connected: true, persistent: Boolean(encryptedCloudflareToken) }
+    } catch (error) {
+      if (![401, 403].includes(error.status)) throw error
+      await setCloudflareToken('')
+      return { connected: false, persistent: false }
+    }
+  })
+  ipcMain.handle('plumbago:cloudflare-connect-token', async (_event, value) => {
+    const token = String(value || '').trim()
+    await service.cloudflareTokenStatus(token)
+    return setCloudflareToken(token)
+  })
+  ipcMain.handle('plumbago:cloudflare-disconnect', async () => {
+    await setCloudflareToken('')
+    return true
+  })
+  ipcMain.handle('plumbago:cloudflare-accounts', async () => service.listCloudflareAccounts(await ensureCloudflareToken()))
+  ipcMain.handle('plumbago:cloudflare-projects', async (_event, accountId) => service.listCloudflareProjects(await ensureCloudflareToken(), accountId))
+  ipcMain.handle('plumbago:deployment-status', async () => service.deploymentStatus(requireBlog(), {
+    githubToken: await optionalGitHubToken(),
+    cloudflareToken,
+  }))
+  ipcMain.handle('plumbago:deploy-site', async (_event, input) => {
+    const provider = String(input?.provider || '')
+    return service.deploySite(requireBlog(), input, {
+      githubToken: provider === 'github-pages' ? await ensureGitHubToken() : await optionalGitHubToken(),
+      cloudflareToken: provider === 'cloudflare-pages' ? await ensureCloudflareToken() : cloudflareToken,
+    })
+  })
   ipcMain.handle('plumbago:publishing-health', () => service.publishingHealth(requireBlog()))
   ipcMain.handle('plumbago:update-status', () => updater.updateStatus())
   ipcMain.handle('plumbago:check-for-updates', () => updater.checkForUpdates())

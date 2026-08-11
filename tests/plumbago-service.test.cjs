@@ -61,6 +61,24 @@ test('usa a identidade noreply do GitHub sem expor o email pessoal', () => {
   assert.equal(service.githubCommitEmail({ id: 123456, login: 'writer' }), '123456+writer@users.noreply.github.com')
 })
 
+test('reads GitHub OAuth scopes without changing regular API responses', async (t) => {
+  const originalFetch = global.fetch
+  t.after(() => { global.fetch = originalFetch })
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'x-oauth-scopes': 'repo, workflow, read:user' }),
+    json: async () => ({ login: 'writer' }),
+  })
+  const regular = await httpService.githubRequest('test-token', '/user')
+  const inspected = await httpService.githubRequest('test-token', '/user', { includeHeaders: true })
+  assert.deepEqual(regular, { login: 'writer' })
+  assert.deepEqual(inspected, {
+    data: { login: 'writer' },
+    headers: { oauthScopes: 'repo, workflow, read:user' },
+  })
+})
+
 test('normaliza a resposta real do Device Flow para a interface', () => {
   assert.deepEqual(service.normalizeGitHubDeviceCode({
     device_code: 'device-code',
@@ -262,7 +280,115 @@ test('identifica repositórios GitHub e calcula a URL padrão do Pages', () => {
   assert.match(workflow, /actions\/deploy-pages@v5/)
   assert.match(workflow, /dart-sass-\$\{DART_SASS_VERSION\}-linux-x64/)
   assert.match(workflow, /cron: "17 \* \* \* \*"/)
-  assert.deepEqual(YAML.parse(workflow).on.push.branches, ['main', 'master'])
+  assert.deepEqual(YAML.parse(workflow).on.push.branches, ['main', 'master', 'feature/draft'])
+})
+
+test('prepara assets portáveis para o Direct Upload do Cloudflare', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-cloudflare-assets')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await fs.mkdir(path.join(root, 'css'))
+  await fs.writeFile(path.join(root, 'index.html'), '<h1>Hello</h1>')
+  await fs.writeFile(path.join(root, 'css', 'site.css'), 'body { color: #558B6E; }')
+  await fs.writeFile(path.join(root, '_headers'), '/*\n  X-Frame-Options: DENY')
+
+  const assets = await service.collectPagesAssets(root)
+  assert.deepEqual(assets.map((asset) => asset.name).sort(), ['css/site.css', 'index.html'])
+  assert.equal(assets.find((asset) => asset.name === 'index.html').contentType, 'text/html')
+  assert.equal(service.cloudflareFileHash(Buffer.from('hello'), 'index.html'), 'a2b82584e50075886b08927390f2f573')
+  assert.equal(service.buildUploadBuckets(assets).flat().length, 2)
+})
+
+test('creates, reuses, and uploads a Cloudflare Pages project through the official API', async (t) => {
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-cloudflare')
+  t.after(() => fs.rm(temporaryRoot, { recursive: true, force: true }))
+  await fs.writeFile(path.join(temporaryRoot, 'index.html'), '<h1>Plumbago</h1>\n', 'utf8')
+  await fs.writeFile(path.join(temporaryRoot, 'styles.css'), 'body { color: #558B6E; }\n', 'utf8')
+
+  const accountId = 'a'.repeat(32)
+  const token = 'cloudflare-test-token-never-persisted'
+  const calls = []
+  let projectExists = false
+  const originalFetch = global.fetch
+  t.after(() => { global.fetch = originalFetch })
+  global.fetch = async (url, options = {}) => {
+    const route = String(url).replace('https://api.cloudflare.com/client/v4', '')
+    calls.push({ route, method: options.method || 'GET', authorization: options.headers?.Authorization, body: options.body })
+    const reply = (status, result, errors = []) => ({
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => ({ success: status >= 200 && status < 300, result, errors }),
+    })
+    if (route.endsWith('/pages/projects/my-blog') && options.method !== 'POST') {
+      return projectExists
+        ? reply(200, { id: 'my-blog', name: 'my-blog', subdomain: 'my-blog.pages.dev', production_branch: 'main' })
+        : reply(404, null, [{ code: 8000007, message: 'Project not found' }])
+    }
+    if (route.endsWith('/pages/projects') && options.method === 'POST') {
+      projectExists = true
+      return reply(200, { id: 'my-blog', name: 'my-blog', subdomain: 'my-blog.pages.dev', production_branch: 'main' })
+    }
+    if (route.endsWith('/upload-token')) return reply(200, { jwt: 'asset-upload-token' })
+    if (route === '/pages/assets/check-missing') return reply(200, JSON.parse(options.body).hashes)
+    if (route === '/pages/assets/upload' || route === '/pages/assets/upsert-hashes') return reply(200, true)
+    if (route.endsWith('/deployments') && options.method === 'POST') {
+      return reply(200, { id: 'deployment-1', aliases: ['my-blog.pages.dev'], latest_stage: { name: 'deploy', status: 'success' } })
+    }
+    throw new Error(`Unexpected Cloudflare request: ${options.method || 'GET'} ${route}`)
+  }
+
+  const first = await service.ensureCloudflareProject(token, accountId, 'my-blog')
+  const second = await service.ensureCloudflareProject(token, accountId, 'my-blog')
+  assert.equal(first.created, true)
+  assert.equal(second.created, false)
+  assert.equal(calls.filter((call) => call.route.endsWith('/pages/projects') && call.method === 'POST').length, 1)
+
+  const progress = []
+  const result = await service.createCloudflareDeployment(token, {
+    accountId,
+    projectName: 'my-blog',
+    directory: temporaryRoot,
+    branch: 'main',
+    onProgress: (entry) => progress.push(entry),
+  })
+  assert.equal(result.totalFiles, 2)
+  assert.equal(result.deployment.id, 'deployment-1')
+  assert.equal(progress.at(-1).uploaded, 2)
+  assert.ok(calls.every((call) => call.authorization === `Bearer ${token}` || call.authorization === 'Bearer asset-upload-token'))
+  assert.ok(calls.some((call) => call.route === '/pages/assets/upload'))
+  assert.ok(calls.some((call) => call.route.endsWith('/deployments') && call.body instanceof FormData))
+})
+
+test('mantém o estado de deploy retomável sem persistir credenciais', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-deployment-state')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  const saved = await service.saveDeploymentSettings(root, {
+    provider: 'cloudflare-pages',
+    state: 'uploading',
+    progress: 43,
+    accountId: 'a'.repeat(32),
+    projectName: 'my-blog',
+    token: 'must-never-be-written',
+    log: ['Prepared the production build.'],
+  })
+  assert.equal(saved.state, 'uploading')
+  assert.equal(saved.progress, 43)
+  assert.equal(service.safeBuildDirectory(root), path.join(root, '.plumbago-build'))
+  const raw = await fs.readFile(path.join(root, '.plumbago', 'deployment.json'), 'utf8')
+  assert.doesNotMatch(raw, /must-never-be-written|token/i)
+  assert.equal(await fs.readFile(path.join(root, '.plumbago', '.gitignore'), 'utf8'), '*\n!.gitignore\n')
+  assert.deepEqual(await service.deploymentSettings(root), saved)
+  const interrupted = await service.deploymentStatus(root)
+  assert.equal(interrupted.state, 'failed')
+  assert.match(interrupted.error, /interrupted/i)
+})
+
+test('does not present a manually entered host as a verified deployment', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-manual-host')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await service.saveHostingSettings(root, { hostingProvider: 'other', publicUrl: 'https://blog.example.com/' })
+  const status = await service.deploymentStatus(root)
+  assert.equal(status.state, 'idle')
+  assert.equal(status.provider, '')
 })
 
 test('cria um novo site Hugo com configuração e repositório Git', async (t) => {

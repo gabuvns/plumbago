@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUpRight, Check, Eye, FileText, Globe2, LoaderCircle, Menu, PanelLeftClose, Plus, UploadCloud } from 'lucide-react'
+import { ArrowUpRight, Check, Eye, FileText, Globe2, LoaderCircle, Menu, PanelLeftClose, Plus, Rocket, UploadCloud } from 'lucide-react'
 import { Sidebar } from '../components/layout/Sidebar'
 import { CreateBlogModal } from '../features/blogs/CreateBlogModal'
 import { Editor } from '../features/editor/Editor'
@@ -10,6 +10,7 @@ import { DeletePostModal } from '../features/posts/DeletePostModal'
 import { NewPostModal } from '../features/posts/NewPostModal'
 import { PostList } from '../features/posts/PostList'
 import { GitHubSetupModal } from '../features/publishing/GitHubSetupModal'
+import { DeploymentSetupModal } from '../features/publishing/DeploymentSetupModal'
 import { PublishModal } from '../features/publishing/PublishModal'
 import { PublishingHealthModal } from '../features/publishing/PublishingHealthModal'
 import { SettingsModal } from '../features/settings/SettingsModal'
@@ -42,6 +43,7 @@ export default function App() {
   const [imagesOpen, setImagesOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [githubOpen, setGitHubOpen] = useState(false)
+  const [deployOpen, setDeployOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [gitSetupOpen, setGitSetupOpen] = useState(false)
   const [hugoSetupOpen, setHugoSetupOpen] = useState(false)
@@ -456,6 +458,13 @@ export default function App() {
     await ensureGitReady(async () => setGitHubOpen(true))
   }
 
+  async function showDeploy() {
+    if (dirty && !(await performSave(post))) return
+    setSettingsOpen(false)
+    setGitHubOpen(false)
+    setDeployOpen(true)
+  }
+
   async function publish(message) {
     setBusy(true)
     setPublishPhase('publishing')
@@ -501,7 +510,7 @@ export default function App() {
         <header className="topbar">
           <button className="icon-button ghost"><PanelLeftClose size={19} /></button>
           <div className="breadcrumbs"><span>{context.root.split(/[\\/]/).filter(Boolean).at(-1)}</span><b>/</b><strong>{post?.title || t('posts.title')}</strong></div>
-          <div className="topbar-actions"><button className="button quiet" onClick={() => api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))}><Eye size={17} /> {t('top.preview')} <ArrowUpRight size={14} /></button>{site?.publicUrl && <button className="button quiet" onClick={openPublicSite} title={t('top.publicProvider', { provider: t(`hosting.${site.hostingProvider}`) })}><Globe2 size={17} /> {t('top.publicSite')} <ArrowUpRight size={14} /></button>}<button className="button primary" onClick={showPublish}><UploadCloud size={17} /> {t('top.publish')}</button><button className="icon-button" onClick={() => setSettingsOpen(true)} title={t('top.openSettings')}><Menu size={18} /></button></div>
+          <div className="topbar-actions"><button className="button quiet" onClick={() => api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))}><Eye size={17} /> {t('top.preview')} <ArrowUpRight size={14} /></button>{site?.publicUrl && <button className="button quiet" onClick={openPublicSite} title={t('top.publicProvider', { provider: t(`hosting.${site.hostingProvider}`) })}><Globe2 size={17} /> {t('top.publicSite')} <ArrowUpRight size={14} /></button>}<button className="button quiet" onClick={showDeploy}><Rocket size={17} /> {t('top.deploy')}</button><button className="button primary" onClick={showPublish}><UploadCloud size={17} /> {t('top.publish')}</button><button className="icon-button" onClick={() => setSettingsOpen(true)} title={t('top.openSettings')}><Menu size={18} /></button></div>
         </header>
         {post ? <Editor post={post} onChange={(change) => { setSaveError(null); setPost((current) => ({ ...current, ...change })) }} onSave={save} onOpenImages={() => setImagesOpen(true)} onDropImages={addDroppedImages} saveState={{ saving, dirty, error: saveError }} /> : <div className="empty-editor"><FileText size={34} /><h2>{t('empty.title')}</h2><p>{t('empty.copy')}</p><button className="button primary" onClick={() => setNewPostOpen(true)}><Plus size={17} /> {t('posts.new')}</button></div>}
       </main>
@@ -511,12 +520,13 @@ export default function App() {
       {publishOpen && <PublishModal status={publishingStatus} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onRefresh={refreshPublishingStatus} onSettings={showGitHub} />}
       {imagesOpen && post && <ImageLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertExistingImage} onFeatured={(name) => setPost((current) => ({ ...current, featuredImage: name }))} />}
       {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} onDeactivate={deactivateTheme} onRefreshContext={refreshContext} onManageHugo={() => setHugoSetupOpen(true)} onSiteSettingsChanged={setSite} busy={busy} notify={notify} />}
-      {githubOpen && <GitHubSetupModal context={context} onClose={() => { setGitHubOpen(false); refreshSiteSettings().catch(() => {}) }} onPublish={showPublish} notify={notify} />}
+      {githubOpen && <GitHubSetupModal context={context} onClose={() => { setGitHubOpen(false); refreshSiteSettings().catch(() => {}) }} onDeploy={showDeploy} notify={notify} />}
+      {deployOpen && <DeploymentSetupModal context={context} onClose={() => { setDeployOpen(false); refreshSiteSettings().catch(() => {}) }} onGitHub={() => { setDeployOpen(false); setGitHubOpen(true) }} onSiteChanged={setSite} notify={notify} />}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
       {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} notify={notify} />}
       {bloggerOpen && <BloggerImportModal onClose={() => setBloggerOpen(false)} onImported={handleBloggerImported} notify={notify} />}
-      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} onHugoSetup={() => { setSettingsOpen(false); setHugoSetupOpen(true) }} onSiteSettingsChanged={setSite} notify={notify} />}
+      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onDeploy={showDeploy} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} onHugoSetup={() => { setSettingsOpen(false); setHugoSetupOpen(true) }} onSiteSettingsChanged={setSite} notify={notify} />}
       {toast && <div className={`toast ${toast.kind}`}>{toast.kind === 'success' && <Check size={17} />}{toast.message}</div>}
     </div>
   )

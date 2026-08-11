@@ -9,6 +9,8 @@ const { compatibilityMessage, inspectThemeCompatibility } = require('./theme-com
 const { resolveTheme } = require('./themes.cjs')
 
 const PLUMBAGO_SETTINGS_FILE = '.plumbago.json'
+const PLUMBAGO_STATE_DIRECTORY = '.plumbago'
+const PLUMBAGO_DEPLOYMENT_FILE = 'deployment.json'
 const HOSTING_PROVIDERS = new Set(['none', 'github-pages', 'cloudflare-pages', 'other'])
 
 function readThemeValue(raw, config) {
@@ -67,6 +69,62 @@ async function readPlumbagoSettings(root) {
   }
 }
 
+async function writePlumbagoSettings(root, settings) {
+  const target = path.join(root, PLUMBAGO_SETTINGS_FILE)
+  const temporary = `${target}.${process.pid}.${Date.now()}.tmp`
+  await fs.writeFile(temporary, `${JSON.stringify(settings, null, 2)}\n`, 'utf8')
+  await fs.rename(temporary, target)
+  return settings
+}
+
+function safeDeploymentState(input = {}) {
+  const provider = ['github-pages', 'cloudflare-pages'].includes(input.provider) ? input.provider : ''
+  const state = ['idle', 'preflight', 'provisioning', 'uploading', 'deploying', 'live', 'failed'].includes(input.state) ? input.state : 'idle'
+  return {
+    provider,
+    state,
+    step: String(input.step || ''),
+    progress: Math.max(0, Math.min(100, Number(input.progress || 0))),
+    log: Array.isArray(input.log) ? input.log.map((entry) => String(entry)).slice(-60) : [],
+    error: String(input.error || ''),
+    warning: String(input.warning || ''),
+    liveUrl: String(input.liveUrl || ''),
+    accountId: String(input.accountId || ''),
+    projectName: String(input.projectName || ''),
+    repository: String(input.repository || ''),
+    deploymentId: String(input.deploymentId || ''),
+    dashboardUrl: String(input.dashboardUrl || ''),
+    customDomainUrl: String(input.customDomainUrl || ''),
+    attempt: Math.max(0, Number(input.attempt || 0)),
+    startedAt: String(input.startedAt || ''),
+    updatedAt: String(input.updatedAt || ''),
+  }
+}
+
+async function deploymentSettings(root) {
+  try {
+    const stored = JSON.parse(await fs.readFile(path.join(root, PLUMBAGO_STATE_DIRECTORY, PLUMBAGO_DEPLOYMENT_FILE), 'utf8'))
+    return safeDeploymentState(stored)
+  } catch {
+    return safeDeploymentState()
+  }
+}
+
+async function saveDeploymentSettings(root, patch) {
+  const current = await deploymentSettings(root)
+  const deployment = safeDeploymentState({ ...current, ...(patch || {}), updatedAt: new Date().toISOString() })
+  const stateDirectory = path.join(root, PLUMBAGO_STATE_DIRECTORY)
+  const target = path.join(stateDirectory, PLUMBAGO_DEPLOYMENT_FILE)
+  const temporary = `${target}.${process.pid}.${Date.now()}.tmp`
+  await fs.mkdir(stateDirectory, { recursive: true })
+  await fs.writeFile(path.join(stateDirectory, '.gitignore'), '*\n!.gitignore\n', { encoding: 'utf8', flag: 'wx' }).catch((error) => {
+    if (error.code !== 'EEXIST') throw error
+  })
+  await fs.writeFile(temporary, `${JSON.stringify(deployment, null, 2)}\n`, 'utf8')
+  await fs.rename(temporary, target)
+  return deployment
+}
+
 async function hostingSettings(root, baseURL = '') {
   const stored = await readPlumbagoSettings(root)
   const hasStoredProvider = HOSTING_PROVIDERS.has(stored.hostingProvider)
@@ -89,7 +147,7 @@ async function saveHostingSettings(root, input) {
   }
   if (hostingProvider !== 'none' && !publicUrl) throw new Error('Enter the public address provided by your hosting service.')
   const next = { ...current, hostingProvider, publicUrl }
-  await fs.writeFile(path.join(root, PLUMBAGO_SETTINGS_FILE), `${JSON.stringify(next, null, 2)}\n`, 'utf8')
+  await writePlumbagoSettings(root, next)
   return { hostingProvider, publicUrl, hostingConfigured: Boolean(publicUrl) }
 }
 
@@ -280,11 +338,13 @@ async function createSite(parentRoot, input) {
 module.exports = {
   createSite,
   deactivateTheme,
+  deploymentSettings,
   installResolvedTheme,
   installTheme,
   hostingSettings,
   inferHostingProvider,
   saveHostingSettings,
+  saveDeploymentSettings,
   saveSiteSettings,
   siteMetadata,
   siteSettings,

@@ -5,7 +5,7 @@ import { Modal } from '../../components/ui/Modal'
 import { useI18n } from '../../i18n'
 import { friendlyError } from '../../lib/errors'
 
-export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
+export function GitHubSetupModal({ context, onClose, onDeploy, notify }) {
   const { t } = useI18n()
   const defaultName = context.root.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase().replace(/[^a-z0-9_.-]+/g, '-') || 'my-blog'
   const [github, setGitHub] = useState(null)
@@ -20,7 +20,6 @@ export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
   const [connectedRepository, setConnectedRepository] = useState(null)
   const [sourceUploaded, setSourceUploaded] = useState(false)
   const [progressError, setProgressError] = useState('')
-  const [pages, setPages] = useState(null)
   const [working, setWorking] = useState('')
   const [accessToken, setAccessToken] = useState('')
 
@@ -34,9 +33,6 @@ export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
     if (publishing.repository) {
       setConnectedRepository(publishing.repository)
       setSourceUploaded(true)
-      if (publishing.site?.hostingProvider === 'github-pages' && publishing.site.publicUrl) {
-        setPages({ liveUrl: publishing.site.publicUrl, repository: publishing.repository, warning: '' })
-      }
     }
   }, [])
 
@@ -58,7 +54,7 @@ export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
         if (cancelled) return
         if (result.state === 'complete') {
           setFlow(null)
-          setGitHub({ configured: true, connected: true, account: result.account, persistent: result.persistent })
+          setGitHub({ configured: true, connected: true, account: result.account, authorization: result.authorization, persistent: result.persistent })
           setRepositories((await api.listGitHubRepositories()).filter((repository) => repository.permissions?.push !== false))
           notify(t('github.connected', { login: result.account.login }))
           return
@@ -93,7 +89,7 @@ export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
     try {
       const result = await api.connectGitHubToken(accessToken)
       setAccessToken('')
-      setGitHub({ configured: github.configured, connected: true, account: result.account, persistent: result.persistent })
+      setGitHub({ configured: github.configured, connected: true, account: result.account, authorization: result.authorization, persistent: result.persistent })
       setRepositories((await api.listGitHubRepositories()).filter((repository) => repository.permissions?.push !== false))
       notify(t('github.connected', { login: result.account.login }))
     } catch (error) {
@@ -157,19 +153,6 @@ export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
     }
   }
 
-  async function configurePages() {
-    setWorking('configuring-pages')
-    try {
-      const result = await api.configureGitHubPages()
-      setPages(result)
-      notify(result.warning ? t('github.pagesWarning') : t('github.pagesReady'), result.warning ? 'error' : 'success')
-    } catch (error) {
-      notify(friendlyError(error, t), 'error')
-    } finally {
-      setWorking('')
-    }
-  }
-
   async function disconnect() {
     await api.disconnectGitHub()
     setGitHub({ configured: github.configured, connected: false, account: null, persistent: false })
@@ -177,7 +160,13 @@ export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
     setConnectedRepository(null)
     setSourceUploaded(false)
     setProgressError('')
-    setPages(null)
+  }
+
+  async function reconnectForDeployment() {
+    await api.disconnectGitHub()
+    setGitHub({ configured: true, connected: false, account: null, authorization: null, persistent: false })
+    setRepositories([])
+    setProgressError('')
   }
 
   const busy = Boolean(working)
@@ -242,11 +231,11 @@ export function GitHubSetupModal({ context, onClose, onPublish, notify }) {
         {connectedRepository && !sourceUploaded && (
           <section className="github-pages-step"><div className="github-success"><Github size={20} /><div><strong>{connectedRepository.fullName}</strong><span>{t('github.remoteConnected')}</span></div></div>{progressError && <div className="github-warning"><AlertCircle size={16} /> {progressError}</div>}<UploadCloud size={34} /><h3>{t('github.uploadTitle')}</h3><p>{t('github.uploadCopy')}</p><button className="button primary large" onClick={uploadSource} disabled={busy}>{working === 'uploading' ? <LoaderCircle className="spin" size={17} /> : <UploadCloud size={17} />} {t('github.uploadRetry')}</button></section>
         )}
-        {connectedRepository && sourceUploaded && !pages && (
-          <section className="github-pages-step"><div className="github-success"><Check size={20} /><div><strong>{connectedRepository.fullName}</strong><span>{t('github.remoteReady')}</span></div></div><Globe2 size={34} /><h3>{t('github.pagesTitle')}</h3><p>{t('github.pagesCopy')}</p><button className="button primary large" onClick={configurePages} disabled={busy}>{working === 'configuring-pages' ? <LoaderCircle className="spin" size={17} /> : <Globe2 size={17} />} {t('github.configurePages')}</button></section>
+        {connectedRepository && sourceUploaded && github.authorization?.workflow === false && (
+          <section className="github-pages-step"><div className="github-warning"><AlertCircle size={16} /> {t('github.workflowPermissionCopy')}</div><Github size={34} /><h3>{t('github.workflowPermissionTitle')}</h3><p>{t('github.workflowPermissionHelp')}</p><button className="button primary large" onClick={reconnectForDeployment}><Github size={17} /> {t('github.reconnectForDeploy')}</button></section>
         )}
-        {pages && (
-          <section className="github-pages-step"><div className="github-finished"><Check size={28} /></div><h3>{t('github.finishedTitle')}</h3><p>{t('github.finishedCopy', { url: pages.liveUrl })}</p>{pages.warning && <div className="github-warning"><AlertCircle size={16} /> {pages.warning}</div>}<div className="github-live-url">{pages.liveUrl}</div><button className="button primary large" onClick={() => { onClose(); onPublish() }}><UploadCloud size={17} /> {t('github.publishFirst')}</button></section>
+        {connectedRepository && sourceUploaded && github.authorization?.workflow !== false && (
+          <section className="github-pages-step"><div className="github-success"><Check size={20} /><div><strong>{connectedRepository.fullName}</strong><span>{t('github.remoteReady')}</span></div></div><Globe2 size={34} /><h3>{t('github.deployTitle')}</h3><p>{t('github.deployCopy')}</p><button className="button primary large" onClick={onDeploy}><Globe2 size={17} /> {t('github.openDeploy')}</button></section>
         )}
       </div>
     </Modal>

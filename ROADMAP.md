@@ -32,14 +32,14 @@ Definition of done: a first-time user can authorize GitHub, connect a blog, and 
 
 ### 0.8.0 — One-click deploy
 
-Status: planned
+Status: release candidate
 
-- [ ] Add a provider-neutral deployment service and resumable provisioning state.
-- [ ] Provision GitHub Pages, install the Hugo workflow, deploy, and discover the live URL.
-- [ ] Provision Cloudflare Pages through Direct Upload, build locally, deploy, and discover the live URL.
-- [ ] Show progress, logs, retry, and actionable provider-specific errors.
-- [ ] Make repeated setup calls idempotent and never create duplicate projects silently.
-- [ ] Offer custom-domain setup after the first successful deployment.
+- [x] Add a provider-neutral deployment service and resumable provisioning state.
+- [x] Provision GitHub Pages, install the Hugo workflow, deploy, and discover the live URL.
+- [x] Provision Cloudflare Pages through Direct Upload, build locally, deploy, and discover the live URL.
+- [x] Show progress, logs, retry, and actionable provider-specific errors.
+- [x] Make repeated setup calls idempotent and never create duplicate projects silently.
+- [x] Offer custom-domain setup after the first successful deployment.
 
 Definition of done: after provider authorization and a few blog choices, one primary action takes a new Hugo blog from local folder to a verified public URL.
 

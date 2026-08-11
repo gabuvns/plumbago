@@ -27,7 +27,14 @@ function fullPost(summary) {
 export function createDemoBridge() {
   let posts = [...samplePosts]
   let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
-  let githubConnected = new URLSearchParams(window.location.search).get('github') !== 'signin'
+  const demoQuery = new URLSearchParams(window.location.search)
+  let githubConnected = demoQuery.get('github') !== 'signin'
+  let cloudflareConnected = demoQuery.get('cloudflare') !== 'signin'
+  let demoDeployment = demoQuery.get('deploy') === 'progress'
+    ? { provider: 'cloudflare-pages', state: 'uploading', step: 'upload', progress: 61, log: ['Hugo production build completed.', 'Uploaded 34 of 62 website files.'], error: '', warning: '', liveUrl: 'https://meu-blog.pages.dev/', accountId: 'a'.repeat(32), projectName: 'meu-blog', deploymentId: 'demo-deployment', dashboardUrl: 'https://dash.cloudflare.com/', customDomainUrl: '' }
+    : demoQuery.get('deploy') === 'setup'
+      ? { provider: '', state: 'idle', step: '', progress: 0, log: [], error: '', warning: '', liveUrl: '', accountId: '', projectName: '', deploymentId: '', dashboardUrl: '', customDomainUrl: '' }
+      : { provider: 'github-pages', state: 'live', step: 'verified', progress: 100, log: ['GitHub Pages is live and the public address was verified.'], error: '', warning: '', liveUrl: 'https://voce.github.io/blog/', repository: 'voce/blog', dashboardUrl: 'https://github.com/voce/blog/actions', customDomainUrl: 'https://github.com/voce/blog/settings/pages' }
   return {
     getContext: async () => context,
     chooseBlog: async () => context,
@@ -83,15 +90,32 @@ export function createDemoBridge() {
     publishBlog: async () => ({ log: ['Hugo build completed successfully.', 'Conteúdo enviado ao repositório remoto.'], status: { branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [], repository: { owner: 'voce', repository: 'blog', fullName: 'voce/blog', url: 'https://github.com/voce/blog' }, site: { title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', hostingProvider: 'github-pages', publicUrl: 'https://voce.github.io/blog/', hostingConfigured: true }, liveUrl: 'https://voce.github.io/blog/', deployment: { state: 'deploying', conclusion: '', runUrl: 'https://github.com/voce/blog/actions', updatedAt: new Date().toISOString(), name: 'Deploy Hugo site' } } }),
     openPublishingUrl: async () => true,
     copyText: async () => true,
-    githubStatus: async () => ({ configured: true, connected: githubConnected, persistent: githubConnected, account: githubConnected ? { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } : null }),
+    githubStatus: async () => ({ configured: true, connected: githubConnected, persistent: githubConnected, authorization: githubConnected ? { repository: true, workflow: true, scopes: ['repo', 'workflow', 'read:user'] } : null, account: githubConnected ? { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } : null }),
     beginGitHubSignIn: async () => ({ deviceCode: 'demo-device', userCode: 'PLUM-BAGO', verificationUri: 'https://github.com/login/device', expiresIn: 900, interval: 5 }),
-    completeGitHubSignIn: async () => { githubConnected = true; return { state: 'complete', persistent: true, account: { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } } },
-    connectGitHubToken: async () => ({ persistent: true, account: { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } }),
+    completeGitHubSignIn: async () => { githubConnected = true; return { state: 'complete', persistent: true, authorization: { repository: true, workflow: true, scopes: ['repo', 'workflow', 'read:user'] }, account: { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } } },
+    connectGitHubToken: async () => ({ persistent: true, authorization: { repository: true, workflow: true, scopes: ['repo', 'workflow', 'read:user'] }, account: { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } }),
     disconnectGitHub: async () => { githubConnected = false; return true },
     listGitHubRepositories: async () => [{ fullName: 'voce/blog', name: 'blog', owner: 'voce', private: false, empty: true, defaultBranch: 'main', url: 'https://github.com/voce/blog', sshUrl: 'git@github.com:voce/blog.git', cloneUrl: 'https://github.com/voce/blog.git', permissions: { push: true } }],
     createGitHubRepository: async (input) => ({ repository: { fullName: `voce/${input.name}`, name: input.name, owner: 'voce', private: input.private, empty: true, defaultBranch: 'main', url: `https://github.com/voce/${input.name}` }, config: { branch: 'main', remote: `https://github.com/voce/${input.name}.git` } }),
     connectGitHubRepository: async (fullName) => ({ repository: { fullName, empty: true, defaultBranch: 'main', url: `https://github.com/${fullName}` }, config: { branch: 'main', remote: `https://github.com/${fullName}.git` } }),
     configureGitHubPages: async () => ({ branch: 'main', hugoVersion: '0.148.2', liveUrl: 'https://voce.github.io/blog/', repository: { fullName: 'voce/blog' }, warning: '', workflow: '.github/workflows/plumbago-pages.yml' }),
+    cloudflareStatus: async () => ({ connected: cloudflareConnected, persistent: cloudflareConnected }),
+    connectCloudflareToken: async () => { cloudflareConnected = true; return { persistent: true } },
+    disconnectCloudflare: async () => { cloudflareConnected = false; return true },
+    listCloudflareAccounts: async () => [{ id: 'a'.repeat(32), name: 'Personal websites' }],
+    listCloudflareProjects: async () => [{ id: 'meu-blog', name: 'meu-blog', liveUrl: 'https://meu-blog.pages.dev/', subdomain: 'meu-blog.pages.dev', productionBranch: 'main', directUpload: true }],
+    deploymentStatus: async () => demoDeployment,
+    deploySite: async ({ provider, accountId, projectName }) => {
+      const liveUrl = provider === 'github-pages' ? 'https://voce.github.io/blog/' : `https://${projectName}.pages.dev/`
+      demoDeployment = { provider, state: 'preflight', step: 'preflight', progress: 5, log: ['Checking the Hugo build and deployment settings.'], error: '', warning: '', liveUrl, accountId: accountId || '', projectName: projectName || '', repository: 'voce/blog', deploymentId: '', dashboardUrl: provider === 'github-pages' ? 'https://github.com/voce/blog/actions' : 'https://dash.cloudflare.com/', customDomainUrl: provider === 'github-pages' ? 'https://github.com/voce/blog/settings/pages' : 'https://dash.cloudflare.com/' }
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      demoDeployment = { ...demoDeployment, state: 'provisioning', step: 'provider', progress: 24, log: [...demoDeployment.log, 'The hosting project is ready.'] }
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      demoDeployment = { ...demoDeployment, state: 'uploading', step: 'upload', progress: 66, log: [...demoDeployment.log, 'Prepared and uploaded the website files.'] }
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      demoDeployment = { ...demoDeployment, state: 'live', step: 'verified', progress: 100, log: [...demoDeployment.log, 'The public address was verified.'] }
+      return demoDeployment
+    },
     publishingHealth: async () => ({ ready: true, score: 9, total: 9, publishing: { liveUrl: 'https://voce.github.io/blog/' }, checks: ['hugo', 'git', 'repository', 'identity', 'remote', 'github', 'workflow', 'build', 'deployment'].map((id) => ({ id, state: 'ok', detail: `${id} está pronto.`, action: id === 'workflow' ? 'github' : id === 'deployment' ? 'publish' : 'settings' })) }),
     updateStatus: async () => ({ state: 'idle', currentVersion: '0.5.0', version: '', releaseUrl: 'https://github.com/gabuvns/plumbago/releases/latest', canAutoUpdate: true, reason: '', progress: 0, error: '' }),
     checkForUpdates: async () => ({ state: 'available', currentVersion: '0.5.0', version: '0.6.0', name: 'Plumbago 0.6.0', notes: 'A smoother theme workflow and guided application updates.', publishedAt: '2026-08-09T12:00:00Z', releaseUrl: 'https://github.com/gabuvns/plumbago/releases/latest', canAutoUpdate: true, reason: '', progress: 0, error: '' }),

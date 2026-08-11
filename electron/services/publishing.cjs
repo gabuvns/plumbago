@@ -107,8 +107,11 @@ async function configureGitHubPages(root, token) {
   const hugoVersion = context.hugo?.match(/hugo v(\d+\.\d+\.\d+)/i)?.[1] || '0.128.0'
   const workflowDirectory = path.join(root, '.github', 'workflows')
   const workflowPath = path.join(workflowDirectory, 'plumbago-pages.yml')
+  const workflowContents = githubPagesWorkflow(branch, hugoVersion)
+  const previousWorkflow = await fs.readFile(workflowPath, 'utf8').catch(() => '')
+  const workflowChanged = previousWorkflow !== workflowContents
   await fs.mkdir(workflowDirectory, { recursive: true })
-  await fs.writeFile(workflowPath, githubPagesWorkflow(branch, hugoVersion), 'utf8')
+  if (workflowChanged) await fs.writeFile(workflowPath, workflowContents, 'utf8')
   const liveUrl = defaultGitHubPagesUrl(repository)
   await updateSiteConfig(root, { baseURL: liveUrl })
   await saveHostingSettings(root, { hostingProvider: 'github-pages', publicUrl: liveUrl })
@@ -132,6 +135,7 @@ async function configureGitHubPages(root, token) {
     liveUrl,
     repository,
     warning,
+    workflowChanged,
     workflow: '.github/workflows/plumbago-pages.yml',
   }
 }

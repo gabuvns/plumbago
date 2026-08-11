@@ -111,9 +111,12 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/components/ui/Modal.jsx',
     'src/features/editor/Editor.jsx',
     'src/features/publishing/GitHubSetupModal.jsx',
+    'src/features/publishing/DeploymentSetupModal.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
+    'electron/services/cloudflare.cjs',
+    'electron/services/deployments.cjs',
     'electron/services/git.cjs',
     'electron/services/github.cjs',
     'electron/services/hugo.cjs',
@@ -152,11 +155,28 @@ test('mantém o GitHub Device Flow como caminho principal e envia o primeiro com
   assert.match(setup, /api\.beginGitHubSignIn\(\)/)
   assert.match(setup, /api\.publishBlog\(t\('github\.initialCommitMessage'\)\)/)
   assert.match(setup, /<details className="github-token-option">/)
-  assert.match(read('electron/services/github.cjs'), /scope: 'repo read:user'/)
+  assert.match(read('electron/services/github.cjs'), /scope: 'repo workflow read:user'/)
   assert.doesNotMatch(read('electron/services/github.cjs'), /scope: '[^']*user:email/)
   assert.match(main, /clipboard\.writeText\(flow\.userCode\)/)
   assert.match(main, /shell\.openExternal\(flow\.verificationUri\)/)
   assert.doesNotMatch(main, /flow\.(?:user_code|verification_uri|device_code)/)
   assert.match(publishing, /GIT_CONFIG_VALUE_0/)
   assert.doesNotMatch(publishing, /remote.*x-access-token/i)
+})
+
+test('keeps one-click deployment secure, resumable, and visible in the product', () => {
+  const app = read('src/app/App.jsx')
+  const modal = read('src/features/publishing/DeploymentSetupModal.jsx')
+  const main = read('electron/main.cjs')
+  const site = read('electron/services/site.cjs')
+  const cloudflare = read('electron/services/cloudflare.cjs')
+  assert.match(app, /DeploymentSetupModal/)
+  assert.match(modal, /api\.deploySite\(\{ provider, accountId, projectName \}\)/)
+  assert.match(modal, /deploy\.changeProvider/)
+  assert.match(main, /safeStorage\.encryptString/)
+  assert.match(main, /safeStorage\.decryptString/)
+  assert.doesNotMatch(site, /cloudflareToken|githubToken/)
+  assert.match(cloudflare, /\/pages\/assets\/check-missing/)
+  assert.match(cloudflare, /\/pages\/assets\/upload/)
+  assert.match(cloudflare, /\/deployments/)
 })

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, ClipboardCopy, FolderOpen, GitBranch, Github, Globe2, HardDrive, LoaderCircle, Plus, Save, Terminal, UploadCloud } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, ClipboardCopy, FolderOpen, GitBranch, Github, Globe2, HardDrive, LoaderCircle, Plus, Rocket, Save, Terminal, UploadCloud } from 'lucide-react'
 import { api } from '../../app/api'
 import { Modal } from '../../components/ui/Modal'
 import { supportedLanguages, useI18n } from '../../i18n'
@@ -7,7 +7,7 @@ import { friendlyError } from '../../lib/errors'
 import { hugoDiagnostics, hugoEnvironment, hugoInstallUrl } from '../../lib/hugo'
 import { UpdatePanel } from './UpdatePanel'
 
-export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, onGitHub, onGitSetup, onHugoSetup, onSiteSettingsChanged, notify }) {
+export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, onDeploy, onGitHub, onGitSetup, onHugoSetup, onSiteSettingsChanged, notify }) {
   const { t, locale, setLocale } = useI18n()
   const [config, setConfig] = useState(null)
   const [readiness, setReadiness] = useState(null)
@@ -95,6 +95,7 @@ export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, on
         <section className="settings-section">
           <div className="settings-heading"><Globe2 size={18} /><div><h3>{t('hosting.title')}</h3><p>{t('hosting.copy')}</p></div></div>
           {site && <form className="hosting-settings" onSubmit={savePublicSite}>
+            <button className="button primary" type="button" onClick={onDeploy}><Rocket size={15} /> {t('hosting.oneClickDeploy')}</button>
             <label>{t('hosting.provider')}<select value={site.hostingProvider} onChange={(event) => setSite({ ...site, hostingProvider: event.target.value })}><option value="none">{t('hosting.none')}</option><option value="github-pages">{t('hosting.github-pages')}</option><option value="cloudflare-pages">{t('hosting.cloudflare-pages')}</option><option value="other">{t('hosting.other')}</option></select></label>
             <label>{t('hosting.address')}<input type="url" value={site.publicUrl || ''} disabled={site.hostingProvider === 'none'} onChange={(event) => setSite({ ...site, publicUrl: event.target.value })} placeholder={site.hostingProvider === 'cloudflare-pages' ? 'https://my-blog.pages.dev/' : 'https://username.github.io/my-blog/'} /></label>
             <button className="button primary" disabled={savingSite}>{savingSite ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {t('hosting.save')}</button>
