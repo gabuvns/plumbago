@@ -45,6 +45,14 @@ async function run(root, command, args = [], options = {}) {
   }
 }
 
+async function executablePath(root, command) {
+  const runtime = runtimeFor(root)
+  const locator = runtime.kind === 'wsl' || process.platform !== 'win32' ? 'which' : 'where.exe'
+  return run(root, locator, [command])
+    .then((result) => result.stdout.split(/\r?\n/).find(Boolean) || '')
+    .catch(() => '')
+}
+
 function spawnLongRunning(root, command, args = []) {
   const runtime = runtimeFor(root)
   if (runtime.kind === 'wsl' && process.platform === 'win32') {
@@ -56,4 +64,4 @@ function spawnLongRunning(root, command, args = []) {
   return spawn(command, args, { cwd: root, stdio: 'ignore' })
 }
 
-module.exports = { run, runtimeFor, spawnLongRunning, wslCommandArgs }
+module.exports = { executablePath, run, runtimeFor, spawnLongRunning, wslCommandArgs }

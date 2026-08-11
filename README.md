@@ -16,7 +16,7 @@ Your posts are still Markdown. Your images still live beside them. Your reposito
 
 Open your blog, choose a post, and start writing. Plumbago saves as you type, while a visible **Save now** button is always available. You can write in Markdown, use the visual editor, work side by side with a preview, or inspect the final rendered article.
 
-When the post needs an image, drag it into the app. Plumbago copies it into the page bundle, avoids filename collisions, and helps add alternative text or a caption. When the article is ready, preview the real Hugo site and publish. Plumbago checks that Hugo can build the website before it creates a Git version and uploads anything.
+When the post needs an image, drag it into the app. Plumbago copies it into the page bundle, avoids filename collisions, and helps add alternative text or a caption. When the article is ready, open the local Hugo preview or, once hosting is configured, jump directly to the public site. Plumbago checks that Hugo can build the website before it creates a Git version and uploads anything.
 
 Behind the scenes, a post remains pleasantly ordinary:
 
@@ -26,6 +26,8 @@ content/posts/my-post/
 ├── index.pt-br.md
 └── cover.jpg
 ```
+
+Plumbago checks the content folder every few seconds. Posts created or changed by Obsidian and other tools appear without reopening the blog, while revision checks prevent an older editor tab from overwriting newer Markdown. Posts can also be removed from the list with an explicit confirmation; attached images are preserved rather than deleted silently.
 
 ## Start in a few minutes
 
@@ -41,6 +43,8 @@ Plumbago can connect an existing GitHub repository or create one for you. The gu
 
 Windows users can keep their Hugo project inside WSL and select it through `\\wsl.localhost`. Plumbago detects the distribution and runs Hugo and Git inside that Linux environment, where the project's tools and credentials already live.
 
+The **Prepare Hugo** screen shows the exact environment, version, edition, and executable used by the selected blog. It can install or update Hugo Extended with Winget on Windows, provide the appropriate command and official guide on WSL, Linux, and macOS, and test the installation again without restarting Plumbago. If a blog was selected through a Windows path but the preferred Hugo lives in WSL, Plumbago can reopen that same folder through a chosen WSL distribution so preview, themes, Git, and publishing use one consistent environment.
+
 Plumbago checks Git in that exact environment, explains whether it is missing from Windows or a specific WSL distribution, and provides the appropriate installation command. After installing, **Check again** continues the interrupted publishing task. Existing Hugo folders without version history can be initialized safely from the same screen; initialization remains local until you explicitly connect and publish to a remote repository.
 
 On Linux and macOS, those tools run natively. The same blog stays portable across all three platforms.
@@ -53,8 +57,11 @@ Plumbago can also help you:
 - browse the official Hugo theme gallery;
 - check a theme's Hugo requirements and roll back a failed installation;
 - organize drafts, scheduled posts, published posts, tags, and featured images;
+- notice posts written by Obsidian or another external editor;
+- remove Markdown posts without silently deleting their attached images;
 - import posts and images from a Blogger XML backup;
 - configure site title, language, URL, and copyright;
+- choose GitHub Pages, Cloudflare Pages, or another public host and save its public address;
 - inspect Git, GitHub Pages, deployment, and Hugo health in one place;
 - synchronize with any Git remote;
 - check for and install new Plumbago releases.
@@ -64,6 +71,8 @@ The interface is available in English by default and Brazilian Portuguese.
 ## Your files stay yours
 
 Plumbago does not replace Hugo or hide your blog in a proprietary format. It preserves front matter fields it does not understand, does not upload content merely because you saved it, and validates a build before publishing.
+
+Both YAML (`---`) and TOML (`+++`) front matter are supported. Plumbago also repairs the duplicated archetype metadata produced by older versions of the editor. Language-aware page bundles are configured before preview and publishing so images stored beside `index.<language>.md` are copied to the final Hugo site.
 
 Git authentication stays with the operating system, WSL, SSH, or the GitHub CLI whenever possible. If you connect GitHub with a token, Plumbago stores it with Electron's encrypted `safeStorage`; it is never written into the blog.
 

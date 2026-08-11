@@ -9,7 +9,8 @@ const {
   parseGitHubRemote,
 } = require('./github.cjs')
 const { gitReadiness, requireGitRepository } = require('./git.cjs')
-const { siteMetadata, updateSiteConfig, validateBlog } = require('./site.cjs')
+const { ensureBundleLanguages } = require('./languages.cjs')
+const { hostingSettings, saveHostingSettings, siteMetadata, updateSiteConfig, validateBlog } = require('./site.cjs')
 
 async function createGitHubRepository(root, token, input) {
   await requireGitRepository(root)
@@ -67,6 +68,7 @@ async function configureGitHubPages(root, token) {
   await fs.writeFile(workflowPath, githubPagesWorkflow(branch, hugoVersion), 'utf8')
   const liveUrl = defaultGitHubPagesUrl(repository)
   await updateSiteConfig(root, { baseURL: liveUrl })
+  await saveHostingSettings(root, { hostingProvider: 'github-pages', publicUrl: liveUrl })
 
   let warning = ''
   try {
@@ -164,23 +166,24 @@ async function publishingStatus(root) {
   const status = await gitStatus(root)
   const repository = parseGitHubRemote(status.remote)
   const metadata = await siteMetadata(root)
-  let liveUrl = metadata.baseURL
-  try {
-    if (liveUrl) liveUrl = new URL(liveUrl).href
-  } catch {
-    liveUrl = ''
-  }
-  if (!liveUrl) liveUrl = defaultGitHubPagesUrl(repository)
-  const deployment = await githubWorkflowStatus(repository, status.branch)
-  return { ...status, repository, site: metadata, liveUrl, deployment }
+  const hosting = await hostingSettings(root, metadata.baseURL)
+  const deployment = hosting.hostingProvider === 'github-pages'
+    ? await githubWorkflowStatus(repository, status.branch)
+    : { state: 'unavailable', conclusion: '', runUrl: '', updatedAt: '' }
+  return { ...status, repository, site: { ...metadata, ...hosting }, liveUrl: hosting.publicUrl, deployment }
 }
 
 async function publishBlog(root, message) {
+  const languages = await ensureBundleLanguages(root)
   await validateBlog(root)
   await run(root, 'hugo', ['--renderToMemory', '--minify'])
   const synced = await syncGit(root, message)
   return {
-    log: ['Hugo build completed successfully.', ...synced.log],
+    log: [
+      ...(languages.changed ? ['Hugo language settings updated so page-bundle images publish correctly.'] : []),
+      'Hugo build completed successfully.',
+      ...synced.log,
+    ],
     status: await publishingStatus(root),
   }
 }
@@ -243,11 +246,16 @@ async function publishingHealth(root) {
     detail: repository?.fullName || (config.remote ? 'This repository is not hosted on GitHub.' : 'No GitHub repository is connected.'),
     action: 'github',
   })
+  const metadata = await siteMetadata(root)
+  const hosting = await hostingSettings(root, metadata.baseURL)
   const workflowExists = Boolean(await fs.stat(path.join(root, '.github', 'workflows', 'plumbago-pages.yml')).catch(() => null))
+  const externalHosting = ['cloudflare-pages', 'other'].includes(hosting.hostingProvider)
   checks.push({
     id: 'workflow',
-    state: workflowExists ? 'ok' : 'warning',
-    detail: workflowExists ? 'The GitHub Pages workflow is ready.' : 'Automatic website deployment is not configured yet.',
+    state: workflowExists || externalHosting ? 'ok' : 'warning',
+    detail: externalHosting
+      ? `The public address is managed by ${hosting.hostingProvider === 'cloudflare-pages' ? 'Cloudflare Pages' : 'an external hosting service'}.`
+      : workflowExists ? 'The GitHub Pages workflow is ready.' : 'Automatic website deployment is not configured yet.',
     action: 'github',
   })
   try {

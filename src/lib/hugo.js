@@ -24,6 +24,7 @@ export function hugoDiagnostics(context = {}) {
     `Blog: ${context.root || 'Not selected'}`,
     `Environment: ${hugoEnvironment(context.runtime)}`,
     `Hugo: ${context.hugo || 'Not found'}`,
+    `Hugo executable: ${context.hugoExecutable || 'Not found'}`,
     `Git: ${context.git || 'Not found'}`,
   ].join('\n')
 }

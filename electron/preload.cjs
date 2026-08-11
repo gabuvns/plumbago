@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('plumbago', {
   readPost: (id) => ipcRenderer.invoke('plumbago:read-post', id),
   savePost: (post) => ipcRenderer.invoke('plumbago:save-post', post),
   createPost: (input) => ipcRenderer.invoke('plumbago:create-post', input),
+  deletePost: (id) => ipcRenderer.invoke('plumbago:delete-post', id),
+  hugoReadiness: () => ipcRenderer.invoke('plumbago:hugo-readiness'),
+  installHugo: () => ipcRenderer.invoke('plumbago:install-hugo'),
+  useWslForBlog: (distro) => ipcRenderer.invoke('plumbago:use-wsl-for-blog', distro),
   importImages: (postId) => ipcRenderer.invoke('plumbago:import-images', postId),
   importDroppedImages: (postId, files) => {
     const sourcePaths = files.map((file) => webUtils.getPathForFile(file)).filter(Boolean)

@@ -1,10 +1,13 @@
 const fs = require('node:fs/promises')
 const path = require('node:path')
+const crypto = require('node:crypto')
 const matter = require('gray-matter')
+const TOML = require('@iarna/toml')
 const YAML = require('yaml')
 const { XMLParser } = require('fast-xml-parser')
 const TurndownService = require('turndown')
 const { run } = require('../core/runtime.cjs')
+const { ensureContentLanguages } = require('./languages.cjs')
 
 const IMAGE_EXTENSIONS = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.svg', '.webp'])
 
@@ -54,10 +57,51 @@ function normalizeDateTime(value) {
   return date.toISOString()
 }
 
+function revisionFor(raw) {
+  return crypto.createHash('sha256').update(raw).digest('hex')
+}
+
+function parseTomlFrontMatter(raw) {
+  const lines = String(raw).replace(/^\uFEFF/, '').split(/\r?\n/)
+  if (lines[0]?.trim() !== '+++') return null
+  const closing = lines.findIndex((line, index) => index > 0 && line.trim() === '+++')
+  if (closing < 0) return null
+  return {
+    data: TOML.parse(lines.slice(1, closing).join('\n')),
+    content: lines.slice(closing + 1).join('\n'),
+    format: 'toml',
+    hasMatter: true,
+  }
+}
+
+function parsePostSource(raw) {
+  const source = String(raw).replace(/^\uFEFF/, '')
+  const toml = parseTomlFrontMatter(source)
+  const outer = toml || (() => {
+    const parsed = matter(source)
+    return {
+      data: parsed.data || {},
+      content: parsed.content,
+      format: 'yaml',
+      hasMatter: /^---\s*\r?\n/.test(source),
+    }
+  })()
+  const leading = outer.content.match(/^\s*/)?.[0] || ''
+  const nested = parseTomlFrontMatter(outer.content.slice(leading.length))
+  const looksLikeAccidentalArchetype = nested && ['title', 'date', 'draft'].some((key) => Object.hasOwn(nested.data, key))
+  if (!looksLikeAccidentalArchetype) return outer
+  return {
+    ...outer,
+    data: { ...nested.data, ...outer.data },
+    content: nested.content,
+    repairedNestedFrontMatter: true,
+  }
+}
+
 async function readPost(root, id) {
   const absolute = contentPath(root, id)
   const raw = await fs.readFile(absolute, 'utf8')
-  const parsed = matter(raw)
+  const parsed = parsePostSource(raw)
   const directory = path.dirname(absolute)
   const entries = await fs.readdir(directory, { withFileTypes: true })
   const assets = entries
@@ -77,6 +121,9 @@ async function readPost(root, id) {
     language: languageFromId(id),
     body: parsed.content.replace(/^\s+/, ''),
     assets,
+    revision: revisionFor(raw),
+    frontMatterFormat: parsed.format,
+    repairedNestedFrontMatter: Boolean(parsed.repairedNestedFrontMatter),
   }
 }
 
@@ -95,6 +142,7 @@ async function listPosts(root) {
         tags: post.tags,
         language: post.language,
         featuredImage: post.featuredImage,
+        revision: post.revision,
       }
     } catch {
       return null
@@ -103,7 +151,7 @@ async function listPosts(root) {
   return posts.filter(Boolean).sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.title.localeCompare(b.title))
 }
 
-function serializePost(existingData, post) {
+function serializePost(existingData, post, format = 'yaml') {
   const data = {
     ...existingData,
     title: post.title.trim(),
@@ -111,18 +159,30 @@ function serializePost(existingData, post) {
     date: post.date,
     publishDate: post.publishDate || undefined,
     draft: Boolean(post.draft),
-    translationKey: post.translationKey.trim(),
-    tags: post.tags.filter(Boolean),
+    translationKey: String(post.translationKey || '').trim(),
+    tags: Array.isArray(post.tags) ? post.tags.filter(Boolean) : [],
     featuredImage: post.featuredImage || '',
   }
-  return `---\n${YAML.stringify(data, { lineWidth: 0 }).trim()}\n---\n\n${post.body.replace(/^\s+/, '')}`
+  const compact = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
+  const delimiter = format === 'toml' ? '+++' : '---'
+  const frontMatter = format === 'toml'
+    ? TOML.stringify(compact).trim()
+    : YAML.stringify(compact, { lineWidth: 0 }).trim()
+  return `${delimiter}\n${frontMatter}\n${delimiter}\n\n${String(post.body || '').replace(/^\s+/, '')}`
 }
 
 async function savePost(root, post) {
   if (!post.title?.trim()) throw new Error('Dê um título ao post antes de salvar.')
   const absolute = contentPath(root, post.id)
-  const parsed = matter(await fs.readFile(absolute, 'utf8'))
-  await fs.writeFile(absolute, serializePost(parsed.data, post), 'utf8')
+  const raw = await fs.readFile(absolute, 'utf8')
+  if (post.revision && post.revision !== revisionFor(raw)) {
+    const error = new Error('This post changed outside Plumbago. Reload it before saving so the newer version is not overwritten.')
+    error.code = 'CONTENT_CHANGED'
+    throw error
+  }
+  const parsed = parsePostSource(raw)
+  await ensureContentLanguages(root, [languageFromId(post.id)])
+  await fs.writeFile(absolute, serializePost(parsed.data, post, post.frontMatterFormat || parsed.format), 'utf8')
   return readPost(root, post.id)
 }
 
@@ -139,6 +199,7 @@ async function createPost(root, input) {
   await fs.access(absolute).then(() => { throw new Error('Já existe um post com este slug e idioma.') }).catch((error) => {
     if (error.message.includes('Já existe')) throw error
   })
+  await ensureContentLanguages(root, [language])
   await run(root, 'hugo', ['new', 'content', `posts/${slug}/index.${language}.md`])
   const post = await readPost(root, id)
   return savePost(root, {
@@ -149,6 +210,19 @@ async function createPost(root, input) {
     draft: true,
     translationKey: input.translationKey || slug,
   })
+}
+
+async function deletePost(root, id) {
+  const absolute = contentPath(root, id)
+  if (path.extname(absolute).toLowerCase() !== '.md') throw new Error('Only Markdown posts can be removed.')
+  await fs.rm(absolute)
+  const directory = path.dirname(absolute)
+  const remaining = await fs.readdir(directory).catch(() => [])
+  if (!remaining.length) await fs.rmdir(directory)
+  return {
+    id,
+    preservedAssets: remaining.filter((name) => IMAGE_EXTENSIONS.has(path.extname(name).toLowerCase())),
+  }
 }
 
 function uniqueAssetName(name, usedNames) {
@@ -303,6 +377,8 @@ async function importBloggerExport(root, filePath, options = {}, validateBlog = 
   const failures = []
   let importedImages = 0
 
+  await ensureContentLanguages(root, [language])
+
   for (const source of posts) {
     try {
       let slug = source.slug
@@ -340,6 +416,7 @@ async function importBloggerExport(root, filePath, options = {}, validateBlog = 
 module.exports = {
   contentPath,
   createPost,
+  deletePost,
   importBloggerExport,
   importImages,
   inspectBloggerExport,
@@ -348,6 +425,7 @@ module.exports = {
   readAsset,
   readAssetInfo,
   readPost,
+  revisionFor,
   savePost,
   slugify,
 }

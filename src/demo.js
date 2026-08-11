@@ -1,7 +1,7 @@
 const samplePosts = [
-  { id: 'content/posts/cultivando-ideias/index.pt-br.md', title: 'Cultivando ideias com calma', description: 'Notas sobre processo criativo, referências e espaço para experimentar.', date: '2026-08-07', draft: false, language: 'pt-br', featuredImage: '' },
-  { id: 'content/posts/cores-do-inverno/index.pt-br.md', title: 'As cores do inverno', description: 'Uma pequena coleção de estudos de cor.', date: '2026-08-04', draft: true, language: 'pt-br', featuredImage: '' },
-  { id: 'content/posts/primeiro-caderno/index.en-us.md', title: 'Notes from the first sketchbook', description: 'A look back at the first pages.', date: '2026-07-28', draft: false, language: 'en-us', featuredImage: '' },
+  { id: 'content/posts/cultivando-ideias/index.pt-br.md', title: 'Cultivando ideias com calma', description: 'Notas sobre processo criativo, referências e espaço para experimentar.', date: '2026-08-07', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-1' },
+  { id: 'content/posts/cores-do-inverno/index.pt-br.md', title: 'As cores do inverno', description: 'Uma pequena coleção de estudos de cor.', date: '2026-08-04', draft: true, language: 'pt-br', featuredImage: '', revision: 'demo-2' },
+  { id: 'content/posts/primeiro-caderno/index.en-us.md', title: 'Notes from the first sketchbook', description: 'A look back at the first pages.', date: '2026-07-28', draft: false, language: 'en-us', featuredImage: '', revision: 'demo-3' },
 ]
 
 const bodies = {
@@ -26,7 +26,7 @@ function fullPost(summary) {
 
 export function createDemoBridge() {
   let posts = [...samplePosts]
-  let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', git: 'git version 2.43.0', theme: 'hugo-papermod' }
+  let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   return {
     getContext: async () => context,
     chooseBlog: async () => context,
@@ -56,13 +56,17 @@ export function createDemoBridge() {
       context = { ...context, theme: '' }
       return context
     },
-    siteSettings: async () => ({ title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', languageCode: 'pt-BR', copyright: '© 2026 Você', theme: context.theme, config: 'hugo.toml' }),
-    saveSiteSettings: async (input) => ({ ...input, theme: context.theme, config: 'hugo.toml' }),
+    siteSettings: async () => ({ title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', languageCode: 'pt-BR', copyright: '© 2026 Você', hostingProvider: 'github-pages', publicUrl: 'https://voce.github.io/blog/', hostingConfigured: true, theme: context.theme, config: 'hugo.toml' }),
+    saveSiteSettings: async (input) => ({ ...input, publicUrl: input.hostingProvider === 'none' ? '' : input.publicUrl, hostingConfigured: input.hostingProvider !== 'none' && Boolean(input.publicUrl), theme: context.theme, config: 'hugo.toml' }),
     openTheme: async () => true,
     listPosts: async () => posts,
     readPost: async (id) => fullPost(posts.find((post) => post.id === id)),
-    savePost: async (post) => { posts = posts.map((item) => item.id === post.id ? { ...item, ...post } : item); return post },
+    savePost: async (post) => { const saved = { ...post, revision: `demo-${Date.now()}` }; posts = posts.map((item) => item.id === post.id ? { ...item, ...saved } : item); return saved },
     createPost: async (input) => { const summary = { id: `content/posts/novo-post/index.${input.language}.md`, title: input.title, description: '', date: '2026-08-08', draft: true, language: input.language, featuredImage: '' }; posts.unshift(summary); return fullPost(summary) },
+    deletePost: async (id) => { posts = posts.filter((item) => item.id !== id); return { id, preservedAssets: [] } },
+    hugoReadiness: async () => ({ ready: true, environment: { kind: 'wsl', distro: 'Ubuntu', label: 'WSL · Ubuntu' }, hugo: { status: 'ready', version: context.hugo, executable: context.hugoExecutable, extended: true, details: '' }, assistance: { mode: 'command', command: 'sudo apt update && sudo apt install -y hugo', url: 'https://gohugo.io/installation/linux/', repositoryMayLag: true }, wslDistributions: [] }),
+    installHugo: async () => ({ ready: true, environment: { kind: 'native', platform: 'win32', label: 'win32' }, hugo: { status: 'ready', version: 'hugo v0.164.0+extended', executable: 'C:\\Program Files\\Hugo\\bin\\hugo.exe', extended: true, details: '' }, assistance: { mode: 'automatic', command: 'winget upgrade --id Hugo.Hugo.Extended -e --source winget', url: 'https://gohugo.io/installation/windows/' }, wslDistributions: ['Ubuntu'] }),
+    useWslForBlog: async (distro) => { context = { ...context, root: `\\\\wsl.localhost\\${distro}\\home\\voce\\meu-blog`, runtime: { kind: 'wsl', distro }, hugoExecutable: '/usr/bin/hugo' }; return context },
     importImages: async () => [{ name: 'nova-imagem.svg', markdown: '![Descrição da imagem](nova-imagem.svg)' }],
     importDroppedImages: async () => [{ name: 'imagem-arrastada.svg', markdown: '![Descrição da imagem](imagem-arrastada.svg)' }],
     readAsset: async (_postId, name) => `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#524DE1"/><stop offset="1" stop-color="#558B6E"/></linearGradient></defs><rect width="800" height="500" fill="url(#g)"/><text x="400" y="270" text-anchor="middle" fill="#FFC759" font-size="42" font-family="sans-serif">${name}</text></svg>`)}`,
@@ -74,8 +78,8 @@ export function createDemoBridge() {
     gitConfig: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', name: 'Artista Plumbago', email: 'artista@example.com', changes: [] }),
     saveGitConfig: async (config) => ({ branch: 'main', ...config, changes: [] }),
     syncGit: async () => ({ log: ['Alterações salvas em um commit.', 'Conteúdo enviado ao repositório remoto.'], status: { branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [] } }),
-    publishingStatus: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [' M content/posts/cores-do-inverno/index.pt-br.md'], repository: { owner: 'voce', repository: 'blog', fullName: 'voce/blog', url: 'https://github.com/voce/blog' }, site: { title: 'Meu blog', baseURL: 'https://voce.github.io/blog/' }, liveUrl: 'https://voce.github.io/blog/', deployment: { state: 'live', conclusion: 'success', runUrl: 'https://github.com/voce/blog/actions', updatedAt: new Date().toISOString(), name: 'Deploy Hugo site' } }),
-    publishBlog: async () => ({ log: ['Hugo build completed successfully.', 'Conteúdo enviado ao repositório remoto.'], status: { branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [], repository: { owner: 'voce', repository: 'blog', fullName: 'voce/blog', url: 'https://github.com/voce/blog' }, site: { title: 'Meu blog', baseURL: 'https://voce.github.io/blog/' }, liveUrl: 'https://voce.github.io/blog/', deployment: { state: 'deploying', conclusion: '', runUrl: 'https://github.com/voce/blog/actions', updatedAt: new Date().toISOString(), name: 'Deploy Hugo site' } } }),
+    publishingStatus: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [' M content/posts/cores-do-inverno/index.pt-br.md'], repository: { owner: 'voce', repository: 'blog', fullName: 'voce/blog', url: 'https://github.com/voce/blog' }, site: { title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', hostingProvider: 'github-pages', publicUrl: 'https://voce.github.io/blog/', hostingConfigured: true }, liveUrl: 'https://voce.github.io/blog/', deployment: { state: 'live', conclusion: 'success', runUrl: 'https://github.com/voce/blog/actions', updatedAt: new Date().toISOString(), name: 'Deploy Hugo site' } }),
+    publishBlog: async () => ({ log: ['Hugo build completed successfully.', 'Conteúdo enviado ao repositório remoto.'], status: { branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [], repository: { owner: 'voce', repository: 'blog', fullName: 'voce/blog', url: 'https://github.com/voce/blog' }, site: { title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', hostingProvider: 'github-pages', publicUrl: 'https://voce.github.io/blog/', hostingConfigured: true }, liveUrl: 'https://voce.github.io/blog/', deployment: { state: 'deploying', conclusion: '', runUrl: 'https://github.com/voce/blog/actions', updatedAt: new Date().toISOString(), name: 'Deploy Hugo site' } } }),
     openPublishingUrl: async () => true,
     copyText: async () => true,
     githubStatus: async () => ({ configured: true, connected: true, persistent: true, account: { login: 'voce', name: 'Você', avatarUrl: 'https://github.com/identicons/voce.png', profileUrl: 'https://github.com/voce' } }),

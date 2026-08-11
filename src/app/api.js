@@ -6,5 +6,6 @@ export const emptyContext = {
   root: '',
   runtime: { kind: 'native' },
   hugo: null,
+  hugoExecutable: '',
   git: null,
 }

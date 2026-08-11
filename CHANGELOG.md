@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Refresh the post list every few seconds so content created or changed in Obsidian and other editors appears automatically.
+- Add safe post removal with explicit confirmation and preservation of attached image files.
+- Separate local preview from the public-site shortcut and support GitHub Pages, Cloudflare Pages, and manually configured hosts.
+- Support TOML front matter, repair duplicated Hugo archetype metadata, and protect newer external edits from being overwritten.
+- Configure multilingual page bundles so adjacent images are included in published Hugo sites.
+- Add a guided Hugo setup that shows the exact executable and environment, installs or updates Hugo Extended on Windows, and can reopen Windows-hosted blogs through a selected WSL distribution.
+
 ## 0.5.1 — 2026-08-10
 
 - Add guided Git detection and setup for native Windows, Windows with WSL, Linux, and macOS environments.

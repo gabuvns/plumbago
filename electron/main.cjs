@@ -99,6 +99,16 @@ function registerIpc() {
   ipcMain.handle('plumbago:read-post', (_event, id) => service.readPost(requireBlog(), id))
   ipcMain.handle('plumbago:save-post', (_event, post) => service.savePost(requireBlog(), post))
   ipcMain.handle('plumbago:create-post', (_event, input) => service.createPost(requireBlog(), input))
+  ipcMain.handle('plumbago:delete-post', (_event, id) => service.deletePost(requireBlog(), id))
+  ipcMain.handle('plumbago:hugo-readiness', () => service.hugoReadiness(requireBlog()))
+  ipcMain.handle('plumbago:install-hugo', () => service.installHugo(requireBlog()))
+  ipcMain.handle('plumbago:use-wsl-for-blog', async (_event, distro) => {
+    const target = await service.useWslForBlog(requireBlog(), distro)
+    const context = await service.validateBlog(target)
+    blogRoot = target
+    await persistSettings()
+    return context
+  })
   ipcMain.handle('plumbago:git-status', () => service.gitStatus(requireBlog()))
   ipcMain.handle('plumbago:git-readiness', () => service.gitReadiness(requireBlog()))
   ipcMain.handle('plumbago:install-git', () => service.installGit(requireBlog()))
@@ -200,6 +210,7 @@ function registerIpc() {
   ipcMain.handle('plumbago:import-image-paths', (_event, postId, sourcePaths) => service.importImages(requireBlog(), postId, sourcePaths))
   ipcMain.handle('plumbago:open-preview', async () => {
     const root = requireBlog()
+    await service.ensureBundleLanguages(root)
     if (!previewProcess || previewProcess.exitCode !== null) {
       previewProcess = service.spawnLongRunning(root, 'hugo', ['server', '--buildDrafts', '--disableFastRender', '--port', '1313'])
       await new Promise((resolve) => setTimeout(resolve, 900))

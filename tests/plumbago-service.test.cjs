@@ -55,7 +55,19 @@ test('direciona a ajuda do Hugo para o ambiente correto', async () => {
   assert.equal(hugoInstallUrl({ kind: 'wsl', distro: 'Ubuntu-24.04' }), 'https://gohugo.io/installation/linux/')
   assert.equal(hugoInstallUrl({ kind: 'native', platform: 'darwin' }), 'https://gohugo.io/installation/macos/')
   assert.equal(hugoInstallUrl({ kind: 'native', platform: 'win32' }), 'https://gohugo.io/installation/windows/')
-  assert.match(hugoDiagnostics({ root: '/home/ana/blog', runtime: { kind: 'wsl', distro: 'Ubuntu-24.04' }, hugo: null, git: 'git version 2.43.0' }), /WSL \(Ubuntu-24\.04\)[\s\S]*Hugo: Not found/)
+  assert.match(hugoDiagnostics({ root: '/home/ana/blog', runtime: { kind: 'wsl', distro: 'Ubuntu-24.04' }, hugo: null, hugoExecutable: '/usr/local/bin/hugo', git: 'git version 2.43.0' }), /WSL \(Ubuntu-24\.04\)[\s\S]*Hugo: Not found[\s\S]*\/usr\/local\/bin\/hugo/)
+  assert.deepEqual(service.hugoInstallAssistance({ kind: 'native', platform: 'win32' }), {
+    mode: 'automatic',
+    command: 'winget install --id Hugo.Hugo.Extended -e --source winget',
+    url: 'https://gohugo.io/installation/windows/',
+    repositoryMayLag: false,
+  })
+  assert.equal(service.hugoInstallAssistance({ kind: 'wsl', distro: 'Ubuntu-24.04' }).command, 'sudo apt update && sudo apt install -y hugo')
+  assert.equal(service.inferHostingProvider('https://example.com/'), 'none')
+  assert.equal(
+    service.wslBlogRoot(String.raw`C:\Users\Ana\Sites\Meu blog`, 'Ubuntu-24.04'),
+    String.raw`\\wsl.localhost\Ubuntu-24.04\mnt\c\Users\Ana\Sites\Meu blog`,
+  )
 })
 
 test('compara a versão instalada com a release mais recente do Plumbago', () => {
@@ -224,6 +236,9 @@ test('cria um novo site Hugo com configuração e repositório Git', async (t) =
   assert.equal(context.theme, '')
   assert.match(await fs.readFile(path.join(context.root, 'hugo.toml'), 'utf8'), /title = "Caderno de Ideias"/)
   assert.ok(await fs.stat(path.join(context.root, '.git')))
+  const initialSettings = await service.siteSettings(context.root)
+  assert.equal(initialSettings.hostingProvider, 'none')
+  assert.equal(initialSettings.publicUrl, '')
   const settings = await service.saveSiteSettings(context.root, {
     title: 'Caderno publicado',
     baseURL: 'https://ana.github.io/caderno',
@@ -233,6 +248,21 @@ test('cria um novo site Hugo com configuração e repositório Git', async (t) =
   assert.equal(settings.title, 'Caderno publicado')
   assert.equal(settings.baseURL, 'https://ana.github.io/caderno/')
   assert.equal(settings.copyright, '© Ana')
+  assert.equal(settings.hostingProvider, 'github-pages')
+  assert.equal(settings.publicUrl, 'https://ana.github.io/caderno/')
+
+  const cloudflare = await service.saveSiteSettings(context.root, {
+    ...settings,
+    baseURL: 'https://caderno.pages.dev/',
+    publicUrl: 'https://caderno.pages.dev/',
+    hostingProvider: 'cloudflare-pages',
+  })
+  assert.equal(cloudflare.hostingProvider, 'cloudflare-pages')
+  assert.equal(cloudflare.publicUrl, 'https://caderno.pages.dev/')
+  assert.deepEqual(JSON.parse(await fs.readFile(path.join(context.root, '.plumbago.json'), 'utf8')), {
+    hostingProvider: 'cloudflare-pages',
+    publicUrl: 'https://caderno.pages.dev/',
+  })
 })
 
 test('detecta e inicializa com segurança um blog Hugo sem repositório Git', async (t) => {
@@ -278,6 +308,7 @@ test('cria, edita, lista e adiciona imagens a um page bundle Hugo', async (t) =>
 
   const context = await service.validateBlog(temporaryRoot)
   assert.match(context.hugo, /^hugo v/)
+  assert.match(context.hugoExecutable, /hugo$/)
 
   const gitConfig = await service.saveGitConfig(temporaryRoot, {
     name: 'Autora Plumbago',
@@ -292,6 +323,7 @@ test('cria, edita, lista e adiciona imagens a um page bundle Hugo', async (t) =>
   assert.equal(created.id, 'content/posts/meu-primeiro-post/index.pt-br.md')
   assert.equal(created.title, 'Meu Primeiro Post')
   assert.equal(created.draft, true)
+  assert.ok(['toml', 'yaml'].includes(created.frontMatterFormat))
 
   const saved = await service.savePost(temporaryRoot, {
     ...created,
@@ -313,10 +345,69 @@ test('cria, edita, lista e adiciona imagens a um page bundle Hugo', async (t) =>
   assert.equal(assetInfo.size, 4)
   assert.match(assetInfo.dataUrl, /^data:image\/png;base64,/)
 
+  const published = await service.savePost(temporaryRoot, {
+    ...saved,
+    body: `${saved.body}\n\n![Café](${imported[0].name})`,
+    draft: false,
+    publishDate: '',
+  })
+  await fs.mkdir(path.join(temporaryRoot, 'layouts', '_default'), { recursive: true })
+  await fs.writeFile(path.join(temporaryRoot, 'layouts', '_default', 'single.html'), '<main>{{ .Content }}</main>\n', 'utf8')
+  await execFileAsync('hugo', ['--destination', 'public-test'], { cwd: temporaryRoot })
+  assert.ok(await fs.stat(path.join(temporaryRoot, 'public-test', 'posts', 'meu-primeiro-post', imported[0].name)))
+  assert.match(await fs.readFile(path.join(temporaryRoot, 'hugo.toml'), 'utf8'), /\[languages\.pt-br\]/)
+  const raw = await fs.readFile(path.join(temporaryRoot, published.id), 'utf8')
+  assert.equal([...raw.matchAll(/^(?:---|\+\+\+)$/gm)].length, 2)
+
   const listed = await service.listPosts(temporaryRoot)
   assert.equal(listed.length, 1)
   assert.equal(listed[0].date, new Date().toISOString().slice(0, 10))
-  assert.equal(listed[0].publishDate, '2030-06-15T18:30:00.000Z')
+  assert.equal(listed[0].publishDate, '')
+
+  const removed = await service.deletePost(temporaryRoot, published.id)
+  assert.deepEqual(removed.preservedAssets, [imported[0].name])
+  assert.equal(await fs.stat(path.join(temporaryRoot, published.id)).catch(() => null), null)
+  assert.ok(await fs.stat(path.join(temporaryRoot, 'content', 'posts', 'meu-primeiro-post', imported[0].name)))
+})
+
+test('remove front matter TOML duplicado sem perder metadados e protege edições externas', async (t) => {
+  const temporaryRoot = await makeTemporaryDirectory('plumbago-front-matter')
+  t.after(() => fs.rm(temporaryRoot, { recursive: true, force: true }))
+  await execFileAsync('hugo', ['new', 'site', temporaryRoot, '--force'])
+  const id = 'content/posts/exemplo/index.pt-br.md'
+  const absolute = path.join(temporaryRoot, id)
+  await fs.mkdir(path.dirname(absolute), { recursive: true })
+  await fs.writeFile(absolute, `---
+title: Isso é um teste
+date: 2026-08-09
+draft: false
+customField: preservado
+---
+
++++
+date = '2026-08-09T23:06:16-03:00'
+draft = true
+title = 'Index.pt Br'
+legacyField = 'também preservado'
++++
+
+Esse post é um teste do Plumbago.
+`, 'utf8')
+
+  const loaded = await service.readPost(temporaryRoot, id)
+  assert.equal(loaded.repairedNestedFrontMatter, true)
+  assert.equal(loaded.title, 'Isso é um teste')
+  assert.equal(loaded.body, 'Esse post é um teste do Plumbago.\n')
+
+  const cleaned = await service.savePost(temporaryRoot, loaded)
+  const raw = await fs.readFile(absolute, 'utf8')
+  assert.doesNotMatch(raw, /^\+\+\+$/m)
+  assert.match(raw, /customField: preservado/)
+  assert.match(raw, /legacyField: também preservado/)
+  assert.equal([...raw.matchAll(/^---$/gm)].length, 2)
+
+  await fs.appendFile(absolute, '\nAlteração feita pelo Obsidian.\n', 'utf8')
+  await assert.rejects(service.savePost(temporaryRoot, { ...cleaned, body: 'Texto antigo' }), /changed outside Plumbago/i)
 })
 
 test('inspeciona e importa um backup do Blogger como Markdown', async (t) => {

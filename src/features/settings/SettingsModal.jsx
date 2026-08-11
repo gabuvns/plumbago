@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, ClipboardCopy, FolderOpen, GitBranch, Github, HardDrive, LoaderCircle, Plus, Save, Terminal, UploadCloud } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, ClipboardCopy, FolderOpen, GitBranch, Github, Globe2, HardDrive, LoaderCircle, Plus, Save, Terminal, UploadCloud } from 'lucide-react'
 import { api } from '../../app/api'
 import { Modal } from '../../components/ui/Modal'
 import { supportedLanguages, useI18n } from '../../i18n'
@@ -7,11 +7,13 @@ import { friendlyError } from '../../lib/errors'
 import { hugoDiagnostics, hugoEnvironment, hugoInstallUrl } from '../../lib/hugo'
 import { UpdatePanel } from './UpdatePanel'
 
-export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, onGitHub, onGitSetup, notify }) {
+export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, onGitHub, onGitSetup, onHugoSetup, onSiteSettingsChanged, notify }) {
   const { t, locale, setLocale } = useI18n()
   const [config, setConfig] = useState(null)
   const [readiness, setReadiness] = useState(null)
+  const [site, setSite] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [savingSite, setSavingSite] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -23,6 +25,7 @@ export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, on
         if (active) setConfig(nextConfig)
       }
     }).catch((error) => notify(friendlyError(error, t), 'error'))
+    api.siteSettings().then((next) => { if (active) setSite(next) }).catch((error) => notify(friendlyError(error, t), 'error'))
     return () => { active = false }
   }, [notify, t])
 
@@ -49,6 +52,22 @@ export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, on
     }
   }
 
+  async function savePublicSite(event) {
+    event.preventDefault()
+    setSavingSite(true)
+    try {
+      const input = site.hostingProvider === 'none' ? site : { ...site, baseURL: site.publicUrl }
+      const saved = await api.saveSiteSettings(input)
+      setSite(saved)
+      onSiteSettingsChanged(saved)
+      notify(t('notice.hostingSaved'))
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+    } finally {
+      setSavingSite(false)
+    }
+  }
+
   function openHugoHelp() {
     api.openPublishingUrl(hugoInstallUrl(context.runtime)).catch((error) => notify(friendlyError(error, t), 'error'))
   }
@@ -68,10 +87,19 @@ export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, on
           <div className="tool-status"><div><span className={context.hugo ? 'ok' : 'error'} /><div><strong>Hugo</strong><small>{context.hugo || t('settings.notFound')}</small></div></div><div><span className={gitVersion ? 'ok' : 'error'} /><div><strong>Git</strong><small>{gitVersion || t('settings.notFound')}</small></div></div></div>
           <div className={`hugo-help-card ${context.hugo ? '' : 'missing'}`}>
             <Terminal size={18} />
-            <div><strong>{t('settings.hugoHelp')}</strong><p>{t('settings.hugoHelpCopy', { environment: hugoEnvironment(context.runtime) })}</p></div>
-            <div className="hugo-help-actions"><button className="button quiet" type="button" onClick={copyDiagnostics}><ClipboardCopy size={14} /> {t('settings.copyDiagnostics')}</button><button className="button quiet" type="button" onClick={openHugoHelp}><ArrowUpRight size={14} /> {context.hugo ? t('settings.updateHugo') : t('settings.installHugo')}</button></div>
+            <div><strong>{t('settings.hugoHelp')}</strong><p>{t('settings.hugoHelpCopy', { environment: hugoEnvironment(context.runtime) })}</p><code>{context.hugoExecutable || t('settings.executableUnknown')}</code></div>
+            <div className="hugo-help-actions"><button className="button primary" type="button" onClick={onHugoSetup}><Terminal size={14} /> {t('settings.manageHugo')}</button><button className="button quiet" type="button" onClick={copyDiagnostics}><ClipboardCopy size={14} /> {t('settings.copyDiagnostics')}</button><button className="button quiet" type="button" onClick={openHugoHelp}><ArrowUpRight size={14} /> {t('settings.hugoDocs')}</button></div>
           </div>
           <label className="language-setting">{t('language.label')}<select value={locale} onChange={(event) => setLocale(event.target.value)}>{supportedLanguages.map((language) => <option key={language.value} value={language.value}>{language.label}</option>)}</select></label>
+        </section>
+        <section className="settings-section">
+          <div className="settings-heading"><Globe2 size={18} /><div><h3>{t('hosting.title')}</h3><p>{t('hosting.copy')}</p></div></div>
+          {site && <form className="hosting-settings" onSubmit={savePublicSite}>
+            <label>{t('hosting.provider')}<select value={site.hostingProvider} onChange={(event) => setSite({ ...site, hostingProvider: event.target.value })}><option value="none">{t('hosting.none')}</option><option value="github-pages">{t('hosting.github-pages')}</option><option value="cloudflare-pages">{t('hosting.cloudflare-pages')}</option><option value="other">{t('hosting.other')}</option></select></label>
+            <label>{t('hosting.address')}<input type="url" value={site.publicUrl || ''} disabled={site.hostingProvider === 'none'} onChange={(event) => setSite({ ...site, publicUrl: event.target.value })} placeholder={site.hostingProvider === 'cloudflare-pages' ? 'https://my-blog.pages.dev/' : 'https://username.github.io/my-blog/'} /></label>
+            <button className="button primary" disabled={savingSite}>{savingSite ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {t('hosting.save')}</button>
+            <p>{t('hosting.hint')}</p>
+          </form>}
         </section>
         <UpdatePanel notify={notify} />
         <section className="settings-section">

@@ -106,10 +106,14 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/content.cjs',
     'electron/services/git.cjs',
     'electron/services/github.cjs',
+    'electron/services/hugo.cjs',
+    'electron/services/languages.cjs',
     'electron/services/publishing.cjs',
     'electron/services/site.cjs',
     'electron/services/updates.cjs',
     'src/features/settings/UpdatePanel.jsx',
+    'src/features/setup/HugoSetupModal.jsx',
+    'src/features/posts/DeletePostModal.jsx',
   ]
 
   assert.match(rendererEntry, /export \{ default \} from '.\/app\/App'/)
@@ -117,4 +121,15 @@ test('mantém as entradas principais como fachadas modulares', () => {
   assert.match(electronEntry, /services\/content\.cjs/)
   assert.ok(electronEntry.split('\n').length <= 30, 'o serviço Electron deve continuar sendo apenas uma fachada')
   for (const file of expectedModules) assert.ok(fs.existsSync(path.join(root, file)), `${file} não encontrado`)
+})
+
+test('mantém a sincronização externa, exclusão e atalhos local/público visíveis no produto', () => {
+  const app = read('src/app/App.jsx')
+  const preload = read('electron/preload.cjs')
+  const messages = read('src/i18n.jsx')
+  assert.match(app, /setInterval\(checkForExternalPosts, 5000\)/)
+  assert.match(app, /site\?\.publicUrl/)
+  assert.match(preload, /deletePost:/)
+  assert.match(messages, /'top\.preview': 'View local site'/)
+  assert.match(messages, /'top\.publicSite': 'View public site'/)
 })

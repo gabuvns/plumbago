@@ -1,13 +1,15 @@
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const YAML = require('yaml')
-const { run, runtimeFor } = require('../core/runtime.cjs')
+const { executablePath, run, runtimeFor } = require('../core/runtime.cjs')
 const { slugify } = require('./content.cjs')
 const { ensureGitRepository, gitVersion } = require('./git.cjs')
+const { CONFIG_FILES } = require('./languages.cjs')
 const { compatibilityMessage, inspectThemeCompatibility } = require('./theme-compatibility.cjs')
 const { resolveTheme } = require('./themes.cjs')
 
-const CONFIG_FILES = ['hugo.toml', 'hugo.yaml', 'hugo.yml', 'hugo.json', 'config.toml', 'config.yaml', 'config.yml']
+const PLUMBAGO_SETTINGS_FILE = '.plumbago.json'
+const HOSTING_PROVIDERS = new Set(['none', 'github-pages', 'cloudflare-pages', 'other'])
 
 function readThemeValue(raw, config) {
   try {
@@ -45,9 +47,56 @@ async function siteMetadata(root) {
   }
 }
 
+function inferHostingProvider(baseURL) {
+  try {
+    const hostname = new URL(baseURL).hostname.toLowerCase()
+    if (hostname.endsWith('.github.io')) return 'github-pages'
+    if (hostname.endsWith('.pages.dev')) return 'cloudflare-pages'
+  } catch {
+    // An empty or invalid Hugo baseURL is handled by the site settings validator.
+  }
+  return 'none'
+}
+
+async function readPlumbagoSettings(root) {
+  try {
+    const parsed = JSON.parse(await fs.readFile(path.join(root, PLUMBAGO_SETTINGS_FILE), 'utf8'))
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+async function hostingSettings(root, baseURL = '') {
+  const stored = await readPlumbagoSettings(root)
+  const hasStoredProvider = HOSTING_PROVIDERS.has(stored.hostingProvider)
+  const hostingProvider = hasStoredProvider ? stored.hostingProvider : inferHostingProvider(baseURL)
+  const publicUrl = hostingProvider === 'none' ? '' : String(stored.publicUrl || baseURL || '')
+  return { hostingProvider, publicUrl, hostingConfigured: Boolean(publicUrl) }
+}
+
+async function saveHostingSettings(root, input) {
+  const current = await readPlumbagoSettings(root)
+  const hostingProvider = String(input?.hostingProvider || 'none')
+  if (!HOSTING_PROVIDERS.has(hostingProvider)) throw new Error('Choose a supported hosting provider.')
+  let publicUrl = hostingProvider === 'none' ? '' : String(input?.publicUrl || '').trim()
+  if (publicUrl) {
+    let parsed
+    try { parsed = new URL(publicUrl) } catch { throw new Error('Enter a valid public website address.') }
+    if (parsed.protocol !== 'https:') throw new Error('The public website address must use HTTPS.')
+    if (!parsed.pathname.endsWith('/')) parsed.pathname += '/'
+    publicUrl = parsed.href
+  }
+  if (hostingProvider !== 'none' && !publicUrl) throw new Error('Enter the public address provided by your hosting service.')
+  const next = { ...current, hostingProvider, publicUrl }
+  await fs.writeFile(path.join(root, PLUMBAGO_SETTINGS_FILE), `${JSON.stringify(next, null, 2)}\n`, 'utf8')
+  return { hostingProvider, publicUrl, hostingConfigured: Boolean(publicUrl) }
+}
+
 async function siteSettings(root) {
   const context = await validateBlog(root)
-  return { ...(await siteMetadata(root)), theme: context.theme, config: context.config }
+  const metadata = await siteMetadata(root)
+  return { ...metadata, ...(await hostingSettings(root, metadata.baseURL)), theme: context.theme, config: context.config }
 }
 
 async function saveSiteSettings(root, input) {
@@ -64,6 +113,10 @@ async function saveSiteSettings(root, input) {
     baseURL = parsed.href
   }
   await updateSiteConfig(root, { title, baseURL, languageCode, copyright })
+  const currentHosting = await hostingSettings(root, baseURL)
+  const hostingProvider = Object.hasOwn(input || {}, 'hostingProvider') ? input.hostingProvider : currentHosting.hostingProvider
+  const publicUrl = Object.hasOwn(input || {}, 'publicUrl') ? input.publicUrl : (currentHosting.publicUrl || baseURL)
+  await saveHostingSettings(root, { hostingProvider, publicUrl })
   return siteSettings(root)
 }
 
@@ -98,14 +151,15 @@ async function validateBlog(root) {
   if (!stat?.isDirectory()) throw new Error('A pasta content não foi encontrada neste site Hugo.')
 
   const runtime = runtimeFor(root)
-  const [hugo, git] = await Promise.all([
+  const [hugo, hugoExecutable, git] = await Promise.all([
     run(root, 'hugo', ['version']).then((value) => value.stdout).catch(() => null),
+    executablePath(root, 'hugo'),
     gitVersion(root).then((value) => value.status === 'ready' ? value.version : null),
   ])
   const rawConfig = await fs.readFile(path.join(root, config), 'utf8').catch(() => '')
   const configuredTheme = readThemeValue(rawConfig, config)
   const theme = Array.isArray(configuredTheme) ? configuredTheme[0] || '' : configuredTheme
-  return { root, config, runtime, hugo, git, theme }
+  return { root, config, runtime, hugo, hugoExecutable, git, theme }
 }
 
 async function installTheme(root, slug) {
@@ -228,6 +282,9 @@ module.exports = {
   deactivateTheme,
   installResolvedTheme,
   installTheme,
+  hostingSettings,
+  inferHostingProvider,
+  saveHostingSettings,
   saveSiteSettings,
   siteMetadata,
   siteSettings,

@@ -3,19 +3,21 @@ const runtime = require('./core/runtime.cjs')
 const content = require('./services/content.cjs')
 const git = require('./services/git.cjs')
 const github = require('./services/github.cjs')
+const hugo = require('./services/hugo.cjs')
+const languages = require('./services/languages.cjs')
 const publishing = require('./services/publishing.cjs')
 const site = require('./services/site.cjs')
 const themes = require('./services/themes.cjs')
 const updates = require('./services/updates.cjs')
-
 async function importBloggerExport(root, filePath, options = {}) {
   return content.importBloggerExport(root, filePath, options, site.validateBlog)
 }
-
 module.exports = {
   ...content,
   ...git,
   ...github,
+  ...hugo,
+  ...languages,
   ...publishing,
   ...site,
   ...themes,

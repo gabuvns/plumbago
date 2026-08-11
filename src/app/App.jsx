@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUpRight, Check, Eye, FileText, LoaderCircle, Menu, PanelLeftClose, Plus, UploadCloud } from 'lucide-react'
+import { ArrowUpRight, Check, Eye, FileText, Globe2, LoaderCircle, Menu, PanelLeftClose, Plus, UploadCloud } from 'lucide-react'
 import { Sidebar } from '../components/layout/Sidebar'
 import { CreateBlogModal } from '../features/blogs/CreateBlogModal'
 import { Editor } from '../features/editor/Editor'
 import { BloggerImportModal } from '../features/importing/BloggerImportModal'
 import { ImageLibrary } from '../features/media/ImageLibrary'
 import { Welcome } from '../features/onboarding/Welcome'
+import { DeletePostModal } from '../features/posts/DeletePostModal'
 import { NewPostModal } from '../features/posts/NewPostModal'
 import { PostList } from '../features/posts/PostList'
 import { GitHubSetupModal } from '../features/publishing/GitHubSetupModal'
@@ -13,11 +14,15 @@ import { PublishModal } from '../features/publishing/PublishModal'
 import { PublishingHealthModal } from '../features/publishing/PublishingHealthModal'
 import { SettingsModal } from '../features/settings/SettingsModal'
 import { GitSetupModal } from '../features/setup/GitSetupModal'
+import { HugoSetupModal } from '../features/setup/HugoSetupModal'
 import { ThemeManagerModal } from '../features/themes/ThemeManagerModal'
 import { useI18n } from '../i18n'
 import { friendlyError } from '../lib/errors'
-import { hugoInstallUrl } from '../lib/hugo'
 import { api, emptyContext } from './api'
+
+function savedSnapshot(value) {
+  return JSON.stringify(value?.repairedNestedFrontMatter ? { ...value, repairedNestedFrontMatter: false } : value)
+}
 
 export default function App() {
   const { t } = useI18n()
@@ -27,6 +32,7 @@ export default function App() {
   const [activeId, setActiveId] = useState(null)
   const [post, setPost] = useState(null)
   const [savedPost, setSavedPost] = useState(null)
+  const [site, setSite] = useState(null)
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -38,15 +44,20 @@ export default function App() {
   const [githubOpen, setGitHubOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [gitSetupOpen, setGitSetupOpen] = useState(false)
+  const [hugoSetupOpen, setHugoSetupOpen] = useState(false)
   const [bloggerOpen, setBloggerOpen] = useState(false)
   const [themesOpen, setThemesOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [publishingStatus, setPublishingStatus] = useState(null)
   const [publishPhase, setPublishPhase] = useState('ready')
   const [publishError, setPublishError] = useState('')
   const [publishLog, setPublishLog] = useState([])
   const [toast, setToast] = useState(null)
   const savePromiseRef = useRef(null)
+  const externalRefreshRef = useRef(false)
+  const externalSignatureRef = useRef('')
   const pendingGitActionRef = useRef(null)
+  const editorStateRef = useRef(null)
   const tRef = useRef(t)
   tRef.current = t
 
@@ -78,6 +89,7 @@ export default function App() {
         tags: saved.tags,
         language: saved.language,
         featuredImage: saved.featuredImage,
+        revision: saved.revision,
       } : item))
       if (announce) notify(t('notice.postSaved'))
       return true
@@ -100,7 +112,7 @@ export default function App() {
       const loaded = await api.readPost(id)
       setActiveId(id)
       setPost(loaded)
-      setSavedPost(JSON.stringify(loaded))
+      setSavedPost(savedSnapshot(loaded))
     } else {
       setActiveId(null)
       setPost(null)
@@ -108,23 +120,30 @@ export default function App() {
     }
   }, [activeId])
 
+  const refreshSiteSettings = useCallback(async () => {
+    const value = await api.siteSettings()
+    setSite(value)
+    return value
+  }, [])
+
   useEffect(() => {
     api.getContext().then(async (value) => {
       if (value) {
         setContext(value)
-        const result = await api.listPosts()
+        const [result] = await Promise.all([api.listPosts(), refreshSiteSettings()])
         setPosts(result)
         if (result[0]) {
           const loaded = await api.readPost(result[0].id)
           setActiveId(result[0].id)
           setPost(loaded)
-          setSavedPost(JSON.stringify(loaded))
+          setSavedPost(savedSnapshot(loaded))
         }
       }
     }).catch((error) => notify(friendlyError(error, tRef.current), 'error')).finally(() => setReady(true))
-  }, [notify])
+  }, [notify, refreshSiteSettings])
 
   const dirty = Boolean(post && savedPost && JSON.stringify(post) !== savedPost)
+  editorStateRef.current = { activeId, dirty, post, posts, saving }
 
   useEffect(() => {
     if (!dirty || saving || saveError || !post) return undefined
@@ -132,13 +151,62 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [dirty, performSave, post, saveError, saving])
 
+  useEffect(() => {
+    if (!context.root) return undefined
+    externalSignatureRef.current = ''
+    const checkForExternalPosts = async () => {
+      if (externalRefreshRef.current) return
+      externalRefreshRef.current = true
+      try {
+        const next = await api.listPosts()
+        const signature = next.map((item) => `${item.id}:${item.revision || ''}`).join('|')
+        if (signature === externalSignatureRef.current) return
+        externalSignatureRef.current = signature
+
+        const current = editorStateRef.current || {}
+        const previousIds = new Set((current.posts || []).map((item) => item.id))
+        const added = next.filter((item) => !previousIds.has(item.id))
+        setPosts(next)
+        if (added.length) notify(tRef.current(added.length === 1 ? 'notice.externalPost.one' : 'notice.externalPost.other', { count: added.length }))
+
+        const activeSummary = next.find((item) => item.id === current.activeId)
+        if (current.activeId && !activeSummary) {
+          if (current.dirty || current.saving) {
+            setSaveError(tRef.current('notice.externalDeletedDirty'))
+          } else if (next[0]) {
+            const loaded = await api.readPost(next[0].id)
+            setActiveId(loaded.id)
+            setPost(loaded)
+            setSavedPost(savedSnapshot(loaded))
+            notify(tRef.current('notice.externalDeleted'))
+          } else {
+            setActiveId(null)
+            setPost(null)
+            setSavedPost(null)
+          }
+        } else if (activeSummary && activeSummary.revision !== current.post?.revision && !current.dirty && !current.saving) {
+          const loaded = await api.readPost(activeSummary.id)
+          setPost(loaded)
+          setSavedPost(savedSnapshot(loaded))
+          notify(tRef.current('notice.externalUpdated'))
+        }
+      } catch {
+        // Periodic refresh is best-effort; explicit actions still surface their errors.
+      } finally {
+        externalRefreshRef.current = false
+      }
+    }
+    const timer = setInterval(checkForExternalPosts, 5000)
+    return () => clearInterval(timer)
+  }, [context.root, notify])
+
   async function chooseBlog() {
     setBusy(true)
     try {
       const value = await api.chooseBlog()
       if (value) {
         setContext(value)
-        await refreshPosts(undefined, true)
+        await Promise.all([refreshPosts(undefined, true), refreshSiteSettings()])
         notify(t('notice.blogConnected'))
       }
     } catch (error) { notify(friendlyError(error, t), 'error') } finally { setBusy(false); setReady(true) }
@@ -151,7 +219,7 @@ export default function App() {
       if (value) {
         setContext(value)
         setCreateBlogOpen(false)
-        await refreshPosts(undefined, true)
+        await Promise.all([refreshPosts(undefined, true), refreshSiteSettings()])
         notify(value.themeWarning ? t('notice.blogCreatedThemeWarning', { detail: value.themeWarning }) : t('notice.blogCreated'), value.themeWarning ? 'error' : 'success')
       }
     } catch (error) { notify(friendlyError(error, t), 'error') } finally { setBusy(false); setReady(true) }
@@ -192,7 +260,7 @@ export default function App() {
       const loaded = await api.readPost(id)
       setActiveId(id)
       setPost(loaded)
-      setSavedPost(JSON.stringify(loaded))
+      setSavedPost(savedSnapshot(loaded))
     } catch (error) { notify(friendlyError(error, t), 'error') }
   }
 
@@ -208,6 +276,59 @@ export default function App() {
       await refreshPosts(created.id)
       notify(t('notice.draftCreated'))
     } catch (error) { notify(friendlyError(error, t), 'error') } finally { setBusy(false) }
+  }
+
+  async function requestDelete(target) {
+    try {
+      setDeleteTarget(target.id === post?.id ? post : await api.readPost(target.id))
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+    }
+  }
+
+  async function removePost() {
+    if (!deleteTarget) return
+    setBusy(true)
+    try {
+      const removed = await api.deletePost(deleteTarget.id)
+      const remaining = posts.filter((item) => item.id !== deleteTarget.id)
+      setPosts(remaining)
+      if (activeId === deleteTarget.id) {
+        if (remaining[0]) {
+          const loaded = await api.readPost(remaining[0].id)
+          setActiveId(loaded.id)
+          setPost(loaded)
+          setSavedPost(savedSnapshot(loaded))
+        } else {
+          setActiveId(null)
+          setPost(null)
+          setSavedPost(null)
+        }
+        setSaveError(null)
+      }
+      setDeleteTarget(null)
+      notify(removed.preservedAssets?.length ? t('notice.postDeletedAssets', { count: removed.preservedAssets.length }) : t('notice.postDeleted'))
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function refreshContext() {
+    try {
+      const value = await api.getContext()
+      if (value) setContext(value)
+      return value
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+      return null
+    }
+  }
+
+  function openPublicSite() {
+    if (!site?.publicUrl) return
+    api.openPublishingUrl(site.publicUrl).catch((error) => notify(friendlyError(error, t), 'error'))
   }
 
   function applyImportedImages(imported) {
@@ -282,12 +403,30 @@ export default function App() {
     }
   }, [notify, t])
 
+  const finishHugoSetup = useCallback(async (providedContext = null) => {
+    try {
+      const nextContext = providedContext || await api.getContext()
+      if (nextContext) {
+        const rootChanged = nextContext.root !== context.root
+        setContext(nextContext)
+        if (rootChanged) await Promise.all([refreshPosts(undefined, true), refreshSiteSettings()])
+      }
+      setHugoSetupOpen(false)
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+    }
+  }, [context.root, notify, refreshPosts, refreshSiteSettings, t])
+
   useEffect(() => {
-    if (!ready || !context.root) return
+    if (ready && context.root && !context.hugo) setHugoSetupOpen(true)
+  }, [context.hugo, context.root, ready])
+
+  useEffect(() => {
+    if (!ready || !context.root || !context.hugo) return
     api.gitReadiness()
       .then((status) => { if (!status.ready) requestGitSetup() })
       .catch((error) => notify(friendlyError(error, t), 'error'))
-  }, [context.root, notify, ready, requestGitSetup, t])
+  }, [context.hugo, context.root, notify, ready, requestGitSetup, t])
 
   function closeGitSetup() {
     pendingGitActionRef.current = null
@@ -324,6 +463,7 @@ export default function App() {
     try {
       const result = await api.publishBlog(message)
       setPublishingStatus(result.status)
+      if (result.status?.site) setSite(result.status.site)
       setPublishLog(result.log || [])
       setPublishPhase('complete')
       notify(t('notice.published'))
@@ -341,7 +481,7 @@ export default function App() {
     else if (action === 'git') requestGitSetup(() => setHealthOpen(true))
     else if (action === 'publish') showPublish()
     else if (action === 'preview') api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))
-    else if (action === 'hugo') api.openPublishingUrl(hugoInstallUrl(context.runtime)).catch((error) => notify(friendlyError(error, t), 'error'))
+    else if (action === 'hugo') setHugoSetupOpen(true)
     else setSettingsOpen(true)
   }
 
@@ -356,25 +496,27 @@ export default function App() {
   return (
     <div className="app-shell">
       <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
-      <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} />
+      <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} />
       <main className="content-area">
         <header className="topbar">
           <button className="icon-button ghost"><PanelLeftClose size={19} /></button>
           <div className="breadcrumbs"><span>{context.root.split(/[\\/]/).filter(Boolean).at(-1)}</span><b>/</b><strong>{post?.title || t('posts.title')}</strong></div>
-          <div className="topbar-actions"><button className="button quiet" onClick={() => api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))}><Eye size={17} /> {t('top.preview')} <ArrowUpRight size={14} /></button><button className="button primary" onClick={showPublish}><UploadCloud size={17} /> {t('top.publish')}</button><button className="icon-button" onClick={() => setSettingsOpen(true)} title={t('top.openSettings')}><Menu size={18} /></button></div>
+          <div className="topbar-actions"><button className="button quiet" onClick={() => api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))}><Eye size={17} /> {t('top.preview')} <ArrowUpRight size={14} /></button>{site?.publicUrl && <button className="button quiet" onClick={openPublicSite} title={t('top.publicProvider', { provider: t(`hosting.${site.hostingProvider}`) })}><Globe2 size={17} /> {t('top.publicSite')} <ArrowUpRight size={14} /></button>}<button className="button primary" onClick={showPublish}><UploadCloud size={17} /> {t('top.publish')}</button><button className="icon-button" onClick={() => setSettingsOpen(true)} title={t('top.openSettings')}><Menu size={18} /></button></div>
         </header>
         {post ? <Editor post={post} onChange={(change) => { setSaveError(null); setPost((current) => ({ ...current, ...change })) }} onSave={save} onOpenImages={() => setImagesOpen(true)} onDropImages={addDroppedImages} saveState={{ saving, dirty, error: saveError }} /> : <div className="empty-editor"><FileText size={34} /><h2>{t('empty.title')}</h2><p>{t('empty.copy')}</p><button className="button primary" onClick={() => setNewPostOpen(true)}><Plus size={17} /> {t('posts.new')}</button></div>}
       </main>
       {newPostOpen && <NewPostModal onClose={() => setNewPostOpen(false)} onCreate={create} busy={busy} />}
+      {deleteTarget && <DeletePostModal post={deleteTarget} busy={busy} onClose={() => setDeleteTarget(null)} onDelete={removePost} />}
       {createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}
       {publishOpen && <PublishModal status={publishingStatus} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onRefresh={refreshPublishingStatus} onSettings={showGitHub} />}
       {imagesOpen && post && <ImageLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertExistingImage} onFeatured={(name) => setPost((current) => ({ ...current, featuredImage: name }))} />}
-      {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} onDeactivate={deactivateTheme} busy={busy} notify={notify} />}
-      {githubOpen && <GitHubSetupModal context={context} onClose={() => setGitHubOpen(false)} onPublish={showPublish} notify={notify} />}
+      {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} onDeactivate={deactivateTheme} onRefreshContext={refreshContext} onManageHugo={() => setHugoSetupOpen(true)} onSiteSettingsChanged={setSite} busy={busy} notify={notify} />}
+      {githubOpen && <GitHubSetupModal context={context} onClose={() => { setGitHubOpen(false); refreshSiteSettings().catch(() => {}) }} onPublish={showPublish} notify={notify} />}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
+      {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} notify={notify} />}
       {bloggerOpen && <BloggerImportModal onClose={() => setBloggerOpen(false)} onImported={handleBloggerImported} notify={notify} />}
-      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} notify={notify} />}
+      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} onHugoSetup={() => { setSettingsOpen(false); setHugoSetupOpen(true) }} onSiteSettingsChanged={setSite} notify={notify} />}
       {toast && <div className={`toast ${toast.kind}`}>{toast.kind === 'success' && <Check size={17} />}{toast.message}</div>}
     </div>
   )
