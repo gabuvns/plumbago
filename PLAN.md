@@ -38,7 +38,7 @@ Goal: after connecting a repository, a writer can choose a provider and take a v
 - [x] Create the release commit and `v0.8.0` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.8.0) and verify every platform asset.
 
-## Active milestone: 0.9.0 — History and recovery
+## Completed milestone: 0.9.0 — History and recovery
 
 Goal: writers can understand what changed, recover one post or the whole site after a risky operation, and retrieve deleted work without learning Git terminology.
 
@@ -59,9 +59,36 @@ Goal: writers can understand what changed, recover one post or the whole site af
 - [x] Browser demos cover post restore, recovery points, and trash without console errors.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 0.9.0 and bump package metadata.
-- [ ] Create the release commit and `v0.9.0` tag.
+- [x] Create the release commit and `v0.9.0` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.9.0) and verify every platform asset.
+
+## Active milestone: 0.10.0 — Media library
+
+Goal: writers can find, reuse, improve, replace, and safely remove images across the whole blog while every file remains a portable Hugo resource.
+
+### Product work
+
+- [ ] Build a blog-wide media index for page bundles, `static`, and Hugo assets without moving existing files.
+- [ ] Add search, filters, previews, ownership, dimensions, size, usage count, and duplicate detection.
+- [ ] Reuse an existing image in a post while preserving page-bundle and multilingual behavior.
+- [ ] Replace an image with a preview of affected references and a recoverable operation.
+- [ ] Remove only unused media, with explicit impact summaries and recovery through the local trash.
+- [ ] Find missing references, unused images, oversized files, and missing alternative text.
+- [ ] Edit alternative text and captions at each Markdown reference without rewriting prose.
+- [ ] Offer safe crop, resize, and WebP/AVIF derivatives through Hugo image resources.
+- [ ] Add a responsive bilingual media workspace with useful empty, loading, progress, and error states.
+
+### Release gate
+
+- [ ] EN-US and PT-BR keys remain in parity.
+- [ ] Indexing, reference, duplicate, optimization, recovery, IPC, and product-contract tests pass.
+- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [ ] Browser demos cover search, reuse, diagnostics, and a destructive flow without console errors.
+- [ ] A relevant Electron package is built and inspected.
+- [ ] Close `CHANGELOG.md` as 0.10.0 and bump package metadata.
+- [ ] Create the release commit and `v0.10.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
 
 ## Following milestone
 
-`0.10.0 — Media library` begins only after `v0.9.0` is downloadable.
+`0.11.0 — SEO and quality assistant` begins only after `v0.10.0` is downloadable.

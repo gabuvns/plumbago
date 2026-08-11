@@ -45,7 +45,7 @@ Definition of done: after provider authorization and a few blog choices, one pri
 
 ### 0.9.0 — History and recovery
 
-Status: release candidate
+Status: released on 2026-08-11 — [v0.9.0](https://github.com/gabuvns/plumbago/releases/tag/v0.9.0)
 
 - [x] Browse post and site history without Git terminology.
 - [x] Compare revisions and restore one post without reverting unrelated work.
@@ -117,4 +117,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.6.0` provides external post refresh, safe deletion, local/public site shortcuts, multilingual page-bundle image publishing, TOML front matter repair, and guided Hugo environment management. It is the stable starting point for this roadmap.
+Version `0.9.0` provides GitHub connection, one-click deployment, external post refresh, multilingual page-bundle images, guided Hugo management, human-readable history, local recovery points, and recoverable deletion. It is the stable starting point for the remaining roadmap.
