@@ -1,6 +1,6 @@
 // Stable public facade for Electron. Implementation lives in focused core and service modules.
 const runtime = require('./core/runtime.cjs'), content = require('./services/content.cjs')
-const cloudflare = require('./services/cloudflare.cjs'), deployments = require('./services/deployments.cjs'), history = require('./services/history.cjs'), trash = require('./services/trash.cjs')
+const cloudflare = require('./services/cloudflare.cjs'), deployments = require('./services/deployments.cjs'), history = require('./services/history.cjs'), media = require('./services/media.cjs'), trash = require('./services/trash.cjs')
 const git = require('./services/git.cjs')
 const github = require('./services/github.cjs')
 const hugo = require('./services/hugo.cjs')
@@ -15,7 +15,7 @@ async function importBloggerExport(root, filePath, options = {}) {
   catch (error) { await history.restoreRecoveryPoint(root, recoveryPoint.id, { createUndo: false }); throw error }
 }
 module.exports = {
-  ...content, ...history, ...trash,
+  ...content, ...history, ...media, ...trash,
   ...cloudflare, ...deployments,
   ...git,
   ...github,

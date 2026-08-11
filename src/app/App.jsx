@@ -5,7 +5,7 @@ import { CreateBlogModal } from '../features/blogs/CreateBlogModal'
 import { Editor } from '../features/editor/Editor'
 import { BloggerImportModal } from '../features/importing/BloggerImportModal'
 import { HistoryModal } from '../features/history/HistoryModal'
-import { ImageLibrary } from '../features/media/ImageLibrary'
+import { MediaLibrary } from '../features/media/MediaLibrary'
 import { Welcome } from '../features/onboarding/Welcome'
 import { DeletePostModal } from '../features/posts/DeletePostModal'
 import { NewPostModal } from '../features/posts/NewPostModal'
@@ -350,29 +350,62 @@ export default function App() {
   }
 
   async function addImages() {
+    if (!post) return []
     try {
       const imported = await api.importImages(post.id)
       applyImportedImages(imported)
+      return imported
     } catch (error) { notify(friendlyError(error, t), 'error') }
+    return []
   }
 
   async function addDroppedImages(files) {
+    if (!post) return []
     try {
       const imported = await api.importDroppedImages(post.id, files)
       applyImportedImages(imported)
+      return imported
     } catch (error) { notify(friendlyError(error, t), 'error') }
+    return []
   }
 
-  function insertExistingImage(name, options = {}) {
-    setPost((current) => {
-      const body = current.body || ''
-      const alt = String(options.alt || t('image.alt')).replaceAll('[', '\\[').replaceAll(']', '\\]')
-      const caption = String(options.caption || '').trim().replaceAll('*', '\\*')
-      const markdown = `![${alt}](${name})${caption ? `\n\n*${caption}*` : ''}`
-      return { ...current, body: `${body}${body && !body.endsWith('\n') ? '\n\n' : ''}${markdown}` }
-    })
-    setImagesOpen(false)
-    notify(t('notice.imageInserted'))
+  async function prepareMediaMutation() {
+    if (!post || !dirty) return true
+    return performSave(post)
+  }
+
+  async function insertMedia(result) {
+    if (!post || !result?.markdown) return false
+    const current = await api.readPost(post.id)
+    const body = current.body || ''
+    const next = {
+      ...current,
+      body: `${body}${body && !body.endsWith('\n') ? '\n\n' : ''}${result.markdown}`,
+      assets: result.copiedId
+        ? [...new Set([...(current.assets || []), result.copiedId.split('/').at(-1)])]
+        : current.assets,
+    }
+    setSaveError(null)
+    setPost(next)
+    return performSave(next)
+  }
+
+  async function setFeaturedMedia(name) {
+    if (!post || !await prepareMediaMutation()) return false
+    try {
+      const current = await api.readPost(post.id)
+      const next = { ...current, featuredImage: name }
+      setSaveError(null)
+      setPost(next)
+      return performSave(next)
+    } catch (error) {
+      notify(friendlyError(error, t), 'error')
+      return false
+    }
+  }
+
+  async function refreshAfterMediaChange() {
+    await refreshPosts(activeId, true)
   }
 
   const refreshPublishingStatus = useCallback(async () => {
@@ -516,7 +549,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => post && setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} />
       <main className="content-area">
         <header className="topbar">
@@ -530,7 +563,7 @@ export default function App() {
       {deleteTarget && <DeletePostModal post={deleteTarget} busy={busy} onClose={() => setDeleteTarget(null)} onDelete={removePost} />}
       {createBlogOpen && <CreateBlogModal onClose={() => setCreateBlogOpen(false)} onCreate={createBlog} busy={busy} />}
       {publishOpen && <PublishModal status={publishingStatus} busy={busy} phase={publishPhase} error={publishError} log={publishLog} onClose={() => setPublishOpen(false)} onPublish={publish} onRefresh={refreshPublishingStatus} onSettings={showGitHub} />}
-      {imagesOpen && post && <ImageLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertExistingImage} onFeatured={(name) => setPost((current) => ({ ...current, featuredImage: name }))} />}
+      {imagesOpen && <MediaLibrary post={post} onClose={() => setImagesOpen(false)} onAdd={addImages} onDrop={addDroppedImages} onInsert={insertMedia} onFeatured={setFeaturedMedia} onChanged={refreshAfterMediaChange} prepare={prepareMediaMutation} notify={notify} />}
       {themesOpen && <ThemeManagerModal context={context} onClose={() => setThemesOpen(false)} onInstall={installTheme} onDeactivate={deactivateTheme} onRefreshContext={refreshContext} onManageHugo={() => setHugoSetupOpen(true)} onSiteSettingsChanged={setSite} busy={busy} notify={notify} />}
       {githubOpen && <GitHubSetupModal context={context} onClose={() => { setGitHubOpen(false); refreshSiteSettings().catch(() => {}) }} onDeploy={showDeploy} notify={notify} />}
       {deployOpen && <DeploymentSetupModal context={context} onClose={() => { setDeployOpen(false); refreshSiteSettings().catch(() => {}) }} onGitHub={() => { setDeployOpen(false); setGitHubOpen(true) }} onSiteChanged={setSite} notify={notify} />}

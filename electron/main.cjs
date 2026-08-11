@@ -274,6 +274,23 @@ function registerIpc() {
   })
   ipcMain.handle('plumbago:read-asset', (_event, postId, name) => service.readAsset(requireBlog(), postId, name))
   ipcMain.handle('plumbago:read-asset-info', (_event, postId, name) => service.readAssetInfo(requireBlog(), postId, name))
+  ipcMain.handle('plumbago:media-library', () => service.buildMediaLibrary(requireBlog()))
+  ipcMain.handle('plumbago:media-preview', (_event, id, width) => service.mediaPreview(requireBlog(), id, { width }))
+  ipcMain.handle('plumbago:media-reuse', (_event, id, postId, options) => service.reuseMedia(requireBlog(), id, postId, options))
+  ipcMain.handle('plumbago:media-update-reference', (_event, input) => service.updateMediaReference(requireBlog(), input))
+  ipcMain.handle('plumbago:media-replace', async (_event, id) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      title: 'Choose the replacement image',
+      filters: [{ name: 'Images', extensions: ['avif', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp'] }],
+    })
+    return result.canceled ? null : service.replaceMedia(requireBlog(), id, result.filePaths[0])
+  })
+  ipcMain.handle('plumbago:media-derivative', (_event, id, options) => service.createMediaDerivative(requireBlog(), id, options))
+  ipcMain.handle('plumbago:media-remove', (_event, id) => service.removeMedia(requireBlog(), id))
+  ipcMain.handle('plumbago:media-trash-list', () => service.listMediaTrash(requireBlog()))
+  ipcMain.handle('plumbago:media-trash-restore', (_event, id) => service.restoreMediaTrashItem(requireBlog(), id))
+  ipcMain.handle('plumbago:media-trash-delete', (_event, id) => service.deleteMediaTrashItem(requireBlog(), id))
   ipcMain.handle('plumbago:import-images', async (_event, postId) => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile', 'multiSelections'],

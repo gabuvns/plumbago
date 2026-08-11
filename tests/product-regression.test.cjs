@@ -113,6 +113,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/features/publishing/GitHubSetupModal.jsx',
     'src/features/publishing/DeploymentSetupModal.jsx',
     'src/features/history/HistoryModal.jsx',
+    'src/features/media/MediaLibrary.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
@@ -123,6 +124,12 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/hugo.cjs',
     'electron/services/history.cjs',
     'electron/services/languages.cjs',
+    'electron/services/media.cjs',
+    'electron/services/media/index.cjs',
+    'electron/services/media/operations.cjs',
+    'electron/services/media/paths.cjs',
+    'electron/services/media/references.cjs',
+    'electron/services/media/trash.cjs',
     'electron/services/publishing.cjs',
     'electron/services/site.cjs',
     'electron/services/trash.cjs',
@@ -203,4 +210,27 @@ test('keeps post history, automatic recovery points, and recoverable deletion vi
   assert.match(service, /before-import/)
   assert.match(site, /before-theme-change/)
   assert.match(site, /before-settings-change/)
+})
+
+test('keeps blog-wide media reusable, diagnosable, optimized, and recoverable', () => {
+  const app = read('src/app/App.jsx')
+  const library = read('src/features/media/MediaLibrary.jsx')
+  const preload = read('electron/preload.cjs')
+  const operations = read('electron/services/media/operations.cjs')
+  const trash = read('electron/services/media/trash.cjs')
+  const packageJson = JSON.parse(read('package.json'))
+
+  assert.match(app, /<MediaLibrary/)
+  assert.match(app, /prepareMediaMutation/)
+  assert.match(library, /api\.mediaLibrary\(\)/)
+  assert.match(library, /api\.mediaPreview\(/)
+  assert.match(library, /api\.reuseMedia\(/)
+  assert.match(library, /api\.updateMediaReference\(/)
+  assert.match(library, /api\.createMediaDerivative\(/)
+  assert.match(library, /api\.restoreMediaTrashItem\(/)
+  assert.match(preload, /replaceMedia:/)
+  assert.match(operations, /before-media-change/)
+  assert.match(operations, /withoutEnlargement/)
+  assert.match(trash, /item\.usageCount > 0/)
+  assert.equal(packageJson.dependencies.sharp, '0.35.3')
 })

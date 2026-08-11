@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.10.0 — 2026-08-11
+
+- Add a blog-wide media library for page bundles, `content`, `static`, and Hugo assets without moving existing files.
+- Search and filter images with previews, ownership, dimensions, file size, reference counts, duplicate detection, and usage diagnostics.
+- Reuse an image in any post while preserving page-bundle ownership, multilingual bundles, and stable public paths.
+- Edit alternative text and captions at the exact Markdown reference without rewriting surrounding prose.
+- Create non-destructive resized, cropped, WebP, AVIF, JPEG, and PNG derivatives while keeping the source image intact.
+- Replace media at the same Hugo path behind an automatic recovery point, and move only unreferenced images to a recoverable local media trash.
+- Find missing files, missing alternative text, exact duplicates, oversized files, and unused media in a responsive bilingual workspace.
+
 ## 0.9.0 — 2026-08-11
 
 - Add human-readable post and site history with saved-version dates, authors, change categories, and unpublished-change indicators.

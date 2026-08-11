@@ -39,6 +39,12 @@ export function createDemoBridge() {
     assetCount: 0,
     post: { id: 'content/posts/rascunho-descartado/index.pt-br.md', title: 'Um rascunho que pode voltar', description: 'Uma ideia guardada na lixeira.', date: '2026-08-03', draft: true, language: 'pt-br', featuredImage: '', revision: 'demo-trash' },
   }]
+  let mediaTrash = [{ id: 'demo-media-trash', mediaId: 'static/uploads/old-sketch.svg', name: 'old-sketch.svg', deletedAt: '2026-08-09T12:15:00.000Z', size: 21340 }]
+  let mediaItems = [
+    { id: 'content/posts/cultivando-ideias/estudo-plumbago.svg', name: 'estudo-plumbago.svg', extension: 'svg', scope: 'bundle', size: 18432, width: 800, height: 500, ownerPostIds: [samplePosts[0].id], ownerTitles: [samplePosts[0].title], references: [{ id: 'demo-ref-1', kind: 'markdown', postId: samplePosts[0].id, postTitle: samplePosts[0].title, alt: '', caption: '', destination: 'estudo-plumbago.svg', editable: true }], usageCount: 1, missingAltCount: 1, duplicateIds: ['static/images/estudo-plumbago-copy.svg'], duplicate: true, oversized: false, removable: false },
+    { id: 'static/images/estudo-plumbago-copy.svg', name: 'estudo-plumbago-copy.svg', extension: 'svg', scope: 'static', size: 18432, width: 800, height: 500, ownerPostIds: [], ownerTitles: [], references: [], usageCount: 0, missingAltCount: 0, duplicateIds: ['content/posts/cultivando-ideias/estudo-plumbago.svg'], duplicate: true, oversized: false, removable: true },
+    { id: 'assets/hero-wide.svg', name: 'hero-wide.svg', extension: 'svg', scope: 'assets', size: 2384000, width: 2400, height: 1350, ownerPostIds: [], ownerTitles: [], references: [], usageCount: 0, missingAltCount: 0, duplicateIds: [], duplicate: false, oversized: true, removable: true },
+  ]
   let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   const demoQuery = new URLSearchParams(window.location.search)
   let githubConnected = demoQuery.get('github') !== 'signin'
@@ -141,6 +147,41 @@ export function createDemoBridge() {
     importDroppedImages: async () => [{ name: 'imagem-arrastada.svg', markdown: '![Descrição da imagem](imagem-arrastada.svg)' }],
     readAsset: async (_postId, name) => `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#524DE1"/><stop offset="1" stop-color="#558B6E"/></linearGradient></defs><rect width="800" height="500" fill="url(#g)"/><text x="400" y="270" text-anchor="middle" fill="#FFC759" font-size="42" font-family="sans-serif">${name}</text></svg>`)}`,
     readAssetInfo: async (_postId, name) => ({ name, size: 18432, dataUrl: `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#558B6E"/><text x="400" y="270" text-anchor="middle" fill="#FFC759" font-size="42">${name}</text></svg>`)}` }),
+    mediaLibrary: async () => ({
+      items: mediaItems,
+      missingReferences: [{ id: 'demo-missing', kind: 'markdown', postId: samplePosts[1].id, postTitle: samplePosts[1].title, alt: 'Uma imagem', caption: '', destination: 'inverno-ausente.jpg', expectedMediaId: 'content/posts/cores-do-inverno/inverno-ausente.jpg', editable: true }],
+      duplicateGroups: mediaItems.some((item) => item.duplicate) ? [{ hash: 'demo-duplicate', mediaIds: mediaItems.filter((item) => item.duplicate).map((item) => item.id) }] : [],
+      summary: { total: mediaItems.length, used: mediaItems.filter((item) => item.usageCount > 0).length, unused: mediaItems.filter((item) => item.usageCount === 0).length, oversized: mediaItems.filter((item) => item.oversized).length, duplicates: mediaItems.some((item) => item.duplicate) ? 1 : 0, missing: 1, missingAlt: mediaItems.reduce((sum, item) => sum + item.missingAltCount, 0), bytes: mediaItems.reduce((sum, item) => sum + item.size, 0) },
+    }),
+    mediaPreview: async (id) => ({ id, width: 800, height: 500, dataUrl: `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#524DE1"/><stop offset="1" stop-color="#558B6E"/></linearGradient></defs><rect width="800" height="500" rx="28" fill="url(#g)"/><circle cx="190" cy="190" r="90" fill="#FFC759" opacity=".88"/><path d="M80 430L310 230l125 110 100-85 185 175" fill="none" stroke="#D8D4F2" stroke-width="30" stroke-linejoin="round"/><text x="400" y="470" text-anchor="middle" fill="#fff" font-size="22" font-family="sans-serif">${id.split('/').at(-1)}</text></svg>`)}` }),
+    reuseMedia: async (id, postId, options = {}) => ({ mediaId: id, copiedId: id.startsWith('static/') ? '' : `${postId.slice(0, postId.lastIndexOf('/') + 1)}${id.split('/').at(-1)}`, destination: id.startsWith('static/') ? `/${id.slice('static/'.length)}` : id.split('/').at(-1), markdown: `![${options.alt || 'Image'}](${id.startsWith('static/') ? `/${id.slice('static/'.length)}` : id.split('/').at(-1)}${options.caption ? ` "${options.caption}"` : ''})` }),
+    updateMediaReference: async ({ mediaId, referenceId, alt, caption }) => {
+      mediaItems = mediaItems.map((item) => item.id !== mediaId ? item : { ...item, references: item.references.map((reference) => reference.id === referenceId ? { ...reference, alt, caption } : reference), missingAltCount: alt.trim() ? 0 : 1 })
+      return { post: fullPost(posts[0]) }
+    },
+    replaceMedia: async (id) => mediaItems.find((item) => item.id === id),
+    createMediaDerivative: async (id, options) => {
+      const source = mediaItems.find((item) => item.id === id)
+      const name = `${source.name.replace(/\.[^.]+$/, '')}-${options.width || 'auto'}x${options.height || 'auto'}.${options.format}`
+      const item = { ...source, id: `${source.id.slice(0, source.id.lastIndexOf('/') + 1)}${name}`, name, extension: options.format, format: options.format, size: Math.max(4200, Math.round(source.size * .42)), width: Number(options.width) || source.width, height: Number(options.height) || Math.round((Number(options.width) || source.width) * source.height / source.width), references: [], usageCount: 0, missingAltCount: 0, duplicateIds: [], duplicate: false, oversized: false, removable: true }
+      mediaItems.push(item)
+      return item
+    },
+    removeMedia: async (id) => {
+      const item = mediaItems.find((entry) => entry.id === id)
+      if (!item?.removable) throw new Error('This image is still used by the blog.')
+      mediaItems = mediaItems.filter((entry) => entry.id !== id)
+      mediaTrash.unshift({ id: `demo-media-${Date.now()}`, mediaId: item.id, name: item.name, deletedAt: new Date().toISOString(), size: item.size, item })
+      return true
+    },
+    listMediaTrash: async () => mediaTrash,
+    restoreMediaTrashItem: async (id) => {
+      const item = mediaTrash.find((entry) => entry.id === id)
+      if (item?.item) mediaItems.push(item.item)
+      mediaTrash = mediaTrash.filter((entry) => entry.id !== id)
+      return item
+    },
+    deleteMediaTrashItem: async (id) => { const item = mediaTrash.find((entry) => entry.id === id); mediaTrash = mediaTrash.filter((entry) => entry.id !== id); return item },
     gitStatus: async () => ({ branch: 'main', remote: 'git@github.com:voce/blog.git', changes: [' M content/posts/cores-do-inverno/index.pt-br.md'] }),
     gitReadiness: async () => ({ ready: true, environment: { kind: 'native', platform: 'linux', label: 'linux' }, git: { status: 'ready', version: 'git version 2.43.0', executable: '/usr/bin/git', details: '' }, repository: { status: 'ready', ready: true, topLevel: '/home/voce/blog', details: '' }, assistance: { mode: 'command', command: 'sudo apt update && sudo apt install -y git', url: 'https://git-scm.com/install/linux' } }),
     installGit: async () => true,

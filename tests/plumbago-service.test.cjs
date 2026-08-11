@@ -579,6 +579,81 @@ test('moves only a standalone Markdown post and never neighboring content to tra
   assert.deepEqual(await service.listTrash(root), [])
 })
 
+test('indexes, reuses, edits, optimizes, replaces, and recovers blog-wide media safely', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-media-library')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  const bundle = path.join(root, 'content', 'posts', 'garden')
+  await fs.mkdir(bundle, { recursive: true })
+  await fs.mkdir(path.join(root, 'static', 'images'), { recursive: true })
+  await fs.mkdir(path.join(root, 'assets', 'brand'), { recursive: true })
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="#558B6E"/></svg>'
+  await fs.writeFile(path.join(bundle, 'hero.svg'), svg)
+  await fs.writeFile(path.join(root, 'static', 'images', 'shared.svg'), svg)
+  await fs.writeFile(path.join(root, 'assets', 'brand', 'logo.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="#524DE1"/></svg>')
+  const postId = 'content/posts/garden/index.en-us.md'
+  await fs.writeFile(path.join(root, postId), `---
+title: Garden notes
+featuredImage: hero.svg
+---
+
+![A green study](hero.svg "First caption")
+
+![](/images/shared.svg)
+
+![Missing](missing.png)
+`)
+  await fs.writeFile(path.join(bundle, 'index.pt-br.md'), '---\ntitle: Notas do jardim\n---\n')
+
+  let library = await service.buildMediaLibrary(root)
+  assert.equal(library.summary.total, 3)
+  assert.equal(library.summary.missing, 1)
+  assert.equal(library.summary.missingAlt, 1)
+  assert.equal(library.summary.duplicates, 1)
+  const hero = library.items.find((item) => item.id.endsWith('/hero.svg'))
+  assert.equal(hero.scope, 'bundle')
+  assert.equal(hero.ownerPostIds.length, 2)
+  assert.equal(hero.usageCount, 2)
+  assert.equal(hero.width, 120)
+  const preview = await service.mediaPreview(root, hero.id, { width: 240 })
+  assert.match(preview.dataUrl, /^data:image\/webp;base64,/)
+
+  const reference = hero.references.find((item) => item.kind === 'markdown')
+  const updated = await service.updateMediaReference(root, { mediaId: hero.id, postId, referenceId: reference.id, alt: 'A calmer hero', caption: 'A thoughtful caption' })
+  assert.match(updated.post.body, /!\[A calmer hero\]\(hero\.svg "A thoughtful caption"\)/)
+  assert.equal(updated.recoveryPoint.reason, 'before-media-change')
+
+  const reused = await service.reuseMedia(root, 'assets/brand/logo.svg', postId, { alt: 'Plumbago logo' })
+  assert.equal(reused.copiedId, 'content/posts/garden/logo.svg')
+  assert.equal(reused.markdown, '![Plumbago logo](logo.svg)')
+  assert.ok(await fs.stat(path.join(root, reused.copiedId)))
+
+  const derivative = await service.createMediaDerivative(root, hero.id, { width: 64, height: 32, format: 'webp', fit: 'inside' })
+  assert.equal(derivative.format, 'webp')
+  assert.ok(derivative.width <= 64)
+  assert.ok(derivative.height <= 32)
+
+  const replacement = path.join(root, 'replacement.svg')
+  await fs.writeFile(replacement, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="200" height="100" fill="#FFC759"/></svg>')
+  const replaced = await service.replaceMedia(root, hero.id, replacement)
+  assert.equal(replaced.width, 200)
+  assert.equal(replaced.height, 100)
+
+  library = await service.buildMediaLibrary(root)
+  const generated = library.items.find((item) => item.id === derivative.id)
+  assert.equal(generated.usageCount, 0)
+  const removed = await service.removeMedia(root, generated.id)
+  assert.equal((await service.listMediaTrash(root))[0].id, removed.id)
+  assert.equal(await fs.stat(path.join(root, generated.id)).catch(() => null), null)
+  await service.restoreMediaTrashItem(root, removed.id)
+  assert.ok(await fs.stat(path.join(root, generated.id)))
+
+  const removedAgain = await service.removeMedia(root, generated.id)
+  await service.deleteMediaTrashItem(root, removedAgain.id)
+  assert.deepEqual(await service.listMediaTrash(root), [])
+  await assert.rejects(service.removeMedia(root, hero.id), /reference/i)
+  await assert.rejects(service.mediaPreview(root, '../../outside.png'), /valid image/i)
+})
+
 test('compares and restores one post version without changing unrelated work', async (t) => {
   const root = await makeTemporaryDirectory('plumbago-history')
   t.after(() => fs.rm(root, { recursive: true, force: true }))

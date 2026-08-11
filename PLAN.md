@@ -68,24 +68,24 @@ Goal: writers can find, reuse, improve, replace, and safely remove images across
 
 ### Product work
 
-- [ ] Build a blog-wide media index for page bundles, `static`, and Hugo assets without moving existing files.
-- [ ] Add search, filters, previews, ownership, dimensions, size, usage count, and duplicate detection.
-- [ ] Reuse an existing image in a post while preserving page-bundle and multilingual behavior.
-- [ ] Replace an image with a preview of affected references and a recoverable operation.
-- [ ] Remove only unused media, with explicit impact summaries and recovery through the local trash.
-- [ ] Find missing references, unused images, oversized files, and missing alternative text.
-- [ ] Edit alternative text and captions at each Markdown reference without rewriting prose.
-- [ ] Offer safe crop, resize, and WebP/AVIF derivatives through Hugo image resources.
-- [ ] Add a responsive bilingual media workspace with useful empty, loading, progress, and error states.
+- [x] Build a blog-wide media index for page bundles, `static`, and Hugo assets without moving existing files.
+- [x] Add search, filters, previews, ownership, dimensions, size, usage count, and duplicate detection.
+- [x] Reuse an existing image in a post while preserving page-bundle and multilingual behavior.
+- [x] Replace an image with a preview of affected references and a recoverable operation.
+- [x] Remove only unused media, with explicit impact summaries and recovery through the local trash.
+- [x] Find missing references, unused images, oversized files, and missing alternative text.
+- [x] Edit alternative text and captions at each Markdown reference without rewriting prose.
+- [x] Offer safe crop, resize, and WebP/AVIF derivatives through Hugo image resources.
+- [x] Add a responsive bilingual media workspace with useful empty, loading, progress, and error states.
 
 ### Release gate
 
-- [ ] EN-US and PT-BR keys remain in parity.
-- [ ] Indexing, reference, duplicate, optimization, recovery, IPC, and product-contract tests pass.
-- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
-- [ ] Browser demos cover search, reuse, diagnostics, and a destructive flow without console errors.
-- [ ] A relevant Electron package is built and inspected.
-- [ ] Close `CHANGELOG.md` as 0.10.0 and bump package metadata.
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] Indexing, reference, duplicate, optimization, recovery, IPC, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser demos cover search, reuse, diagnostics, and a destructive flow without console errors.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 0.10.0 and bump package metadata.
 - [ ] Create the release commit and `v0.10.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
 

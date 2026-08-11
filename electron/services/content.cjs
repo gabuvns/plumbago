@@ -414,6 +414,7 @@ module.exports = {
   inspectBloggerExport,
   listPosts,
   parseBloggerExport,
+  parsePostSource,
   readAsset,
   readAssetInfo,
   readPost,
