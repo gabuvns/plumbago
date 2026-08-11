@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.0 — 2026-08-10
+
 - Refresh the post list every few seconds so content created or changed in Obsidian and other editors appears automatically.
 - Add safe post removal with explicit confirmation and preservation of attached image files.
 - Separate local preview from the public-site shortcut and support GitHub Pages, Cloudflare Pages, and manually configured hosts.
