@@ -62,7 +62,7 @@ Goal: writers can understand what changed, recover one post or the whole site af
 - [x] Create the release commit and `v0.9.0` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.9.0) and verify every platform asset.
 
-## Active milestone: 0.10.0 — Media library
+## Completed milestone: 0.10.0 — Media library
 
 Goal: writers can find, reuse, improve, replace, and safely remove images across the whole blog while every file remains a portable Hugo resource.
 
@@ -86,9 +86,31 @@ Goal: writers can find, reuse, improve, replace, and safely remove images across
 - [x] Browser demos cover search, reuse, diagnostics, and a destructive flow without console errors.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 0.10.0 and bump package metadata.
-- [ ] Create the release commit and `v0.10.0` tag.
+- [x] Create the release commit and `v0.10.0` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.10.0) and verify every platform asset.
+
+## Active milestone: 0.11.0 — SEO and quality assistant
+
+Goal: before publishing, a writer can run one deterministic review, understand every discoverability or accessibility issue, and apply only the safe fixes they choose.
+
+### Product work
+
+- [ ] Build a provider-neutral review service for site settings, front matter, Markdown, generated output, and Hugo build health.
+- [ ] Check titles, descriptions, slugs, canonical addresses, publish state, dates, and social images without theme-specific assumptions.
+- [ ] Detect broken internal links, missing image alternatives, skipped heading levels, duplicate titles, and slug collisions.
+- [ ] Validate sitemap, RSS, robots directives, production base URL, and the production Hugo build.
+- [ ] Separate blocking errors from recommendations and explain why each finding matters in plain language.
+- [ ] Offer individual safe fixes with an exact impact preview; never rewrite prose or delete data automatically.
+- [ ] Add a pre-publish review step while keeping publishing available when only recommendations remain.
+- [ ] Add a responsive bilingual review workspace with filters, progress, empty states, and links to affected posts.
+
+### Release gate
+
+- [ ] EN-US and PT-BR keys remain in parity.
+- [ ] Metadata, link, heading, output, safe-fix, IPC, and product-contract tests pass.
+- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [ ] Browser demos cover a clean site, blocking findings, recommendations, and one safe fix without console errors.
+- [ ] A relevant Electron package is built and inspected.
+- [ ] Close `CHANGELOG.md` as 0.11.0 and bump package metadata.
+- [ ] Create the release commit and `v0.11.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
-
-## Following milestone
-
-`0.11.0 — SEO and quality assistant` begins only after `v0.10.0` is downloadable.

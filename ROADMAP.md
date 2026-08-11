@@ -57,13 +57,13 @@ Definition of done: a writer can understand what changed and safely recover cont
 
 ### 0.10.0 — Media library
 
-Status: planned
+Status: released on 2026-08-11 — [v0.10.0](https://github.com/gabuvns/plumbago/releases/tag/v0.10.0)
 
-- [ ] Browse, search, preview, reuse, replace, and remove media across the blog.
-- [ ] Detect unused, missing, duplicate, and oversized assets.
-- [ ] Edit alternative text and captions where images are referenced.
-- [ ] Offer crop, resize, and optimized WebP/AVIF derivatives through Hugo image resources.
-- [ ] Preserve page-bundle ownership and multilingual image behavior.
+- [x] Browse, search, preview, reuse, replace, and remove media across the blog.
+- [x] Detect unused, missing, duplicate, and oversized assets.
+- [x] Edit alternative text and captions where images are referenced.
+- [x] Offer crop, resize, and optimized WebP/AVIF derivatives through Hugo image resources.
+- [x] Preserve page-bundle ownership and multilingual image behavior.
 
 Definition of done: images can be managed as a blog-wide library while their files remain portable Hugo resources.
 
@@ -117,4 +117,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.9.0` provides GitHub connection, one-click deployment, external post refresh, multilingual page-bundle images, guided Hugo management, human-readable history, local recovery points, and recoverable deletion. It is the stable starting point for the remaining roadmap.
+Version `0.10.0` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, and a blog-wide media library with diagnostics and optimization. It is the stable starting point for the remaining roadmap.
