@@ -89,7 +89,9 @@ Goal: writers can find, reuse, improve, replace, and safely remove images across
 - [x] Create the release commit and `v0.10.0` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.10.0) and verify every platform asset.
 
-## Active milestone: 0.11.0 — SEO and quality assistant
+## Completed milestone: 0.11.0 — SEO and quality assistant
+
+[v0.11.0](https://github.com/gabuvns/plumbago/releases/tag/v0.11.0) adds deterministic pre-publish review and verified Windows, Linux, macOS Intel, and macOS Apple Silicon downloads.
 
 Goal: before publishing, a writer can run one deterministic review, understand every discoverability or accessibility issue, and apply only the safe fixes they choose.
 
@@ -112,5 +114,31 @@ Goal: before publishing, a writer can run one deterministic review, understand e
 - [x] Browser demos cover a clean site, blocking findings, recommendations, and one safe fix without console errors.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 0.11.0 and bump package metadata.
-- [ ] Create the release commit and `v0.11.0` tag.
+- [x] Create the release commit and `v0.11.0` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.11.0) and verify every platform asset.
+
+## Active milestone: 0.12.0 — Real editorial calendar
+
+Goal: a writer can see the publication plan, move posts to meaningful dates, and rely on scheduled publishing even when the Plumbago desktop app is closed.
+
+### Product work
+
+- [ ] Add a provider-neutral schedule service that reads Hugo dates, draft state, publication dates, expiry dates, and the blog timezone without losing unknown front matter.
+- [ ] Add month, week, agenda, and unscheduled views for drafts, scheduled posts, published posts, expired posts, and conflicts.
+- [ ] Schedule, reschedule, cancel, or publish now with an exact front-matter impact preview and automatic recovery point.
+- [ ] Prevent future posts from appearing early and explain Hugo's draft, future, and expired-content rules in plain language.
+- [ ] Install an idempotent GitHub Actions publication clock so due content is rebuilt while Plumbago is closed.
+- [ ] Support GitHub Pages directly and configure an explicit, consented Cloudflare Pages secret path for scheduled Direct Upload.
+- [ ] Record the last scheduled run, next due post, provider state, delayed runs, and actionable missed-publication diagnostics.
+- [ ] Add responsive keyboard-accessible calendar interactions and complete EN-US/PT-BR copy.
+
+### Release gate
+
+- [ ] EN-US and PT-BR keys remain in parity.
+- [ ] Timezone, front matter, scheduling, GitHub workflow, Cloudflare secret, recovery, IPC, and product-contract tests pass.
+- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [ ] Browser demos cover unscheduled, scheduled, rescheduled, overdue, and publish-now flows without console errors.
+- [ ] A relevant Electron package is built and inspected.
+- [ ] Close `CHANGELOG.md` as 0.12.0 and bump package metadata.
+- [ ] Create the release commit and `v0.12.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.

@@ -69,13 +69,13 @@ Definition of done: images can be managed as a blog-wide library while their fil
 
 ### 0.11.0 — SEO and quality assistant
 
-Status: planned
+Status: released on 2026-08-11 — [v0.11.0](https://github.com/gabuvns/plumbago/releases/tag/v0.11.0)
 
-- [ ] Check title, description, slug, social image, canonical URL, and publish state.
-- [ ] Detect broken internal links, missing image alternatives, heading problems, and slug collisions.
-- [ ] Validate sitemap, RSS, robots directives, and the production Hugo build.
-- [ ] Separate errors from recommendations and explain every suggested fix.
-- [ ] Apply safe fixes individually; never rewrite prose without confirmation.
+- [x] Check title, description, slug, social image, canonical URL, and publish state.
+- [x] Detect broken internal links, missing image alternatives, heading problems, and slug collisions.
+- [x] Validate sitemap, RSS, robots directives, and the production Hugo build.
+- [x] Separate errors from recommendations and explain every suggested fix.
+- [x] Apply safe fixes individually; never rewrite prose without confirmation.
 
 Definition of done: a deterministic pre-publish review catches common discoverability and accessibility mistakes with actionable fixes.
 
