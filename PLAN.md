@@ -271,7 +271,7 @@ Goal: a writer can add and manage standalone Hugo pages such as `/about` and `/g
 - [x] Create the release commit and `v0.14.0` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.14.0) and verify every platform asset.
 
-## Active milestone: 1.0.0 — Visual theme configurator
+## Completed milestone: 1.0.0 — Visual theme configurator
 
 Goal: a writer can meaningfully personalize a supported Hugo theme without learning its configuration schema, while every theme and unknown setting remains portable and recoverable.
 
@@ -293,5 +293,5 @@ Goal: a writer can meaningfully personalize a supported Hugo theme without learn
 - [x] Browser demos cover supported and unsupported themes, preview, apply, preset, rollback, and both languages without fresh console errors.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 1.0.0 and bump package metadata.
-- [ ] Create the release commit and `v1.0.0` tag.
-- [ ] Publish the GitHub Release and verify every platform asset.
+- [x] Create the release commit and `v1.0.0` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v1.0.0) and verify every platform asset.

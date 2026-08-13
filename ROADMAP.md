@@ -147,7 +147,7 @@ Definition of done: a writer can manage the blog's main pages and routes without
 
 ### 1.0.0 — Visual theme configurator
 
-Status: active
+Status: released on 2026-08-13 — [v1.0.0](https://github.com/gabuvns/plumbago/releases/tag/v1.0.0)
 
 - [x] Discover supported theme parameters without assuming one universal schema.
 - [x] Edit common branding, navigation, typography, social, and homepage options visually.
@@ -159,4 +159,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.14.0` provides GitHub connection, one-click deployment, external post refresh, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, persistent editor reading preferences, per-blog native Windows or WSL Hugo selection, recoverable taxonomy management, and a portable manager for Hugo pages and public routes. The visual theme configurator is the active final milestone toward 1.0.0.
+Version `1.0.0` provides GitHub connection, one-click deployment, external post refresh, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, persistent editor reading preferences, per-blog native Windows or WSL Hugo selection, recoverable taxonomy management, a portable manager for Hugo pages and public routes, and safe visual theme customization backed by real Hugo previews and rollback. The planned 1.0 roadmap is complete.
