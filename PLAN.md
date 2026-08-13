@@ -192,7 +192,9 @@ Goal: published work is protected from accidental edits, while the writing surfa
 - [x] Create the release commit and `v0.12.2` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.2) and verify every platform asset.
 
-## Active milestone: 0.12.3 — Windows and WSL Hugo management
+## Completed milestone: 0.12.3 — Windows and WSL Hugo management
+
+Released on 2026-08-13 — [v0.12.3](https://github.com/gabuvns/plumbago/releases/tag/v0.12.3)
 
 Goal: a Windows writer can understand, choose, test, and safely update the exact Hugo installation Plumbago uses, whether it runs natively or inside WSL.
 
@@ -214,10 +216,10 @@ Goal: a Windows writer can understand, choose, test, and safely update the exact
 - [x] Browser demos cover dual installations, runtime choice, missing runtime, WSL filesystem access, incompatible builds, update confirmation, success, and recovery without console errors.
 - [x] A Windows package is inspected and the representative Windows + WSL path flow is exercised where the available environment permits it.
 - [x] Close `CHANGELOG.md` as 0.12.3 and bump package metadata.
-- [ ] Create the release commit and `v0.12.3` tag.
-- [ ] Publish the GitHub Release and verify every platform asset.
+- [x] Create the release commit and `v0.12.3` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.3) and verify every platform asset.
 
-## Planned milestone: 0.13.0 — Taxonomy manager
+## Active milestone: 0.13.0 — Taxonomy manager
 
 Goal: a writer can understand and reorganize tags, categories, and custom Hugo taxonomies across a large blog without bulk-editing front matter by hand.
 

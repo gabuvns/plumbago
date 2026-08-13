@@ -114,17 +114,17 @@ Definition of done: published content is protected from accidental edits and wri
 
 ### 0.12.3 — Windows and WSL Hugo management
 
-Status: active
+Status: released on 2026-08-13 — [v0.12.3](https://github.com/gabuvns/plumbago/releases/tag/v0.12.3)
 
-- [ ] Detect native Windows and WSL Hugo versions separately.
-- [ ] Let each blog choose its Hugo runtime and validate that choice.
-- [ ] Update the selected installation in place through a guided, diagnosable flow.
+- [x] Detect native Windows and WSL Hugo versions separately.
+- [x] Let each blog choose its Hugo runtime and validate that choice with a real site build.
+- [x] Update the selected installation in place through a guided, diagnosable flow.
 
 Definition of done: a Windows writer can see, choose, test, and update the exact Hugo installation Plumbago will use.
 
 ### 0.13.0 — Taxonomy manager
 
-Status: planned
+Status: active
 
 - [ ] Browse tags, categories, and custom Hugo taxonomies with post counts.
 - [ ] Rename or merge terms across posts with a preview of affected files.
@@ -159,4 +159,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.12.2` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, and persistent editor reading preferences. Windows and WSL Hugo runtime management is the active next milestone.
+Version `0.12.3` provides GitHub connection, one-click deployment, external post refresh, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, persistent editor reading preferences, and per-blog native Windows or WSL Hugo selection with real compatibility builds and guided updates. The taxonomy manager is the active next milestone.
