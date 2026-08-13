@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, ClipboardCopy, FolderOpen, GitBranch, Github, Globe2, HardDrive, LoaderCircle, Plus, Rocket, Save, Terminal, UploadCloud } from 'lucide-react'
+import { Accessibility, AlertTriangle, ArrowUpRight, ClipboardCopy, FolderOpen, GitBranch, Github, Globe2, HardDrive, LoaderCircle, Plus, Rocket, Save, Terminal, UploadCloud } from 'lucide-react'
 import { api } from '../../app/api'
 import { Modal } from '../../components/ui/Modal'
 import { supportedLanguages, useI18n } from '../../i18n'
 import { friendlyError } from '../../lib/errors'
 import { hugoDiagnostics, hugoEnvironment, hugoInstallUrl } from '../../lib/hugo'
+import { MAX_EDITOR_FONT_SIZE, MIN_EDITOR_FONT_SIZE, normalizeEditorFontSize } from '../../lib/accessibility'
 import { UpdatePanel } from './UpdatePanel'
 
-export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, onSync, onDeploy, onGitHub, onGitSetup, onHugoSetup, onSiteSettingsChanged, notify }) {
+export function SettingsModal({ context, accessibility, onAccessibilityChange, onClose, onChooseBlog, onCreateBlog, onSync, onDeploy, onGitHub, onGitSetup, onHugoSetup, onSiteSettingsChanged, notify }) {
   const { t, locale, setLocale } = useI18n()
   const [config, setConfig] = useState(null)
   const [readiness, setReadiness] = useState(null)
@@ -72,6 +73,10 @@ export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, on
     api.openPublishingUrl(hugoInstallUrl(context.runtime)).catch((error) => notify(friendlyError(error, t), 'error'))
   }
 
+  function changeEditorFontSize(event) {
+    onAccessibilityChange({ ...accessibility, editorFontSize: normalizeEditorFontSize(event.currentTarget.value) })
+  }
+
   const gitVersion = readiness?.git.version || context.git
   const gitSetupCopy = readiness?.git.status === 'ready' ? t('settings.gitUninitialized') : t('settings.gitMissing')
 
@@ -91,6 +96,21 @@ export function SettingsModal({ context, onClose, onChooseBlog, onCreateBlog, on
             <div className="hugo-help-actions"><button className="button primary" type="button" onClick={onHugoSetup}><Terminal size={14} /> {t('settings.manageHugo')}</button><button className="button quiet" type="button" onClick={copyDiagnostics}><ClipboardCopy size={14} /> {t('settings.copyDiagnostics')}</button><button className="button quiet" type="button" onClick={openHugoHelp}><ArrowUpRight size={14} /> {t('settings.hugoDocs')}</button></div>
           </div>
           <label className="language-setting">{t('language.label')}<select value={locale} onChange={(event) => setLocale(event.target.value)}>{supportedLanguages.map((language) => <option key={language.value} value={language.value}>{language.label}</option>)}</select></label>
+        </section>
+        <section className="settings-section accessibility-settings">
+          <div className="settings-heading"><Accessibility size={18} /><div><h3>{t('accessibility.title')}</h3><p>{t('accessibility.copy')}</p></div></div>
+          <div className="font-size-setting">
+            <label htmlFor="editor-font-size">{t('accessibility.fontSize')}<output htmlFor="editor-font-size">{t('accessibility.fontSizeValue', { size: accessibility.editorFontSize })}</output></label>
+            <input id="editor-font-size" type="range" min={MIN_EDITOR_FONT_SIZE} max={MAX_EDITOR_FONT_SIZE} step="1" value={accessibility.editorFontSize} aria-describedby="editor-font-size-help" onInput={changeEditorFontSize} onChange={changeEditorFontSize} />
+            <small id="editor-font-size-help">{t('accessibility.fontSizeHelp')}</small>
+          </div>
+          <div className="accessibility-preview" style={{ '--preview-font-size': `${accessibility.editorFontSize}px` }} aria-live="polite" aria-label={t('accessibility.previewLabel')}>
+            <small>{t('accessibility.preview')}</small>
+            <strong className="level-one">{t('accessibility.previewH1')}</strong>
+            <strong className="level-two">{t('accessibility.previewH2')}</strong>
+            <strong className="level-three">{t('accessibility.previewH3')}</strong>
+            <p>{t('accessibility.previewBody')}</p>
+          </div>
         </section>
         <section className="settings-section">
           <div className="settings-heading"><Globe2 size={18} /><div><h3>{t('hosting.title')}</h3><p>{t('hosting.copy')}</p></div></div>

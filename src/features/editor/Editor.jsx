@@ -4,7 +4,7 @@ import { marked } from 'marked'
 import TurndownService from 'turndown'
 import {
   AlertCircle, Bold, Check, Clock3, Code2, Heading2, ImagePlus, Italic, Link,
-  List, LoaderCircle, Save, UploadCloud,
+  List, LoaderCircle, LockKeyhole, PencilLine, Save, UploadCloud,
 } from 'lucide-react'
 import { api } from '../../app/api'
 import { useI18n } from '../../i18n'
@@ -12,24 +12,24 @@ import { dateTimeInputValue } from '../../lib/dates'
 
 const visualTurndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced' })
 
-function MarkdownToolbar({ onFormat, onImages }) {
+function MarkdownToolbar({ onFormat, onImages, disabled }) {
   const { t } = useI18n()
   return (
     <div className="markdown-toolbar" onMouseDown={(event) => { if (event.target.closest('button')) event.preventDefault() }}>
-      <button onClick={() => onFormat('bold', '**', '**', t('toolbar.boldText'))} title={t('toolbar.bold')}><Bold size={16} /></button>
-      <button onClick={() => onFormat('italic', '_', '_', t('toolbar.italicText'))} title={t('toolbar.italic')}><Italic size={16} /></button>
+      <button disabled={disabled} onClick={() => onFormat('bold', '**', '**', t('toolbar.boldText'))} title={t('toolbar.bold')}><Bold size={16} /></button>
+      <button disabled={disabled} onClick={() => onFormat('italic', '_', '_', t('toolbar.italicText'))} title={t('toolbar.italic')}><Italic size={16} /></button>
       <span />
-      <button onClick={() => onFormat('formatBlock', '## ', '', t('toolbar.headingText'), 'h2')} title={t('toolbar.heading')}><Heading2 size={16} /></button>
-      <button onClick={() => onFormat('insertUnorderedList', '- ', '', t('toolbar.listText'))} title={t('toolbar.list')}><List size={16} /></button>
-      <button onClick={() => onFormat('createLink', '[', '](https://)', t('toolbar.linkText'), 'https://')} title={t('toolbar.link')}><Link size={16} /></button>
-      <button onClick={onImages} title={t('toolbar.images')}><ImagePlus size={16} /></button>
+      <button disabled={disabled} onClick={() => onFormat('formatBlock', '## ', '', t('toolbar.headingText'), 'h2')} title={t('toolbar.heading')}><Heading2 size={16} /></button>
+      <button disabled={disabled} onClick={() => onFormat('insertUnorderedList', '- ', '', t('toolbar.listText'))} title={t('toolbar.list')}><List size={16} /></button>
+      <button disabled={disabled} onClick={() => onFormat('createLink', '[', '](https://)', t('toolbar.linkText'), 'https://')} title={t('toolbar.link')}><Link size={16} /></button>
+      <button disabled={disabled} onClick={onImages} title={t('toolbar.images')}><ImagePlus size={16} /></button>
       <span />
-      <button onClick={() => onFormat('formatBlock', '`', '`', t('toolbar.codeText'), 'pre')} title={t('toolbar.code')}><Code2 size={16} /></button>
+      <button disabled={disabled} onClick={() => onFormat('formatBlock', '`', '`', t('toolbar.codeText'), 'pre')} title={t('toolbar.code')}><Code2 size={16} /></button>
     </div>
   )
 }
 
-function VisualEditor({ html, assetMap, onChange, placeholder }) {
+function VisualEditor({ html, assetMap, onChange, placeholder, readOnly }) {
   const editorRef = useRef(null)
 
   useEffect(() => {
@@ -37,15 +37,16 @@ function VisualEditor({ html, assetMap, onChange, placeholder }) {
   }, [html])
 
   function update(event) {
+    if (readOnly) return
     let nextHtml = DOMPurify.sanitize(event.currentTarget.innerHTML)
     for (const [name, data] of Object.entries(assetMap)) nextHtml = nextHtml.replaceAll(data, name)
     onChange(visualTurndown.turndown(nextHtml))
   }
 
-  return <div ref={editorRef} className="visual-editor" contentEditable suppressContentEditableWarning data-placeholder={placeholder} onInput={update} spellCheck="true" />
+  return <div ref={editorRef} className="visual-editor" contentEditable={!readOnly} suppressContentEditableWarning data-placeholder={placeholder} onInput={update} spellCheck="true" aria-readonly={readOnly} />
 }
 
-export function Editor({ post, onChange, onSave, onOpenImages, onDropImages, saveState }) {
+export function Editor({ post, locked = false, onUnlock, onChange, onSave, onOpenImages, onDropImages, saveState }) {
   const { t } = useI18n()
   const [mode, setMode] = useState('split')
   const [assetMap, setAssetMap] = useState({})
@@ -67,6 +68,7 @@ export function Editor({ post, onChange, onSave, onOpenImages, onDropImages, sav
   }, [assetMap, post.body])
 
   function format(command, before, after, fallback, commandValue) {
+    if (locked) return
     if (mode === 'visual') {
       document.execCommand(command, false, commandValue)
       return
@@ -85,11 +87,14 @@ export function Editor({ post, onChange, onSave, onOpenImages, onDropImages, sav
   function drop(event) {
     event.preventDefault()
     setDragging(false)
+    if (locked) return
     const files = Array.from(event.dataTransfer.files || [])
     if (files.length) onDropImages(files)
   }
 
-  const status = saveState.saving
+  const status = locked
+    ? { icon: <LockKeyhole size={14} />, label: t('editor.protected'), className: 'protected' }
+    : saveState.saving
     ? { icon: <LoaderCircle className="spin" size={14} />, label: t('editor.saving'), className: 'saving' }
     : saveState.error
       ? { icon: <AlertCircle size={14} />, label: t('editor.saveError'), className: 'error' }
@@ -99,35 +104,36 @@ export function Editor({ post, onChange, onSave, onOpenImages, onDropImages, sav
 
   return (
     <section
-      className={`editor ${dragging ? 'is-dragging' : ''}`}
-      onDragEnter={(event) => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDragging(true) } }}
-      onDragOver={(event) => { if (event.dataTransfer.types.includes('Files')) event.preventDefault() }}
+      className={`editor ${locked ? 'is-locked' : ''} ${dragging ? 'is-dragging' : ''}`}
+      onDragEnter={(event) => { if (!locked && event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDragging(true) } }}
+      onDragOver={(event) => { if (!locked && event.dataTransfer.types.includes('Files')) event.preventDefault() }}
       onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false) }}
       onDrop={drop}
     >
       {dragging && <div className="editor-drop-overlay"><div><UploadCloud size={34} /><strong>{t('editor.dropTitle')}</strong><span>{t('editor.dropTypes')}</span></div></div>}
+      {locked && <div className="editor-protection" role="status"><LockKeyhole size={18} /><div><strong>{t('editor.protectedTitle')}</strong><span>{t('editor.protectedCopy')}</span></div><button className="button primary" type="button" onClick={onUnlock}><PencilLine size={15} /> {t('editor.startRevision')}</button></div>}
       <div className="editor-title-row">
-        <input className="title-input" value={post.title} onChange={(event) => onChange({ title: event.target.value })} placeholder={t('editor.title')} />
+        <input className="title-input" value={post.title} disabled={locked} onChange={(event) => onChange({ title: event.target.value })} placeholder={t('editor.title')} />
         <div className={`save-state ${status.className}`}>{status.icon} {status.label}</div>
-        <button className="button quiet save-now" onClick={onSave} disabled={saveState.saving || !saveState.dirty}><Save size={15} /> {t('editor.saveNow')}</button>
+        <button className="button quiet save-now" onClick={onSave} disabled={locked || saveState.saving || !saveState.dirty}><Save size={15} /> {t('editor.saveNow')}</button>
       </div>
-      <input className="description-input" value={post.description} onChange={(event) => onChange({ description: event.target.value })} placeholder={t('editor.description')} />
+      <input className="description-input" value={post.description} disabled={locked} onChange={(event) => onChange({ description: event.target.value })} placeholder={t('editor.description')} />
       <div className="metadata-row">
-        <label>{t('editor.date')}<input type="date" value={post.date} onChange={(event) => onChange({ date: event.target.value })} /></label>
-        <label>{t('editor.schedule')}<input type="datetime-local" value={dateTimeInputValue(post.publishDate)} onChange={(event) => onChange({ publishDate: event.target.value ? new Date(event.target.value).toISOString() : '' })} /></label>
-        <label>{t('editor.tags')}<input value={post.tags.join(', ')} onChange={(event) => onChange({ tags: event.target.value.split(',').map((tag) => tag.trim()) })} placeholder={t('editor.tagsPlaceholder')} /></label>
-        <label className="draft-toggle"><input type="checkbox" checked={!post.draft} onChange={(event) => onChange({ draft: !event.target.checked })} /><span /> {t('editor.published')}</label>
+        <label>{t('editor.date')}<input type="date" value={post.date} disabled={locked} onChange={(event) => onChange({ date: event.target.value })} /></label>
+        <label>{t('editor.schedule')}<input type="datetime-local" value={dateTimeInputValue(post.publishDate)} disabled={locked} onChange={(event) => onChange({ publishDate: event.target.value ? new Date(event.target.value).toISOString() : '' })} /></label>
+        <label>{t('editor.tags')}<input value={post.tags.join(', ')} disabled={locked} onChange={(event) => onChange({ tags: event.target.value.split(',').map((tag) => tag.trim()) })} placeholder={t('editor.tagsPlaceholder')} /></label>
+        <label className={`draft-toggle ${locked ? 'disabled' : ''}`}><input type="checkbox" checked={!post.draft} disabled={locked} onChange={(event) => onChange({ draft: !event.target.checked })} /><span /> {t('editor.published')}</label>
       </div>
       <div className="editor-controls">
-        <MarkdownToolbar onFormat={format} onImages={onOpenImages} />
+        <MarkdownToolbar onFormat={format} onImages={onOpenImages} disabled={locked} />
         <div className="view-toggle"><button className={mode === 'visual' ? 'active' : ''} onClick={() => setMode('visual')}>{t('editor.visual')}</button><button className={mode === 'write' ? 'active' : ''} onClick={() => setMode('write')}>{t('editor.write')}</button><button className={mode === 'split' ? 'active' : ''} onClick={() => setMode('split')}>{t('editor.split')}</button><button className={mode === 'preview' ? 'active' : ''} onClick={() => setMode('preview')}>{t('editor.preview')}</button></div>
       </div>
       <div className={`editor-workspace mode-${mode}`}>
-        {mode === 'visual' && <VisualEditor html={preview} assetMap={assetMap} onChange={(body) => onChange({ body })} placeholder={t('editor.visualPlaceholder')} />}
-        {!['preview', 'visual'].includes(mode) && <textarea ref={textareaRef} value={post.body || ''} onChange={(event) => onChange({ body: event.target.value })} placeholder={t('editor.placeholder')} spellCheck="true" />}
+        {mode === 'visual' && <VisualEditor html={preview} assetMap={assetMap} onChange={(body) => onChange({ body })} placeholder={t('editor.visualPlaceholder')} readOnly={locked} />}
+        {!['preview', 'visual'].includes(mode) && <textarea ref={textareaRef} value={post.body || ''} readOnly={locked} aria-readonly={locked} onChange={(event) => onChange({ body: event.target.value })} placeholder={t('editor.placeholder')} spellCheck="true" />}
         {!['write', 'visual'].includes(mode) && <article className="markdown-preview" dangerouslySetInnerHTML={{ __html: preview }} />}
       </div>
-      <footer className="editor-footer"><span>{t('editor.markdown')}</span><span>{t('editor.words', { count: post.body?.trim() ? post.body.trim().split(/\s+/).length : 0 })}</span><span className="autosave-hint">{t('editor.autosaveHint')}</span><button className="button primary compact" onClick={onSave} disabled={saveState.saving || !saveState.dirty}><Save size={15} /> {t('common.save')}</button></footer>
+      <footer className="editor-footer"><span>{t('editor.markdown')}</span><span>{t('editor.words', { count: post.body?.trim() ? post.body.trim().split(/\s+/).length : 0 })}</span><span className="autosave-hint">{t(locked ? 'editor.protectedHint' : 'editor.autosaveHint')}</span><button className="button primary compact" onClick={onSave} disabled={locked || saveState.saving || !saveState.dirty}><Save size={15} /> {t('common.save')}</button></footer>
     </section>
   )
 }

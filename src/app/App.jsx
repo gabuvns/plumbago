@@ -20,8 +20,9 @@ import { HugoSetupModal } from '../features/setup/HugoSetupModal'
 import { ThemeManagerModal } from '../features/themes/ThemeManagerModal'
 import { useI18n } from '../i18n'
 import { friendlyError } from '../lib/errors'
+import { applyAccessibilityPreferences, readAccessibilityPreferences } from '../lib/accessibility'
 import { api, emptyContext } from './api'
-import { rebaseQueuedSubmission, reconcileSavedPost, savedSnapshot } from './editor-save-state'
+import { isPostPublished, postPublicationTime, rebaseQueuedSubmission, reconcileSavedPost, savedSnapshot } from './editor-save-state'
 
 const EditorialCalendar = lazy(() => import('../features/calendar/EditorialCalendar').then((module) => ({ default: module.EditorialCalendar })))
 const ReviewModal = lazy(() => import('../features/review/ReviewModal').then((module) => ({ default: module.ReviewModal })))
@@ -60,6 +61,9 @@ export default function App() {
   const [publishError, setPublishError] = useState('')
   const [publishLog, setPublishLog] = useState([])
   const [toast, setToast] = useState(null)
+  const [accessibility, setAccessibility] = useState(() => readAccessibilityPreferences())
+  const [publishedRevisionId, setPublishedRevisionId] = useState('')
+  const [publicationClock, setPublicationClock] = useState(() => Date.now())
   const savePromiseRef = useRef(null)
   const externalRefreshRef = useRef(false)
   const externalSignatureRef = useRef('')
@@ -67,6 +71,9 @@ export default function App() {
   const editorStateRef = useRef(null)
   const tRef = useRef(t)
   tRef.current = t
+
+  useEffect(() => { applyAccessibilityPreferences(accessibility) }, [accessibility])
+  useEffect(() => { setPublishedRevisionId(''); setPublicationClock(Date.now()) }, [activeId])
 
   const notify = useCallback((message, kind = 'success') => {
     setToast({ message, kind })
@@ -163,13 +170,23 @@ export default function App() {
   }, [notify, refreshSiteSettings])
 
   const dirty = Boolean(post && savedPost && JSON.stringify(post) !== savedPost)
+  const persistedPost = savedPost ? JSON.parse(savedPost) : null
+  const publishedLocked = Boolean(isPostPublished(persistedPost, new Date(publicationClock)) && publishedRevisionId !== post?.id)
   editorStateRef.current = { activeId, dirty, post, posts, saving }
 
   useEffect(() => {
-    if (!dirty || saving || saveError || !post) return undefined
+    const publicationTime = postPublicationTime(persistedPost)
+    if (publicationTime === null || publicationTime <= publicationClock) return undefined
+    const maximumDelay = 2_147_483_647
+    const timer = setTimeout(() => setPublicationClock(Date.now()), Math.min(publicationTime - Date.now() + 50, maximumDelay))
+    return () => clearTimeout(timer)
+  }, [persistedPost, publicationClock])
+
+  useEffect(() => {
+    if (!dirty || saving || saveError || !post || publishedLocked) return undefined
     const timer = setTimeout(() => performSave(post), 1200)
     return () => clearTimeout(timer)
-  }, [dirty, performSave, post, saveError, saving])
+  }, [dirty, performSave, post, publishedLocked, saveError, saving])
 
   useEffect(() => {
     if (!context.root) return undefined
@@ -275,6 +292,7 @@ export default function App() {
   }
 
   async function selectPost(id) {
+    if (dirty && publishedLocked) { notify(t('editor.lockedAction'), 'error'); return }
     if (dirty && !(await performSave(post))) return
     try {
       const loaded = await api.readPost(id)
@@ -285,6 +303,7 @@ export default function App() {
   }
 
   async function save() {
+    if (publishedLocked) { notify(t('editor.lockedAction'), 'error'); return }
     await performSave(post, true)
   }
 
@@ -367,6 +386,7 @@ export default function App() {
 
   async function addImages() {
     if (!post) return []
+    if (publishedLocked) { notify(t('editor.lockedAction'), 'error'); return [] }
     try {
       const imported = await api.importImages(post.id)
       applyImportedImages(imported)
@@ -377,6 +397,7 @@ export default function App() {
 
   async function addDroppedImages(files) {
     if (!post) return []
+    if (publishedLocked) { notify(t('editor.lockedAction'), 'error'); return [] }
     try {
       const imported = await api.importDroppedImages(post.id, files)
       applyImportedImages(imported)
@@ -386,12 +407,14 @@ export default function App() {
   }
 
   async function prepareMediaMutation() {
+    if (publishedLocked) { notify(t('editor.lockedAction'), 'error'); return false }
     if (!post || !dirty) return true
     return performSave(post)
   }
 
   async function insertMedia(result) {
     if (!post || !result?.markdown) return false
+    if (publishedLocked) { notify(t('editor.lockedAction'), 'error'); return false }
     const current = await api.readPost(post.id)
     const body = current.body || ''
     const next = {
@@ -541,6 +564,7 @@ export default function App() {
       if (result.status?.site) setSite(result.status.site)
       setPublishLog(result.log || [])
       setPublishPhase('complete')
+      setPublishedRevisionId('')
       notify(t('notice.published'))
     } catch (error) {
       const messageText = friendlyError(error, t)
@@ -602,7 +626,7 @@ export default function App() {
           <div className="breadcrumbs"><span>{context.root.split(/[\\/]/).filter(Boolean).at(-1)}</span><b>/</b><strong>{post?.title || t('posts.title')}</strong></div>
           <div className="topbar-actions"><button className="button quiet" onClick={() => api.openPreview().catch((error) => notify(friendlyError(error, t), 'error'))}><Eye size={17} /> {t('top.preview')} <ArrowUpRight size={14} /></button>{site?.publicUrl && <button className="button quiet" onClick={openPublicSite} title={t('top.publicProvider', { provider: t(`hosting.${site.hostingProvider}`) })}><Globe2 size={17} /> {t('top.publicSite')} <ArrowUpRight size={14} /></button>}<button className="button quiet" onClick={showDeploy}><Rocket size={17} /> {t('top.deploy')}</button><button className="button primary" onClick={showPublish}><UploadCloud size={17} /> {t('top.publish')}</button><button className="icon-button" onClick={() => setSettingsOpen(true)} title={t('top.openSettings')}><Menu size={18} /></button></div>
         </header>
-        {post ? <Editor post={post} onChange={(change) => { setSaveError(null); setPost((current) => ({ ...current, ...change })) }} onSave={save} onOpenImages={() => setImagesOpen(true)} onDropImages={addDroppedImages} saveState={{ saving, dirty, error: saveError }} /> : <div className="empty-editor"><FileText size={34} /><h2>{t('empty.title')}</h2><p>{t('empty.copy')}</p><button className="button primary" onClick={() => setNewPostOpen(true)}><Plus size={17} /> {t('posts.new')}</button></div>}
+        {post ? <Editor post={post} locked={publishedLocked} onUnlock={() => { setPublishedRevisionId(post.id); notify(t('editor.revisionStarted')) }} onChange={(change) => { if (publishedLocked) { notify(t('editor.lockedAction'), 'error'); return }; setSaveError(null); setPost((current) => ({ ...current, ...change })) }} onSave={save} onOpenImages={() => setImagesOpen(true)} onDropImages={addDroppedImages} saveState={{ saving, dirty, error: saveError }} /> : <div className="empty-editor"><FileText size={34} /><h2>{t('empty.title')}</h2><p>{t('empty.copy')}</p><button className="button primary" onClick={() => setNewPostOpen(true)}><Plus size={17} /> {t('posts.new')}</button></div>}
       </main>
       {newPostOpen && <NewPostModal onClose={() => setNewPostOpen(false)} onCreate={create} busy={busy} />}
       {deleteTarget && <DeletePostModal post={deleteTarget} busy={busy} onClose={() => setDeleteTarget(null)} onDelete={removePost} />}
@@ -619,7 +643,7 @@ export default function App() {
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
       {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} notify={notify} />}
       {bloggerOpen && <BloggerImportModal onClose={() => setBloggerOpen(false)} onImported={handleBloggerImported} notify={notify} />}
-      {settingsOpen && <SettingsModal context={context} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onDeploy={showDeploy} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} onHugoSetup={() => { setSettingsOpen(false); setHugoSetupOpen(true) }} onSiteSettingsChanged={setSite} notify={notify} />}
+      {settingsOpen && <SettingsModal context={context} accessibility={accessibility} onAccessibilityChange={setAccessibility} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onDeploy={showDeploy} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} onHugoSetup={() => { setSettingsOpen(false); setHugoSetupOpen(true) }} onSiteSettingsChanged={setSite} notify={notify} />}
       {toast && <div className={`toast ${toast.kind}`}>{toast.kind === 'success' && <Check size={17} />}{toast.message}</div>}
     </div>
   )

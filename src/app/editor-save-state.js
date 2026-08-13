@@ -23,3 +23,17 @@ export function reconcileSavedPost(current, submitted, saved) {
     repairedNestedFrontMatter: false,
   }
 }
+
+export function isPostPublished(post, now = new Date()) {
+  if (!post || post.draft) return false
+  const current = now instanceof Date ? now : new Date(now)
+  const publicationTime = postPublicationTime(post)
+  return publicationTime === null || publicationTime <= current.valueOf()
+}
+
+export function postPublicationTime(post) {
+  const publishAt = post?.publishDate ? new Date(post.publishDate) : null
+  if (publishAt && !Number.isNaN(publishAt.valueOf())) return publishAt.valueOf()
+  const contentAt = /^\d{4}-\d{2}-\d{2}$/.test(String(post?.date || '')) ? new Date(`${post.date}T00:00:00`) : null
+  return contentAt && !Number.isNaN(contentAt.valueOf()) ? contentAt.valueOf() : null
+}

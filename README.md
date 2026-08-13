@@ -16,7 +16,7 @@ Your posts are still Markdown. Your images still live beside them. Your reposito
 
 ## What a normal day looks like
 
-Open your blog, choose a post, and start writing. Plumbago saves as you type, while a visible **Save now** button is always available. You can write in Markdown, use the visual editor, work side by side with a preview, or inspect the final rendered article.
+Open your blog, choose a post, and start writing. Plumbago saves as you type, while a visible **Save now** button is always available. You can write in Markdown, use the visual editor, work side by side with a preview, or inspect the final rendered article. Posts that are already live open read-only; **Start a revision** deliberately unlocks one before you change it or publish the next version.
 
 When the post needs an image, drag it into the app. Plumbago copies it into the page bundle, avoids filename collisions, and helps add alternative text or a caption. When the article is ready, open the local Hugo preview or, once hosting is configured, jump directly to the public site. Plumbago checks that Hugo can build the website before it creates a Git version and uploads anything.
 
@@ -70,7 +70,7 @@ Plumbago can also help you:
 - synchronize with any Git remote;
 - check for and install new Plumbago releases.
 
-The interface is available in English by default and Brazilian Portuguese.
+The interface is available in English by default and Brazilian Portuguese. Accessibility settings include a persistent writing and preview font-size control with a live H1/H2/H3 sample; it changes only the local Plumbago reading surface, never your Markdown or public theme.
 
 ## Your files stay yours
 

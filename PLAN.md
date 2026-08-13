@@ -168,9 +168,27 @@ Goal: scheduling and autosave remain trustworthy when files change externally, d
 
 ## Active milestone: 0.12.2 — Editorial safeguards and accessibility
 
-- [ ] Make published posts read-only by default with a deliberate revise/unlock action.
-- [ ] Render Markdown `#`, `##`, and `###` with an accurate visual hierarchy in the live preview.
-- [ ] Add an accessible font-size preference with a live preview, keyboard support, and persistent local settings.
+Goal: published work is protected from accidental edits, while the writing surface remains readable and keeps Markdown semantics visually clear.
+
+### Product work
+
+- [x] Make published posts read-only by default with a deliberate revise/unlock action and plain-language publishing impact.
+- [x] Block metadata, Markdown, visual editing, formatting, media insertion, drag-and-drop, and autosave until a revision is started.
+- [x] Keep future scheduled posts editable until they actually become published.
+- [x] Render Markdown `#`, `##`, and `###` with an accurate visual hierarchy in the live and visual previews.
+- [x] Add an accessible font-size preference with a live H1/H2/H3 preview, keyboard-operable range input, and persistent local settings.
+- [x] Apply the reading preference to Markdown writing, visual editing, and preview without changing the post or public website.
+
+### Release gate
+
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] Published-lock, future-schedule, preference normalization, persistence, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser QA covers locked/unlocked editing, slider persistence, and real H1/H2/H3 rendering without console errors.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 0.12.2 and bump package metadata.
+- [ ] Create the release commit and `v0.12.2` tag.
+- [ ] Publish the GitHub Release and verify every platform asset.
 
 ## Planned milestone: 0.12.3 — Windows and WSL Hugo management
 

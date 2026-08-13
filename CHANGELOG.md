@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.12.2 — 2026-08-13
+
+- Open posts that are already live in a clearly explained read-only state and require an explicit **Start a revision** action before metadata, Markdown, visual content, formatting, or media can change.
+- Keep future scheduled posts editable until their publication instant, and return revised posts to the protected state after a successful publication or when another post is opened.
+- Give Markdown H1, H2, and H3 headings distinct, proportional typography in the real preview and visual editor instead of styling only H2.
+- Add an accessibility and reading section with a keyboard-operable font-size slider, immediate H1/H2/H3 sample, and a device-local preference that never modifies the Markdown or public website.
+- Apply the chosen reading size to Markdown writing, visual editing, and the live preview, with complete English and Brazilian Portuguese copy.
+
 ## 0.12.1 — 2026-08-13
 
 - Keep edits made while autosave is finishing on top of Plumbago's own new file revision, preventing false external-change conflicts without weakening protection for genuine Obsidian or filesystem edits.

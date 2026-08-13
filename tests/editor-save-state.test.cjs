@@ -33,3 +33,15 @@ test('rebases a queued save only when it was waiting for the matching Plumbago s
   })
   assert.equal(rebaseQueuedSubmission({ ...queued, revision: 'external-revision' }, completed).revision, 'external-revision')
 })
+
+test('protects only posts that are already published, not drafts or future schedules', async () => {
+  const { isPostPublished, postPublicationTime } = await import('../src/app/editor-save-state.js')
+  const now = new Date('2026-08-13T12:00:00.000Z')
+  assert.equal(isPostPublished({ draft: true, date: '2026-08-10' }, now), false)
+  assert.equal(isPostPublished({ draft: false, publishDate: '2026-08-13T11:59:00.000Z' }, now), true)
+  assert.equal(isPostPublished({ draft: false, publishDate: '2026-08-13T12:01:00.000Z' }, now), false)
+  assert.equal(isPostPublished({ draft: false, date: '2026-08-12' }, now), true)
+  assert.equal(isPostPublished({ draft: false, date: '2026-08-14' }, now), false)
+  assert.equal(postPublicationTime({ publishDate: '2026-08-13T12:01:00.000Z' }), Date.parse('2026-08-13T12:01:00.000Z'))
+  assert.equal(postPublicationTime({ date: 'not-a-date' }), null)
+})

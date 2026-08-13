@@ -1,6 +1,6 @@
 {
   "name": "plumbago-hugo-ui",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "Plumbago: a friendly Hugo UI manager for Windows and WSL",
   "desktopName": "plumbago.desktop",
   "author": "Plumbago contributors",
