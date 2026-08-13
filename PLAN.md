@@ -225,22 +225,22 @@ Goal: a writer can understand and reorganize tags, categories, and custom Hugo t
 
 ### Product work
 
-- [ ] Discover Hugo's configured taxonomies and preserve theme-specific or multilingual front matter shapes.
-- [ ] Add a searchable taxonomy workspace with term counts, language, unpublished usage, spelling variants, empty terms, and unclassified posts.
-- [ ] Filter the main post list by one or more taxonomy terms and clear filters without losing the current post.
-- [ ] Rename or merge terms through an exact affected-post preview, conflict detection, and an automatic recovery point.
-- [ ] Add and remove terms from selected posts without rewriting unknown front matter or unrelated content.
-- [ ] Explain term aliases, URL changes, and multilingual implications before applying destructive organization changes.
-- [ ] Add responsive keyboard-accessible interactions and complete EN-US/PT-BR copy.
+- [x] Discover Hugo's configured taxonomies and preserve theme-specific or multilingual front matter shapes.
+- [x] Add a searchable taxonomy workspace with term counts, language, unpublished usage, spelling variants, empty terms, and unclassified posts.
+- [x] Filter the main post list by one or more taxonomy terms and clear filters without losing the current post.
+- [x] Rename or merge terms through an exact affected-post preview, conflict detection, and an automatic recovery point.
+- [x] Add and remove terms from selected posts without rewriting unknown front matter or unrelated content.
+- [x] Explain term aliases, URL changes, and multilingual implications before applying destructive organization changes.
+- [x] Add responsive keyboard-accessible interactions and complete EN-US/PT-BR copy.
 
 ### Release gate
 
-- [ ] EN-US and PT-BR keys remain in parity.
-- [ ] TOML/YAML/JSON front matter, custom taxonomy, multilingual, merge, recovery, IPC, and product-contract tests pass.
-- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
-- [ ] Browser demos cover browsing, filtering, adding, renaming, merging, variants, unclassified posts, and recovery without console errors.
-- [ ] A relevant Electron package is built and inspected.
-- [ ] Close `CHANGELOG.md` as 0.13.0 and bump package metadata.
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] TOML/YAML/JSON front matter, custom taxonomy, multilingual, merge, recovery, IPC, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser demos cover browsing, filtering, adding, renaming, merging, variants, unclassified posts, and recovery without console errors.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 0.13.0 and bump package metadata.
 - [ ] Create the release commit and `v0.13.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
 

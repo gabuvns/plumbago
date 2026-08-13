@@ -72,13 +72,15 @@ Plumbago can also help you:
 - synchronize with any Git remote;
 - check for and install new Plumbago releases.
 
+The **Tags & categories** workspace reads Hugo's configured taxonomies across the whole blog. It highlights spelling variants, empty term pages, draft-only usage, and posts that still need classification. You can filter the post list, edit several posts, or rename and merge terms only after reviewing the exact files, languages, publication states, and public routes affected. Every bulk change creates a local recovery point first.
+
 The interface is available in English by default and Brazilian Portuguese. Accessibility settings include a persistent writing and preview font-size control with a live H1/H2/H3 sample; it changes only the local Plumbago reading surface, never your Markdown or public theme.
 
 ## Your files stay yours
 
 Plumbago does not replace Hugo or hide your blog in a proprietary format. It preserves front matter fields it does not understand, does not upload content merely because you saved it, and validates a build before publishing.
 
-Both YAML (`---`) and TOML (`+++`) front matter are supported. Plumbago also repairs the duplicated archetype metadata produced by older versions of the editor. Language-aware page bundles are configured before preview and publishing so images stored beside `index.<language>.md` are copied to the final Hugo site.
+YAML (`---`), TOML (`+++`), and Hugo's JSON front matter are supported. Plumbago also repairs the duplicated archetype metadata produced by older versions of the editor. Language-aware page bundles are configured before preview and publishing so images stored beside `index.<language>.md` are copied to the final Hugo site.
 
 Git authentication stays with the operating system, WSL, SSH, or the GitHub CLI whenever possible. If you connect GitHub with a token, Plumbago stores it with Electron's encrypted `safeStorage`; it is never written into the blog.
 

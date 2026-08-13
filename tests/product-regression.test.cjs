@@ -116,6 +116,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/features/media/MediaLibrary.jsx',
     'src/features/review/ReviewModal.jsx',
     'src/features/calendar/EditorialCalendar.jsx',
+    'src/features/taxonomies/TaxonomyManager.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
@@ -143,6 +144,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/calendar/automation.cjs',
     'electron/services/calendar/time.cjs',
     'electron/services/calendar/workflow-time.cjs',
+    'electron/services/taxonomies.cjs',
     'electron/services/site.cjs',
     'electron/services/trash.cjs',
     'electron/services/updates.cjs',
@@ -295,6 +297,34 @@ test('keeps the editorial calendar portable, recoverable, timezone-aware, and ru
   assert.match(automation, /saveGitHubActionsSecret/)
   assert.match(automation, /CLOUDFLARE_API_TOKEN/)
   assert.doesNotMatch(site, /CLOUDFLARE_API_TOKEN/)
+})
+
+test('keeps Hugo taxonomies searchable, filterable, previewable, and recoverable', () => {
+  const app = read('src/app/App.jsx')
+  const sidebar = read('src/components/layout/Sidebar.jsx')
+  const postList = read('src/features/posts/PostList.jsx')
+  const manager = read('src/features/taxonomies/TaxonomyManager.jsx')
+  const preload = read('electron/preload.cjs')
+  const main = read('electron/main.cjs')
+  const service = read('electron/services/taxonomies.cjs')
+  const demo = read('src/demo.js')
+
+  assert.match(app, /<TaxonomyManager/)
+  assert.match(sidebar, /sidebar\.taxonomies/)
+  assert.match(postList, /post\.taxonomies/)
+  assert.match(postList, /onRemoveTaxonomyFilter/)
+  assert.match(manager, /api\.taxonomyIndex\(\)/)
+  assert.match(manager, /api\.previewTaxonomyChange/)
+  assert.match(manager, /api\.applyTaxonomyChange/)
+  assert.match(manager, /taxonomy\.aliasWarningTitle/)
+  assert.match(manager, /taxonomy-term-select[\s\S]*<\/button>\s*<button type="button" className=\{`taxonomy-term-filter/, 'term selection and filtering must use sibling buttons')
+  assert.match(preload, /taxonomyIndex:/)
+  assert.match(main, /plumbago:taxonomy-index/)
+  assert.match(service, /before-taxonomy-change/)
+  assert.match(service, /serializePostSource/)
+  assert.match(service, /restoreRecoveryPoint/)
+  assert.match(demo, /taxonomyIndex: async/)
+  assert.match(demo, /applyTaxonomyChange: async/)
 })
 
 test('protects published posts and keeps accessibility and Markdown hierarchy visible in the editor', () => {

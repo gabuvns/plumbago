@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.13.0 — 2026-08-13
+
+- Add a searchable taxonomy workspace for tags, categories, and custom Hugo taxonomies, with term counts, draft and language usage, spelling variants, empty term pages, and unclassified posts.
+- Filter the main post list by one or more terms while preserving the currently open post and making every filter easy to remove.
+- Rename or merge terms only after an exact affected-file, publication-state, language, and public-route preview that explains redirect and alias implications.
+- Add and remove terms across selected posts with a plain-language impact preview and an automatic local recovery point.
+- Preserve unknown metadata, Markdown, and the original YAML, TOML, or JSON front-matter format; unsupported theme-specific value shapes are reported and skipped safely.
+- Add a responsive, keyboard-accessible English and Brazilian Portuguese interface plus a mutable browser demo for the complete workflow.
+
 ## 0.12.3 — 2026-08-13
 
 - Detect native Windows Hugo and every available WSL installation independently, including version, Extended edition, architecture, executable, and access to the selected blog folder.

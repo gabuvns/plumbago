@@ -17,6 +17,7 @@ import { PublishingHealthModal } from '../features/publishing/PublishingHealthMo
 import { SettingsModal } from '../features/settings/SettingsModal'
 import { GitSetupModal } from '../features/setup/GitSetupModal'
 import { HugoSetupModal } from '../features/setup/HugoSetupModal'
+import { TaxonomyManager } from '../features/taxonomies/TaxonomyManager'
 import { ThemeManagerModal } from '../features/themes/ThemeManagerModal'
 import { useI18n } from '../i18n'
 import { friendlyError } from '../lib/errors'
@@ -49,6 +50,8 @@ export default function App() {
   const [healthOpen, setHealthOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [taxonomiesOpen, setTaxonomiesOpen] = useState(false)
+  const [taxonomyFilters, setTaxonomyFilters] = useState([])
   const [reviewOpen, setReviewOpen] = useState(false)
   const [gitSetupOpen, setGitSetupOpen] = useState(false)
   const [hugoSetupOpen, setHugoSetupOpen] = useState(false)
@@ -609,6 +612,11 @@ export default function App() {
     setCalendarOpen(true)
   }
 
+  async function showTaxonomies() {
+    if (dirty && !(await performSave(post))) return
+    setTaxonomiesOpen(true)
+  }
+
   async function handleReviewChanged() {
     await Promise.all([refreshPosts(activeId, true), refreshSiteSettings()])
   }
@@ -618,8 +626,8 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onCalendar={showCalendar} onReview={showReview} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
-      <PostList posts={posts} activeId={activeId} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onCalendar={showCalendar} onTaxonomies={showTaxonomies} onReview={showReview} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <PostList posts={posts} activeId={activeId} taxonomyFilters={taxonomyFilters} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} onRemoveTaxonomyFilter={(target) => setTaxonomyFilters((current) => current.filter((item) => item !== target))} onClearTaxonomyFilters={() => setTaxonomyFilters([])} />
       <main className="content-area">
         <header className="topbar">
           <button className="icon-button ghost"><PanelLeftClose size={19} /></button>
@@ -638,6 +646,7 @@ export default function App() {
       {deployOpen && <DeploymentSetupModal context={context} onClose={() => { setDeployOpen(false); refreshSiteSettings().catch(() => {}) }} onGitHub={() => { setDeployOpen(false); setGitHubOpen(true) }} onSiteChanged={setSite} notify={notify} />}
       {historyOpen && <HistoryModal post={post} onClose={() => setHistoryOpen(false)} onPostRestored={handleHistoryPostRestored} onSiteRestored={handleHistorySiteRestored} notify={notify} />}
       {calendarOpen && <Suspense fallback={<div className="app-loading"><LoaderCircle className="spin" /></div>}><EditorialCalendar onClose={() => setCalendarOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} onDeploy={() => { setCalendarOpen(false); setDeployOpen(true) }} notify={notify} /></Suspense>}
+      {taxonomiesOpen && <TaxonomyManager filters={taxonomyFilters} onApplyFilters={setTaxonomyFilters} onChanged={handleReviewChanged} onClose={() => setTaxonomiesOpen(false)} notify={notify} />}
       {reviewOpen && <Suspense fallback={<div className="app-loading"><LoaderCircle className="spin" /></div>}><ReviewModal onClose={() => setReviewOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} notify={notify} /></Suspense>}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
