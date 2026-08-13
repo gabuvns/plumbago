@@ -65,6 +65,8 @@ async function configuredTaxonomies(root) {
     config,
     definitions: unique,
     routesEnabled: !disabledKinds.has('taxonomy') && !disabledKinds.has('term'),
+    disabledKinds: [...disabledKinds],
+    languages: [...new Set([data.defaultContentLanguage, ...Object.keys(data.languages && typeof data.languages === 'object' ? data.languages : {})].map((item) => String(item || '').toLowerCase()).filter(Boolean))],
   }
 }
 

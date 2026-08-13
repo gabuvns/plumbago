@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.14.0 — 2026-08-13
+
+- Add a Pages & routes workspace for Markdown pages, leaf bundles, branch bundles, translations, aliases, menus, explicit URLs, layouts, content types, and protected unsupported Hugo formats.
+- Detect public-route collisions across pages, posts, aliases, automatic sections, taxonomies, languages, and root-scoped multilingual URLs before files change.
+- Create portable About, Gallery, section, or standalone pages with normalized routes, initial Markdown, menu placement, theme hints, language, and draft state.
+- Change a page's public route while preserving its source bundle, Markdown, unknown front matter, YAML/TOML/JSON format, and optionally redirecting the old route through a standard Hugo alias.
+- Remove standalone and leaf pages only after an exact impact preview and recovery point, while protecting shared translation resources, homepage semantics, and section descendants.
+- Add a responsive, keyboard-accessible English and Brazilian Portuguese interface plus a mutable browser demo for the complete page workflow.
+
 ## 0.13.0 — 2026-08-13
 
 - Add a searchable taxonomy workspace for tags, categories, and custom Hugo taxonomies, with term counts, draft and language usage, spelling variants, empty term pages, and unclassified posts.

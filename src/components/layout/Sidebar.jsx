@@ -1,14 +1,15 @@
-import { Activity, CalendarDays, Download, FileSearch, FileText, History, ImagePlus, MoreHorizontal, Palette, Settings, Tags } from 'lucide-react'
+import { Activity, CalendarDays, Download, FileSearch, FileText, History, ImagePlus, MoreHorizontal, Palette, Route, Settings, Tags } from 'lucide-react'
 import { useI18n } from '../../i18n'
 import { hugoEnvironment } from '../../lib/hugo'
 
-export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, onCalendar, onTaxonomies, onReview, onHealth, onImport, onSettings }) {
+export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, onCalendar, onTaxonomies, onPages, onReview, onHealth, onImport, onSettings }) {
   const { t, locale } = useI18n()
   return (
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">p</div><div><strong>Plumbago</strong><span>Hugo UI manager</span></div></div>
       <nav>
         <button className="nav-item active" aria-label={t('sidebar.posts')} title={t('sidebar.posts')}><FileText size={18} /><span>{t('sidebar.posts')}</span><small>⌘ 1</small></button>
+        <button className="nav-item" aria-label={t('sidebar.pages')} title={t('sidebar.pages')} onClick={onPages}><Route size={18} /><span>{t('sidebar.pages')}</span></button>
         <button className="nav-item" aria-label={t('sidebar.images')} title={t('sidebar.images')} onClick={onImages}><ImagePlus size={18} /><span>{t('sidebar.images')}</span></button>
         <button className="nav-item" aria-label={t('sidebar.themes')} title={t('sidebar.themes')} onClick={onThemes}><Palette size={18} /><span>{t('sidebar.themes')}</span>{context.theme && <small>✓</small>}</button>
         <button className="nav-item" aria-label={t('sidebar.history')} title={t('sidebar.history')} onClick={onHistory}><History size={18} /><span>{t('sidebar.history')}</span></button>

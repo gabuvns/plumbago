@@ -207,6 +207,160 @@ Custom body
   assert.match(customSource, /keep: true/)
 })
 
+test('gerencia páginas e rotas Hugo sem confundir bundles, recursos ou traduções', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-pages')
+  t.after(async () => fs.rm(root, { recursive: true, force: true }))
+  await fs.mkdir(path.join(root, 'content', 'about', 'images'), { recursive: true })
+  await fs.mkdir(path.join(root, 'content', 'docs'), { recursive: true })
+  await fs.mkdir(path.join(root, 'content', 'foreign'), { recursive: true })
+  await fs.mkdir(path.join(root, 'content', 'posts', 'route-clash'), { recursive: true })
+  await fs.writeFile(path.join(root, 'hugo.toml'), `title = "Page test"
+defaultContentLanguage = "en-us"
+
+[taxonomies]
+tag = "tags"
+
+[languages.en-us]
+weight = 1
+
+[languages.fr]
+weight = 2
+`, 'utf8')
+  const aboutEn = 'content/about/index.en-us.md'
+  const aboutPt = 'content/about/index.pt-br.md'
+  const docs = 'content/docs/_index.en-us.md'
+  const contact = 'content/contact.en-us.md'
+  const home = 'content/_index.en-us.md'
+  await fs.writeFile(path.join(root, home), '---\ntitle: Home\ndraft: false\n---\n\nWelcome home\n', 'utf8')
+  await fs.writeFile(path.join(root, aboutEn), `---
+title: About
+draft: false
+aliases: [old-about, /shared-old/]
+menu:
+  main:
+    weight: 20
+layout: company
+translationKey: about-page
+params:
+  accent: indigo
+---
+
+English about body
+`, 'utf8')
+  await fs.writeFile(path.join(root, aboutPt), `---
+title: Sobre
+draft: true
+aliases: [/shared-old/]
+translationKey: about-page
+---
+
+Corpo em português
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'about', 'notes.md'), '# Leaf resource, not a public page\n', 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'about', 'images', 'portrait.jpg'), 'image', 'utf8')
+  await fs.writeFile(path.join(root, docs), `+++
+title = "Documentation"
+draft = false
+slug = "ignored-on-sections"
+type = "docs"
+[params]
+accent = "green"
++++
+
+Documentation body
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'docs', 'guide.md'), '---\ntitle: Guide\n---\n\nGuide body\n', 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'docs', 'hero.png'), 'hero', 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'legacy.html'), '<h1>Legacy page</h1>\n', 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'foreign', 'index.html'), '<h1>Foreign bundle</h1>\n', 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'foreign', 'resource.md'), '# Leaf resource\n', 'utf8')
+  await fs.writeFile(path.join(root, contact), `${JSON.stringify({ title: 'Contact', draft: false, aliases: ['/write-us/'], params: { form: true } }, null, 2)}
+
+Contact body
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'posts', 'route-clash', 'index.en-us.md'), `---
+title: Route clash post
+draft: false
+url: /contact/
+---
+
+Post body
+`, 'utf8')
+
+  const indexed = await service.pageInventory(root)
+  assert.deepEqual(indexed.pages.map((page) => page.id), [home, aboutEn, aboutPt, contact, docs, 'content/docs/guide.md'])
+  assert.equal(indexed.pages.some((page) => page.id.endsWith('notes.md')), false)
+  assert.equal(indexed.pages.some((page) => page.id.endsWith('resource.md')), false)
+  assert.deepEqual(indexed.unsupported.map((page) => page.id), ['content/foreign/index.html', 'content/legacy.html'])
+  assert.equal(indexed.summary.pages, 6)
+  assert.equal(indexed.summary.published, 4)
+  assert.equal(indexed.summary.menuPages, 1)
+  assert.equal(indexed.summary.themeDependent, 2)
+  assert.equal(indexed.summary.collisions, 1)
+  assert.deepEqual(indexed.languages, ['en-us', 'fr', 'pt-br'])
+  assert.equal(indexed.collisions[0].route, '/contact/')
+  assert.equal(indexed.pages.find((page) => page.id === contact).collision, true)
+  assert.deepEqual(indexed.pages.find((page) => page.id === aboutEn).resources, ['images/portrait.jpg', 'notes.md'])
+  assert.deepEqual(indexed.pages.find((page) => page.id === aboutEn).translations, [aboutEn, aboutPt])
+  assert.equal(indexed.pages.find((page) => page.id === aboutEn).sharedBundle, true)
+  assert.equal(indexed.pages.find((page) => page.id === aboutEn).canRemoveBundle, false)
+  assert.deepEqual(indexed.pages.find((page) => page.id === docs).descendants, ['guide.md'])
+  assert.equal(indexed.pages.find((page) => page.id === docs).canRemoveBundle, false)
+  assert.equal(indexed.pages.find((page) => page.id === home).isHome, true)
+  assert.ok(indexed.virtualRoutes.some((route) => route.kind === 'taxonomy' && route.route === '/tags/'))
+
+  await assert.rejects(service.previewPageChange(root, { action: 'create', title: 'Tags', route: '/tags/' }), /already used/)
+  await assert.rejects(service.previewPageChange(root, { action: 'rename', id: home, route: '/welcome/' }), /homepage/)
+  const createPreview = await service.previewPageChange(root, { action: 'create', title: 'Gallery', route: '/Gallery Space/', language: 'pt-br', kind: 'leaf', menu: 'main', body: '# Gallery' })
+  assert.equal(createPreview.page.id, 'content/gallery-space/index.pt-br.md')
+  assert.equal(createPreview.page.route, '/gallery-space/')
+  assert.deepEqual(createPreview.impact.menus, ['main'])
+  const created = await service.applyPageChange(root, { action: 'create', title: 'Gallery', route: '/Gallery Space/', language: 'pt-br', kind: 'leaf', menu: 'main', body: '# Gallery', expectedRevisions: createPreview.revisions })
+  assert.equal(created.recoveryPoint.reason, 'before-page-change')
+  assert.match(await fs.readFile(path.join(root, createPreview.page.id), 'utf8'), /# Gallery/)
+
+  const staleRename = await service.previewPageChange(root, { action: 'rename', id: aboutEn, route: '/our-story/', preserveAlias: true })
+  await fs.appendFile(path.join(root, aboutEn), '\nExternal edit\n')
+  await assert.rejects(service.applyPageChange(root, { action: 'rename', id: aboutEn, route: '/our-story/', preserveAlias: true, expectedRevisions: staleRename.revisions }), /changed after the preview/)
+  const renamePreview = await service.previewPageChange(root, { action: 'rename', id: aboutEn, route: '/our-story/', preserveAlias: true })
+  assert.deepEqual(renamePreview.impact.aliasesAdded, ['/about/'])
+  await service.applyPageChange(root, { action: 'rename', id: aboutEn, route: '/our-story/', preserveAlias: true, expectedRevisions: renamePreview.revisions })
+  const renamedYaml = await fs.readFile(path.join(root, aboutEn), 'utf8')
+  assert.match(renamedYaml, /^---/)
+  assert.deepEqual(service.parsePostSource(renamedYaml).data.aliases, ['old-about', '/shared-old/', '/about/'])
+  assert.equal(service.parsePostSource(renamedYaml).data.url, 'our-story/')
+  assert.deepEqual(service.parsePostSource(renamedYaml).data.params, { accent: 'indigo' })
+  assert.match(service.parsePostSource(renamedYaml).content, /English about body[\s\S]*External edit/)
+
+  const jsonRename = await service.previewPageChange(root, { action: 'rename', id: contact, route: '/reach-us/', preserveAlias: false })
+  await service.applyPageChange(root, { action: 'rename', id: contact, route: '/reach-us/', preserveAlias: false, expectedRevisions: jsonRename.revisions })
+  const renamedJson = service.parsePostSource(await fs.readFile(path.join(root, contact), 'utf8'))
+  assert.equal(renamedJson.format, 'json')
+  assert.deepEqual(renamedJson.data.params, { form: true })
+  assert.deepEqual(renamedJson.data.aliases, ['/write-us/'])
+  assert.match(renamedJson.content, /Contact body/)
+
+  const tomlRename = await service.previewPageChange(root, { action: 'rename', id: docs, route: '/manual/', preserveAlias: true })
+  await service.applyPageChange(root, { action: 'rename', id: docs, route: '/manual/', preserveAlias: true, expectedRevisions: tomlRename.revisions })
+  const renamedToml = await fs.readFile(path.join(root, docs), 'utf8')
+  assert.match(renamedToml, /^\+\+\+/)
+  assert.match(renamedToml, /accent = "green"/)
+  assert.match(renamedToml, /Documentation body/)
+
+  await assert.rejects(service.previewPageChange(root, { action: 'delete', id: docs, includeResources: true }), /original Hugo files/)
+  const sharedDelete = await service.previewPageChange(root, { action: 'delete', id: aboutPt, includeResources: true })
+  assert.equal(sharedDelete.impact.removeBundle, false)
+  await service.applyPageChange(root, { action: 'delete', id: aboutPt, includeResources: true, expectedRevisions: sharedDelete.revisions })
+  assert.equal(await fs.readFile(path.join(root, 'content', 'about', 'images', 'portrait.jpg'), 'utf8'), 'image')
+  const fullDelete = await service.previewPageChange(root, { action: 'delete', id: aboutEn, includeResources: true })
+  assert.equal(fullDelete.impact.removeBundle, true)
+  assert.equal(fullDelete.impact.files, 3)
+  const removed = await service.applyPageChange(root, { action: 'delete', id: aboutEn, includeResources: true, expectedRevisions: fullDelete.revisions })
+  assert.equal(await fs.lstat(path.join(root, 'content', 'about')).catch(() => null), null)
+  await service.restoreRecoveryPoint(root, removed.recoveryPoint.id)
+  assert.match(await fs.readFile(path.join(root, aboutEn), 'utf8'), /English about body/)
+})
+
 test('inventaria e testa o Hugo selecionado sem escrever preferências no blog', async (t) => {
   const root = await makeTemporaryDirectory('plumbago-hugo-runtime')
   t.after(async () => {

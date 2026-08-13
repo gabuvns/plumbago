@@ -4,6 +4,14 @@ const samplePosts = [
   { id: 'content/posts/primeiro-caderno/index.en-us.md', title: 'Notes from the first sketchbook', description: 'A look back at the first pages.', date: '2026-07-28', publishDate: '', expiryDate: '', lastmod: '', draft: true, language: 'en-us', featuredImage: '', revision: 'demo-3', tags: [], taxonomies: { tags: [], categories: [], authors: [] } },
 ]
 
+const samplePages = [
+  { id: 'content/about/index.en-us.md', title: 'About Plumbago Studio', description: 'The people and ideas behind this journal.', route: '/about/', routeScope: 'language', explicitUrl: false, aliases: ['/our-story/'], menus: ['main'], language: 'en-us', draft: false, kind: 'leaf', section: 'about', layout: '', type: '', themeDependent: false, unknownFields: ['params'], revision: 'demo-page-about-en', resources: ['portrait.svg'], translations: ['content/about/index.en-us.md', 'content/about/index.pt-br.md'], sharedBundle: true, canRemoveBundle: false, descendants: [], translationKey: 'about', bodyExcerpt: 'A quiet studio for experiments in writing, illustration, and the spaces between them.' },
+  { id: 'content/about/index.pt-br.md', title: 'Sobre o Estúdio Plumbago', description: 'As pessoas e ideias por trás deste diário.', route: '/about/', routeScope: 'language', explicitUrl: false, aliases: [], menus: [], language: 'pt-br', draft: true, kind: 'leaf', section: 'about', layout: '', type: '', themeDependent: false, unknownFields: [], revision: 'demo-page-about-pt', resources: ['portrait.svg'], translations: ['content/about/index.en-us.md', 'content/about/index.pt-br.md'], sharedBundle: true, canRemoveBundle: false, descendants: [], translationKey: 'about', bodyExcerpt: 'Um estúdio tranquilo para experiências com escrita, ilustração e tudo que existe entre elas.' },
+  { id: 'content/gallery/index.en-us.md', title: 'Gallery', description: 'Selected visual studies.', route: '/gallery/', routeScope: 'language', explicitUrl: false, aliases: [], menus: ['main'], language: 'en-us', draft: false, kind: 'leaf', section: 'gallery', layout: 'masonry', type: 'gallery', themeDependent: true, unknownFields: ['params'], revision: 'demo-page-gallery', resources: ['winter.svg', 'plumbago.svg'], translations: ['content/gallery/index.en-us.md'], sharedBundle: false, canRemoveBundle: true, descendants: [], translationKey: '', bodyExcerpt: 'A growing collection of color, type, and illustration studies.' },
+  { id: 'content/contact.en-us.md', title: 'Contact', description: 'A simple contact page.', route: '/contact/', routeScope: 'language', explicitUrl: false, aliases: [], menus: ['footer'], language: 'en-us', draft: true, kind: 'standalone', section: 'contact', layout: '', type: '', themeDependent: false, unknownFields: [], revision: 'demo-page-contact', resources: [], translations: ['content/contact.en-us.md'], sharedBundle: false, canRemoveBundle: false, descendants: [], translationKey: '', bodyExcerpt: 'Send a note about collaborations, workshops, or a project you would like to share.' },
+  { id: 'content/work.en-us.md', title: 'Selected work', description: 'An older route kept for readers.', route: '/work/', routeScope: 'language', explicitUrl: false, aliases: ['/gallery/'], menus: [], language: 'en-us', draft: false, kind: 'standalone', section: 'work', layout: 'archive', type: '', themeDependent: true, unknownFields: [], revision: 'demo-page-work', resources: [], translations: ['content/work.en-us.md'], sharedBundle: false, canRemoveBundle: false, descendants: [], translationKey: '', bodyExcerpt: 'A compact archive that still redirects readers through its previous gallery address.' },
+]
+
 const bodies = {
   [samplePosts[0].id]: `A criatividade nem sempre chega fazendo barulho. Às vezes ela começa como uma pergunta pequena, anotada no canto de uma página.\n\n## Um espaço para experimentar\n\nMeu processo ficou mais leve quando parei de exigir que toda ideia nascesse pronta. Hoje, guardo referências, testo combinações e deixo que cada trabalho encontre seu próprio ritmo.\n\n> Criar também é aprender a observar.\n\nSe você quiser acompanhar os próximos estudos, visite [meu portfólio](https://example.com).`,
   [samplePosts[1].id]: 'Ainda estou organizando os estudos desta série.\n\n## Paleta\n\nAzuis profundos, verdes acinzentados e pequenos pontos de calor.',
@@ -116,8 +124,83 @@ function demoTaxonomyPreview(posts, input) {
   return { action, taxonomy: definition, sourceTerm, targetTerm, addTerms, removeTerms: [...removeTerms], changes, skipped: [], revisions: Object.fromEntries(changes.map((change) => [change.postId, change.revision])), impact: { files: changes.length, published: changes.filter((change) => !change.draft).length, drafts: changes.filter((change) => change.draft).length, languages: [...new Set(changes.map((change) => change.language))].sort(), routeBefore: sourceTerm ? `/${definition.plural}/${demoTermSlug(sourceTerm)}/` : '', routeAfter: targetTerm ? `/${definition.plural}/${demoTermSlug(targetTerm)}/` : '', targetExists, aliasesPreserved: false } }
 }
 
+function demoPageRoute(value) {
+  const segments = String(value || '').trim().replaceAll('\\', '/').split(/[?#]/, 1)[0].split('/').filter(Boolean).map((segment) => segment.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')).filter(Boolean)
+  if (!segments.length) throw new Error('Choose a page route below the site root.')
+  return `/${segments.join('/')}/`
+}
+
+function demoLanguagesOverlap(left, right, leftScope = 'language', rightScope = 'language') {
+  return leftScope === 'root' || rightScope === 'root' || left === right || left === 'default' || right === 'default'
+}
+
+function demoPageInventory(pages) {
+  const virtualRoutes = [
+    { id: 'virtual:section:posts', title: 'posts', route: '/posts/', kind: 'section', language: 'default', routeScope: 'language', virtual: true },
+    ...demoTaxonomyDefinitions.map((item) => ({ id: `virtual:taxonomy:${item.id}`, title: item.plural, route: item.route, kind: 'taxonomy', language: 'default', routeScope: 'language', virtual: true })),
+  ]
+  const routes = pages.flatMap((page) => [
+    { id: page.id, title: page.title, route: page.route, routeScope: page.routeScope || 'language', language: page.language, kind: 'page', virtual: false },
+    ...page.aliases.map((route) => ({ id: page.id, title: page.title, route, routeScope: 'language', language: page.language, kind: 'alias', virtual: false })),
+  ]).concat(virtualRoutes)
+  const collisions = []
+  for (let leftIndex = 0; leftIndex < routes.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < routes.length; rightIndex += 1) {
+      const left = routes[leftIndex]
+      const right = routes[rightIndex]
+      if (left.id === right.id || left.route.toLowerCase() !== right.route.toLowerCase() || !demoLanguagesOverlap(left.language, right.language, left.routeScope, right.routeScope)) continue
+      const key = [left.id, right.id].sort().join('|')
+      if (!collisions.some((item) => item.key === key && item.route.toLowerCase() === left.route.toLowerCase())) collisions.push({ key, route: left.route, language: left.language === right.language ? left.language : 'shared', entries: [left, right] })
+    }
+  }
+  const collisionIds = new Set(collisions.flatMap((collision) => collision.entries.map((entry) => entry.id)))
+  const publicPages = pages.map((page) => ({ ...page, collision: collisionIds.has(page.id) })).sort((left, right) => left.route.localeCompare(right.route) || left.language.localeCompare(right.language))
+  return {
+    pages: publicPages,
+    routes,
+    languages: [...new Set([...pages.map((page) => page.language), 'en-us', 'pt-br'])],
+    virtualRoutes: virtualRoutes.map(({ id, title, route, kind }) => ({ id, title, route, kind })),
+    collisions,
+    unsupported: [],
+    summary: { pages: pages.length, published: pages.filter((page) => !page.draft).length, drafts: pages.filter((page) => page.draft).length, menuPages: pages.filter((page) => page.menus.length).length, collisions: collisions.length, themeDependent: pages.filter((page) => page.themeDependent).length },
+  }
+}
+
+function demoPagePreview(pages, input) {
+  const action = String(input.action || '')
+  const inventory = demoPageInventory(pages)
+  if (action === 'create') {
+    const title = String(input.title || '').trim()
+    const route = demoPageRoute(input.route)
+    const language = String(input.language || 'en-us').toLowerCase()
+    const kind = ['leaf', 'branch', 'standalone'].includes(input.kind) ? input.kind : 'leaf'
+    if (!title) throw new Error('Give the new page a title.')
+    const conflict = inventory.routes.find((entry) => entry.route.toLowerCase() === route.toLowerCase() && demoLanguagesOverlap(entry.language, language, entry.routeScope, 'language'))
+    if (conflict) throw new Error(`${route} is already used by ${conflict.title}. Choose another route.`)
+    const base = route.split('/').filter(Boolean).join('/')
+    const id = kind === 'standalone' ? `content/${base}.${language}.md` : `content/${base}/${kind === 'branch' ? '_index' : 'index'}.${language}.md`
+    return { action, page: { id, title, language, kind, route, draft: input.draft !== false }, changes: [{ kind: 'create', path: id }], conflicts: [], revisions: { [id]: '' }, impact: { files: 1, resources: 0, translations: 1, routeBefore: '', routeAfter: route, aliasesAdded: [], menus: input.menu ? [input.menu] : [], published: input.draft === false ? 1 : 0, drafts: input.draft === false ? 0 : 1 } }
+  }
+  const page = pages.find((item) => item.id === input.id)
+  if (!page) throw new Error('Choose a page from this blog.')
+  if (action === 'rename') {
+    if (page.isHome) throw new Error('The Hugo homepage always uses the site root and cannot be renamed here.')
+    const route = demoPageRoute(input.route)
+    const conflict = inventory.routes.find((entry) => entry.id !== page.id && entry.route.toLowerCase() === route.toLowerCase() && demoLanguagesOverlap(entry.language, page.language, entry.routeScope, 'language'))
+    if (conflict) throw new Error(`${route} is already used by ${conflict.title}. Choose another route.`)
+    if (route === page.route) throw new Error('Choose a different public route for this page.')
+    const aliasesAdded = input.preserveAlias === false || page.aliases.includes(page.route) ? [] : [page.route]
+    return { action, page, changes: [{ kind: 'update', path: page.id, field: 'url', before: page.route, after: route }], conflicts: [], revisions: { [page.id]: page.revision }, impact: { files: 1, resources: page.resources.length, translations: page.translations.length, routeBefore: page.route, routeAfter: route, routeScopeAfter: 'language', urlValue: route.replace(/^\//, ''), aliasesAdded, menus: page.menus, published: page.draft ? 0 : 1, drafts: page.draft ? 1 : 0 } }
+  }
+  if (action !== 'delete') throw new Error('Choose a supported page change.')
+  if (page.kind === 'branch') throw new Error('Remove section pages through their original Hugo files so descendant routes are not misrepresented.')
+  const removeBundle = Boolean(input.includeResources && page.canRemoveBundle)
+  return { action, page, changes: [{ kind: 'delete', path: removeBundle ? page.id.slice(0, page.id.lastIndexOf('/')) : page.id }], conflicts: [], revisions: { [page.id]: page.revision }, impact: { files: removeBundle ? page.resources.length + 1 : 1, resources: page.resources.length, translations: page.translations.length, descendants: page.descendants.length, routeBefore: page.route, routeAfter: '', aliasesAdded: [], menus: page.menus, published: page.draft ? 0 : 1, drafts: page.draft ? 1 : 0, removeBundle, resourcesPreserved: !removeBundle && page.resources.length > 0, sharedBundle: page.sharedBundle, canRemoveBundle: page.canRemoveBundle } }
+}
+
 export function createDemoBridge() {
   let posts = [...samplePosts]
+  let pages = samplePages.map((page) => ({ ...page, aliases: [...page.aliases], menus: [...page.menus], resources: [...page.resources], translations: [...page.translations], descendants: [...page.descendants], unknownFields: [...page.unknownFields] }))
   let recoveryPoints = [
     { id: 'demo-recovery-theme', reason: 'before-theme-change', label: '', createdAt: '2026-08-10T15:20:00.000Z', targets: ['hugo.toml', 'themes/hugo-papermod'] },
     { id: 'demo-recovery-import', reason: 'before-import', label: '', createdAt: '2026-08-09T18:45:00.000Z', targets: ['content', 'hugo.toml'] },
@@ -357,6 +440,46 @@ export function createDemoBridge() {
         return { ...post, taxonomies, tags: preview.taxonomy.id === 'tags' ? change.after : post.tags, revision: `demo-${Date.now()}-${post.id}` }
       })
       return { preview, recoveryPoint: { id: `demo-taxonomy-${Date.now()}`, reason: 'before-taxonomy-change' }, index: demoTaxonomyIndex(posts) }
+    },
+    pageInventory: async () => demoPageInventory(pages),
+    previewPageChange: async (input) => demoPagePreview(pages, input),
+    applyPageChange: async (input) => {
+      const preview = demoPagePreview(pages, input)
+      for (const [id, revision] of Object.entries(preview.revisions)) {
+        const current = pages.find((page) => page.id === id)
+        if (input.expectedRevisions?.[id] !== revision || (current?.revision || '') !== revision) throw new Error('This page changed after the preview. Review the page change again before applying it.')
+      }
+      if (preview.action === 'create') {
+        const page = {
+          ...preview.page,
+          description: String(input.description || ''),
+          routeScope: 'language',
+          explicitUrl: false,
+          aliases: [],
+          menus: input.menu ? [String(input.menu)] : [],
+          section: preview.page.route.split('/').filter(Boolean)[0],
+          layout: String(input.layout || ''),
+          type: String(input.type || ''),
+          themeDependent: Boolean(input.layout || input.type),
+          unknownFields: [],
+          revision: `demo-page-${Date.now()}`,
+          resources: [],
+          translations: [preview.page.id],
+          sharedBundle: false,
+          canRemoveBundle: preview.page.kind === 'leaf',
+          descendants: [],
+          translationKey: '',
+          bodyExcerpt: String(input.body || '').replace(/[#*_>`]/g, '').trim().slice(0, 180),
+        }
+        pages.push(page)
+      } else if (preview.action === 'rename') {
+        pages = pages.map((page) => page.id === preview.page.id ? { ...page, route: preview.impact.routeAfter, routeScope: 'language', explicitUrl: true, aliases: [...new Set([...page.aliases, ...preview.impact.aliasesAdded])], revision: `demo-page-${Date.now()}` } : page)
+      } else {
+        pages = pages.filter((page) => page.id !== preview.page.id)
+      }
+      const recoveryPoint = { id: `demo-page-${Date.now()}`, reason: 'before-page-change', label: `${preview.action} ${preview.page.route}`, createdAt: new Date().toISOString(), targets: preview.changes.map((change) => change.path) }
+      recoveryPoints.unshift(recoveryPoint)
+      return { preview, recoveryPoint, inventory: demoPageInventory(pages) }
     },
     editorialCalendar: async () => {
       const now = '2026-08-11T12:00:00.000Z'
