@@ -136,7 +136,7 @@ Definition of done: a writer can keep a large blog consistently organized withou
 
 ### 0.14.0 — Route and page manager
 
-Status: active
+Status: released on 2026-08-13 — [v0.14.0](https://github.com/gabuvns/plumbago/releases/tag/v0.14.0)
 
 - [x] Browse and create standalone routes such as `/about` and `/gallery`.
 - [x] Detect collisions, aliases, menus, multilingual routes, and theme-dependent layouts.
@@ -147,7 +147,7 @@ Definition of done: a writer can manage the blog's main pages and routes without
 
 ### 1.0.0 — Visual theme configurator
 
-Status: planned
+Status: active
 
 - [ ] Discover supported theme parameters without assuming one universal schema.
 - [ ] Edit common branding, navigation, typography, social, and homepage options visually.
@@ -159,4 +159,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.13.0` provides GitHub connection, one-click deployment, external post refresh, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, persistent editor reading preferences, per-blog native Windows or WSL Hugo selection, and a recoverable manager for tags, categories, and custom Hugo taxonomies. The route and page manager is the active next milestone.
+Version `0.14.0` provides GitHub connection, one-click deployment, external post refresh, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, persistent editor reading preferences, per-blog native Windows or WSL Hugo selection, recoverable taxonomy management, and a portable manager for Hugo pages and public routes. The visual theme configurator is the active final milestone toward 1.0.0.
