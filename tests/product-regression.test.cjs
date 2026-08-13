@@ -403,7 +403,7 @@ test('keeps visual theme customization discoverable, preview-first, portable, an
   assert.match(demo, /applyThemeConfiguration: async/)
 })
 
-test('protects published posts and keeps accessibility and Markdown hierarchy visible in the editor', () => {
+test('protects published posts and keeps categorized accessibility controls and Markdown hierarchy visible', () => {
   const app = read('src/app/App.jsx')
   const editor = read('src/features/editor/Editor.jsx')
   const settings = read('src/features/settings/SettingsModal.jsx')
@@ -418,7 +418,11 @@ test('protects published posts and keeps accessibility and Markdown hierarchy vi
   assert.match(editor, /contentEditable=\{!readOnly\}/)
   assert.match(settings, /type="range"/)
   assert.match(settings, /aria-live="polite"/)
+  assert.match(settings, /settings-nav-button/)
+  assert.match(settings, /normalizeMenuFontSize/)
   assert.match(preferences, /plumbago\.accessibility\.v1/)
+  assert.match(preferences, /--menu-font-size/)
+  assert.match(styles, /font-size: var\(--menu-font-size\)/)
   assert.match(styles, /\.markdown-preview h1 \{ font-size: 2\.15em; \}/)
   assert.match(styles, /\.markdown-preview h2 \{ font-size: 1\.65em; \}/)
   assert.match(styles, /\.markdown-preview h3 \{ font-size: 1\.28em; \}/)
