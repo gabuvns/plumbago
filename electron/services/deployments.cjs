@@ -1,6 +1,7 @@
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { run } = require('../core/runtime.cjs')
+const { runHugo } = require('./hugo.cjs')
 const {
   cloudflareDeploymentStatus,
   cloudflareTokenStatus,
@@ -146,7 +147,7 @@ async function deployGitHubPages(root, token) {
     throw new Error('Reconnect GitHub to grant the repository and workflow permissions required for one-click deployment.')
   }
   const context = await validateBlog(root)
-  await run(root, 'hugo', ['--renderToMemory', '--minify'])
+  await runHugo(root, ['--renderToMemory', '--minify'])
   await transition(root, { state: 'provisioning', step: 'provider', progress: 20 }, `Hugo ${context.hugo || ''} built the site successfully.`)
 
   const configured = await configureGitHubPages(root, token)
@@ -222,7 +223,7 @@ async function deployCloudflarePages(root, token, input) {
   const output = safeBuildDirectory(root)
   await fs.rm(output, { recursive: true, force: true })
   try {
-    await run(root, 'hugo', ['--gc', '--minify', '--destination', '.plumbago-build', '--baseURL', project.liveUrl])
+    await runHugo(root, ['--gc', '--minify', '--destination', '.plumbago-build', '--baseURL', project.liveUrl])
     await transition(root, { state: 'uploading', step: 'build', progress: 35 }, 'Built the production Hugo site locally with its final address.')
     const created = await createCloudflareDeployment(token, {
       accountId: input.accountId,

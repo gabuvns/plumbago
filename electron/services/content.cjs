@@ -6,7 +6,7 @@ const TOML = require('@iarna/toml')
 const YAML = require('yaml')
 const { XMLParser } = require('fast-xml-parser')
 const TurndownService = require('turndown')
-const { run } = require('../core/runtime.cjs')
+const { runHugo } = require('./hugo.cjs')
 const { ensureContentLanguages } = require('./languages.cjs')
 const { movePostToTrash } = require('./trash.cjs')
 
@@ -207,7 +207,7 @@ async function createPost(root, input) {
     if (error.message.includes('Já existe')) throw error
   })
   await ensureContentLanguages(root, [language])
-  await run(root, 'hugo', ['new', 'content', `posts/${slug}/index.${language}.md`])
+  await runHugo(root, ['new', 'content', `posts/${slug}/index.${language}.md`])
   const post = await readPost(root, id)
   return savePost(root, {
     ...post,
@@ -388,7 +388,7 @@ async function importBloggerExport(root, filePath, options = {}, validateBlog = 
         slug = `${source.slug}-${counter++}`
         id = `content/posts/${slug}/index.${language}.md`
       }
-      await run(root, 'hugo', ['new', 'content', `posts/${slug}/index.${language}.md`])
+      await runHugo(root, ['new', 'content', `posts/${slug}/index.${language}.md`])
       const absolute = contentPath(root, id)
       const localized = await localizeBloggerImages(path.dirname(absolute), source.content)
       importedImages += localized.imported

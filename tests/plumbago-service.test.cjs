@@ -38,6 +38,95 @@ test('identifica blogs em pastas do WSL abertas pelo Windows', () => {
   ])
 })
 
+test('separa o caminho do blog da escolha do Hugo nativo ou WSL', () => {
+  assert.deepEqual(runtimeService.runtimeFor(String.raw`C:\Users\Ana\Sites\Meu blog`, { kind: 'wsl', distro: 'Ubuntu-24.04' }), {
+    kind: 'wsl',
+    distro: 'Ubuntu-24.04',
+    workingDirectory: '/mnt/c/Users/Ana/Sites/Meu blog',
+  })
+  assert.deepEqual(runtimeService.runtimeFor(String.raw`\\wsl.localhost\Ubuntu-24.04\mnt\c\Users\Ana\Sites\Meu blog`, { kind: 'wsl', distro: 'Debian' }), {
+    kind: 'wsl',
+    distro: 'Debian',
+    workingDirectory: '/mnt/c/Users/Ana/Sites/Meu blog',
+  })
+  assert.deepEqual(runtimeService.runtimeFor(String.raw`\\wsl.localhost\Ubuntu-24.04\mnt\c\Users\Ana\Sites\Meu blog`, { kind: 'native', platform: 'win32' }), {
+    kind: 'native',
+    platform: 'win32',
+    workingDirectory: String.raw`C:\Users\Ana\Sites\Meu blog`,
+  })
+  assert.throws(
+    () => runtimeService.runtimeFor(String.raw`\\wsl.localhost\Ubuntu-24.04\home\ana\blog`, { kind: 'wsl', distro: 'Debian' }),
+    /stored inside Ubuntu-24\.04/,
+  )
+  assert.deepEqual(service.hugoRuntimeAccess(String.raw`\\wsl.localhost\Ubuntu-24.04\home\ana\blog`, { kind: 'native', platform: 'win32' }), {
+    blogAccessible: false,
+    code: 'windows-wsl-filesystem',
+    values: { distro: 'Ubuntu-24.04' },
+    details: 'Windows Hugo cannot build safely inside the Linux filesystem of Ubuntu-24.04. Choose Hugo from that WSL distribution, or move the blog to a Windows drive.',
+  })
+  assert.deepEqual(service.hugoRuntimeAccess(String.raw`\\wsl.localhost\Ubuntu-24.04\mnt\c\Users\Ana\Sites\Meu blog`, { kind: 'native', platform: 'win32' }), {
+    blogAccessible: true,
+    code: '',
+    values: {},
+    details: '',
+  })
+
+  const candidates = service.hugoRuntimeCandidates(String.raw`C:\Users\Ana\Sites\Meu blog`, {
+    platform: 'win32',
+    selected: { kind: 'wsl', distro: 'Ubuntu-24.04' },
+    wslDistributions: ['Ubuntu-24.04', 'Debian'],
+  })
+  assert.deepEqual(candidates, [
+    { kind: 'native', platform: 'win32' },
+    { kind: 'wsl', distro: 'Ubuntu-24.04' },
+    { kind: 'wsl', distro: 'Debian' },
+  ])
+})
+
+test('mantém a escolha do runtime do Hugo fora do projeto e reconhece instalações Snap', () => {
+  const root = String.raw`C:\Users\Ana\Sites\Meu blog`
+  assert.deepEqual(service.setHugoRuntimeSelection(root, { kind: 'wsl', distro: 'Ubuntu-24.04' }), { kind: 'wsl', distro: 'Ubuntu-24.04' })
+  assert.deepEqual(service.hugoRuntimeSelection(root), { kind: 'wsl', distro: 'Ubuntu-24.04' })
+  service.clearHugoRuntimeSelection(root)
+  assert.deepEqual(service.hugoInstallAssistance({ kind: 'wsl', distro: 'Ubuntu-24.04' }, true, '/snap/bin/hugo'), {
+    mode: 'command',
+    command: 'sudo snap refresh hugo',
+    url: 'https://gohugo.io/installation/linux/',
+    repositoryMayLag: false,
+  })
+  assert.equal(service.isNoHugoUpgradeAvailable('No applicable upgrade found.'), true)
+  assert.equal(service.isNoHugoUpgradeAvailable('The source could not be reached.'), false)
+})
+
+test('inventaria e testa o Hugo selecionado sem escrever preferências no blog', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-hugo-runtime')
+  t.after(async () => {
+    service.clearHugoRuntimeSelection(root)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+  await fs.mkdir(path.join(root, 'content'))
+  await fs.writeFile(path.join(root, 'hugo.toml'), 'title = "Runtime test"\n', 'utf8')
+  service.setHugoRuntimeSelection(root, { kind: 'native', platform: process.platform })
+  const inventory = await service.hugoRuntimeInventory(root)
+  assert.equal(inventory.selectedId, `native:${process.platform}`)
+  assert.equal(inventory.runtimes.length, 1)
+  assert.equal(inventory.runtimes[0].selected, true)
+  assert.equal(inventory.runtimes[0].blogAccessible, true)
+  assert.equal(inventory.runtimes[0].hugo.status, 'ready')
+  assert.equal(inventory.runtimes[0].build.status, 'ready')
+  assert.match(inventory.runtimes[0].hugo.versionNumber, /^\d+\.\d+\.\d+$/)
+  assert.equal((await service.testHugoRuntime(root, inventory.selectedId)).id, inventory.selectedId)
+  assert.deepEqual((await fs.readdir(root)).sort(), ['content', 'hugo.toml'])
+
+  await fs.mkdir(path.join(root, 'layouts'))
+  await fs.writeFile(path.join(root, 'layouts', 'index.html'), '{{ with }}', 'utf8')
+  const broken = await service.hugoRuntimeInventory(root)
+  assert.equal(broken.runtimes[0].hugo.status, 'ready')
+  assert.equal(broken.runtimes[0].build.status, 'error')
+  assert.equal(broken.runtimes[0].ready, false)
+  await assert.rejects(service.testHugoRuntime(root, broken.selectedId), /could not build this blog/)
+})
+
 test('encaminha autenticação HTTPS do GitHub sem gravar o token no remoto', () => {
   const token = 'github-token-used-only-for-this-test'
   const authentication = service.githubGitEnvironment(token)
@@ -144,7 +233,7 @@ test('direciona a ajuda do Hugo para o ambiente correto', async () => {
   assert.match(hugoDiagnostics({ root: '/home/ana/blog', runtime: { kind: 'wsl', distro: 'Ubuntu-24.04' }, hugo: null, hugoExecutable: '/usr/local/bin/hugo', git: 'git version 2.43.0' }), /WSL \(Ubuntu-24\.04\)[\s\S]*Hugo: Not found[\s\S]*\/usr\/local\/bin\/hugo/)
   assert.deepEqual(service.hugoInstallAssistance({ kind: 'native', platform: 'win32' }), {
     mode: 'automatic',
-    command: 'winget install --id Hugo.Hugo.Extended -e --source winget',
+    command: 'winget install --id Hugo.Hugo.Extended -e --source winget --accept-package-agreements --accept-source-agreements',
     url: 'https://gohugo.io/installation/windows/',
     repositoryMayLag: false,
   })

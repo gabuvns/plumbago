@@ -84,6 +84,32 @@ export function createDemoBridge() {
   }
   let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   const demoQuery = new URLSearchParams(window.location.search)
+  const demoHugoScenario = demoQuery.get('hugo') || 'dual'
+  const demoWslHome = demoHugoScenario === 'wsl-home'
+  if (demoWslHome) context = { ...context, root: '\\\\wsl.localhost\\Ubuntu\\home\\voce\\meu-blog' }
+  let demoSelectedHugoRuntime = ['missing', 'windows', 'update-failed'].includes(demoHugoScenario) ? 'native:win32' : 'wsl:Ubuntu'
+  let demoWindowsHugoInstalled = demoHugoScenario !== 'missing'
+  let demoWindowsHugoVersion = '0.165.0'
+  let demoHugoUpdateFailure = demoHugoScenario === 'update-failed'
+
+  function demoHugoRuntimeInventory() {
+    const nativeHugo = demoWindowsHugoInstalled
+      ? { status: 'ready', version: `hugo v${demoWindowsHugoVersion}+extended windows/amd64`, versionNumber: demoWindowsHugoVersion, executable: 'C:\\Program Files\\Hugo\\bin\\hugo.exe', extended: true, architecture: 'amd64', details: '' }
+      : { status: 'missing', version: '', versionNumber: '', executable: '', extended: false, architecture: '', details: '' }
+    const wslHugo = { status: 'ready', version: 'hugo v0.164.0+extended linux/amd64', versionNumber: '0.164.0', executable: '/snap/bin/hugo', extended: true, architecture: 'amd64', details: '' }
+    const wslBuild = demoHugoScenario === 'build-failed'
+      ? { status: 'error', details: 'Error: theme requires Hugo 0.165.0 or newer; function "try" is not defined.' }
+      : { status: 'ready', details: '' }
+    const runtimes = [
+      { id: 'native:win32', selected: demoSelectedHugoRuntime === 'native:win32', runtime: { kind: 'native', platform: 'win32' }, environment: { kind: 'native', platform: 'win32', label: 'Windows' }, blogAccessible: !demoWslHome, accessCode: demoWslHome ? 'windows-wsl-filesystem' : '', accessValues: demoWslHome ? { distro: 'Ubuntu' } : {}, accessDetails: demoWslHome ? 'Windows Hugo cannot build safely inside the Linux filesystem of Ubuntu.' : '', ready: !demoWslHome && nativeHugo.status === 'ready', hugo: nativeHugo, build: { status: demoWslHome ? 'not-tested' : nativeHugo.status === 'ready' ? 'ready' : 'not-tested', details: '' }, assistance: { mode: 'automatic', command: `${demoWindowsHugoInstalled ? 'winget upgrade' : 'winget install'} --id Hugo.Hugo.Extended -e --source winget --accept-package-agreements --accept-source-agreements`, url: 'https://gohugo.io/installation/windows/', repositoryMayLag: false } },
+      { id: 'wsl:Ubuntu', selected: demoSelectedHugoRuntime === 'wsl:Ubuntu', runtime: { kind: 'wsl', distro: 'Ubuntu' }, environment: { kind: 'wsl', distro: 'Ubuntu', label: 'WSL · Ubuntu' }, blogAccessible: true, accessCode: '', accessValues: {}, accessDetails: '', ready: wslBuild.status === 'ready', hugo: wslHugo, build: wslBuild, assistance: { mode: 'command', command: 'sudo snap refresh hugo', url: 'https://gohugo.io/installation/linux/', repositoryMayLag: false } },
+    ]
+    if (demoHugoScenario === 'inaccessible') runtimes.push({ id: 'wsl:Debian', selected: false, runtime: { kind: 'wsl', distro: 'Debian' }, environment: { kind: 'wsl', distro: 'Debian', label: 'WSL · Debian' }, blogAccessible: false, accessCode: 'runtime-path-unavailable', accessValues: {}, accessDetails: 'This blog is stored inside Ubuntu and cannot be opened from Debian.', ready: false, hugo: { ...wslHugo, version: 'hugo v0.163.0+extended linux/amd64', versionNumber: '0.163.0', executable: '/usr/local/bin/hugo' }, build: { status: 'not-tested', details: '' }, assistance: { mode: 'command', command: 'sudo apt update && sudo apt install -y hugo', url: 'https://gohugo.io/installation/linux/', repositoryMayLag: true } })
+    const current = runtimes.find((item) => item.selected) || runtimes[0]
+    return { ready: current.ready, selectedId: current.id, environment: current.environment, hugo: current.hugo, assistance: current.assistance, runtimes, wslDistributions: ['Ubuntu', ...(demoHugoScenario === 'inaccessible' ? ['Debian'] : [])] }
+  }
+  const initialHugoRuntime = demoHugoRuntimeInventory().runtimes.find((item) => item.selected)
+  context = { ...context, runtime: initialHugoRuntime.runtime, hugo: initialHugoRuntime.hugo.version || null, hugoExecutable: initialHugoRuntime.hugo.executable }
   if (demoQuery.get('calendar') === 'midnight') {
     posts = posts.map((item) => item.id === samplePosts[1].id ? { ...item, publishDate: '2026-08-12T02:30:00.000Z' } : item)
   }
@@ -184,8 +210,24 @@ export function createDemoBridge() {
       trash = trash.filter((entry) => entry.id !== id)
       return item
     },
-    hugoReadiness: async () => ({ ready: true, environment: { kind: 'wsl', distro: 'Ubuntu', label: 'WSL · Ubuntu' }, hugo: { status: 'ready', version: context.hugo, executable: context.hugoExecutable, extended: true, details: '' }, assistance: { mode: 'command', command: 'sudo apt update && sudo apt install -y hugo', url: 'https://gohugo.io/installation/linux/', repositoryMayLag: true }, wslDistributions: [] }),
-    installHugo: async () => ({ ready: true, environment: { kind: 'native', platform: 'win32', label: 'win32' }, hugo: { status: 'ready', version: 'hugo v0.164.0+extended', executable: 'C:\\Program Files\\Hugo\\bin\\hugo.exe', extended: true, details: '' }, assistance: { mode: 'automatic', command: 'winget upgrade --id Hugo.Hugo.Extended -e --source winget', url: 'https://gohugo.io/installation/windows/' }, wslDistributions: ['Ubuntu'] }),
+    hugoReadiness: async () => demoHugoRuntimeInventory(),
+    installHugo: async (runtimeId) => {
+      if (runtimeId !== 'native:win32') throw new Error('Run the copied update command inside WSL, then test again.')
+      if (demoHugoUpdateFailure) { demoHugoUpdateFailure = false; throw new Error('Windows Package Manager could not reach its source. Check the connection and try again.') }
+      const installed = demoWindowsHugoInstalled
+      demoWindowsHugoInstalled = true
+      demoWindowsHugoVersion = '0.166.0'
+      const readiness = demoHugoRuntimeInventory()
+      if (demoSelectedHugoRuntime === 'native:win32') context = { ...context, hugo: readiness.hugo.version, hugoExecutable: readiness.hugo.executable }
+      return { ...readiness, operation: { state: installed ? 'updated' : 'installed', runtimeId }, context }
+    },
+    selectHugoRuntime: async (runtimeId) => {
+      const candidate = demoHugoRuntimeInventory().runtimes.find((item) => item.id === runtimeId)
+      if (!candidate?.ready) throw new Error(candidate?.accessDetails || 'Install Hugo in this environment before selecting it.')
+      demoSelectedHugoRuntime = runtimeId
+      context = { ...context, runtime: candidate.runtime, hugo: candidate.hugo.version, hugoExecutable: candidate.hugo.executable }
+      return { selection: candidate.runtime, readiness: demoHugoRuntimeInventory(), context }
+    },
     useWslForBlog: async (distro) => { context = { ...context, root: `\\\\wsl.localhost\\${distro}\\home\\voce\\meu-blog`, runtime: { kind: 'wsl', distro }, hugoExecutable: '/usr/bin/hugo' }; return context },
     importImages: async () => [{ name: 'nova-imagem.svg', markdown: '![Descrição da imagem](nova-imagem.svg)' }],
     importDroppedImages: async () => [{ name: 'imagem-arrastada.svg', markdown: '![Descrição da imagem](imagem-arrastada.svg)' }],

@@ -45,11 +45,13 @@ Official builds offer **Continue with GitHub** through a one-time browser code. 
 
 ## Made for Windows + WSL
 
-Windows users can keep their Hugo project inside WSL and select it through `\\wsl.localhost`. Plumbago detects the distribution and runs Hugo and Git inside that Linux environment, where the project's tools and credentials already live.
+Windows users can keep their Hugo project inside WSL and select it through `\\wsl.localhost`. Plumbago detects both the native Windows installation and every available WSL installation instead of assuming that one Hugo fits every blog.
 
-The **Prepare Hugo** screen shows the exact environment, version, edition, and executable used by the selected blog. It can install or update Hugo Extended with Winget on Windows, provide the appropriate command and official guide on WSL, Linux, and macOS, and test the installation again without restarting Plumbago. If a blog was selected through a Windows path but the preferred Hugo lives in WSL, Plumbago can reopen that same folder through a chosen WSL distribution so preview, themes, Git, and publishing use one consistent environment.
+The **Manage Hugo** screen shows each environment's version, edition, architecture, executable, and whether it can build the current theme. Choose one runtime per blog and Plumbago uses it for site creation, preview, themes, reviews, deployments, and publishing without moving the blog folder. A Windows-drive blog can use either native Hugo or Hugo through WSL. A blog stored inside WSL's Linux filesystem uses Hugo from that distribution because native Windows Hugo cannot safely acquire Hugo's build lock there.
 
-Plumbago checks Git in that exact environment, explains whether it is missing from Windows or a specific WSL distribution, and provides the appropriate installation command. After installing, **Check again** continues the interrupted publishing task. Existing Hugo folders without version history can be initialized safely from the same screen; initialization remains local until you explicitly connect and publish to a remote repository.
+Plumbago can install or update Hugo Extended with Winget on Windows after showing the exact command and asking for confirmation. On WSL, Linux, and macOS it provides the appropriate copyable update command and official guide. A candidate is selected only after its installed Hugo performs a real in-memory build of the current blog, so an incompatible theme or Hugo edition is explained before it disrupts preview or publishing.
+
+Git is checked separately in the environment implied by the blog path, so choosing a WSL Hugo for a Windows-drive blog does not silently move Git credentials or repository behavior. Plumbago explains whether Git is missing from Windows or a specific WSL distribution and provides the appropriate installation command. After installing, **Check again** continues the interrupted publishing task. Existing Hugo folders without version history can be initialized safely from the same screen; initialization remains local until you explicitly connect and publish to a remote repository.
 
 On Linux and macOS, those tools run natively. The same blog stays portable across all three platforms.
 

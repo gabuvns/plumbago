@@ -26,7 +26,8 @@ contextBridge.exposeInMainWorld('plumbago', {
   restoreTrashItem: (id) => ipcRenderer.invoke('plumbago:trash-restore', id),
   deleteTrashItem: (id) => ipcRenderer.invoke('plumbago:trash-delete', id),
   hugoReadiness: () => ipcRenderer.invoke('plumbago:hugo-readiness'),
-  installHugo: () => ipcRenderer.invoke('plumbago:install-hugo'),
+  installHugo: (runtimeId) => ipcRenderer.invoke('plumbago:install-hugo', runtimeId),
+  selectHugoRuntime: (runtimeId) => ipcRenderer.invoke('plumbago:select-hugo-runtime', runtimeId),
   useWslForBlog: (distro) => ipcRenderer.invoke('plumbago:use-wsl-for-blog', distro),
   importImages: (postId) => ipcRenderer.invoke('plumbago:import-images', postId),
   importDroppedImages: (postId, files) => {

@@ -2,6 +2,7 @@ const fs = require('node:fs/promises')
 const path = require('node:path')
 const { githubRequest } = require('../core/http.cjs')
 const { run } = require('../core/runtime.cjs')
+const { runHugo } = require('./hugo.cjs')
 const {
   defaultGitHubPagesUrl,
   githubAccount,
@@ -240,7 +241,7 @@ async function publishBlog(root, message, options = {}) {
     error.review = review
     throw error
   }
-  await run(root, 'hugo', ['--renderToMemory', '--minify'])
+  await runHugo(root, ['--renderToMemory', '--minify'])
   const synced = await syncGit(root, message, options)
   return {
     log: [
@@ -323,7 +324,7 @@ async function publishingHealth(root) {
     action: 'github',
   })
   try {
-    await run(root, 'hugo', ['--renderToMemory', '--minify'])
+    await runHugo(root, ['--renderToMemory', '--minify'])
     checks.push({ id: 'build', state: 'ok', detail: 'Hugo built the website successfully.', action: 'preview' })
   } catch (error) {
     checks.push({ id: 'build', state: 'error', detail: error.message, action: 'preview' })

@@ -1,9 +1,10 @@
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const YAML = require('yaml')
-const { executablePath, run, runtimeFor } = require('../core/runtime.cjs')
+const { run } = require('../core/runtime.cjs')
 const { slugify } = require('./content.cjs')
 const { ensureGitRepository, gitVersion } = require('./git.cjs')
+const { hugoRuntimeSelection, hugoVersion, runHugo, setHugoRuntimeSelection } = require('./hugo.cjs')
 const { createRecoveryPoint, restoreRecoveryPoint, siteConfigurationPaths } = require('./history.cjs')
 const { CONFIG_FILES } = require('./languages.cjs')
 const { compatibilityMessage, inspectThemeCompatibility } = require('./theme-compatibility.cjs')
@@ -217,16 +218,15 @@ async function validateBlog(root) {
   const stat = await fs.stat(path.join(root, 'content')).catch(() => null)
   if (!stat?.isDirectory()) throw new Error('A pasta content não foi encontrada neste site Hugo.')
 
-  const runtime = runtimeFor(root)
-  const [hugo, hugoExecutable, git] = await Promise.all([
-    run(root, 'hugo', ['version']).then((value) => value.stdout).catch(() => null),
-    executablePath(root, 'hugo'),
+  const runtime = hugoRuntimeSelection(root)
+  const [hugoStatus, git] = await Promise.all([
+    hugoVersion(root),
     gitVersion(root).then((value) => value.status === 'ready' ? value.version : null),
   ])
   const rawConfig = await fs.readFile(path.join(root, config), 'utf8').catch(() => '')
   const configuredTheme = readThemeValue(rawConfig, config)
   const theme = Array.isArray(configuredTheme) ? configuredTheme[0] || '' : configuredTheme
-  return { root, config, runtime, hugo, hugoExecutable, git, theme }
+  return { root, config, runtime, hugo: hugoStatus.status === 'ready' ? hugoStatus.version : null, hugoExecutable: hugoStatus.executable, git, theme }
 }
 
 async function installTheme(root, slug) {
@@ -287,7 +287,7 @@ async function installResolvedTheme(root, theme) {
 
   await updateSiteConfig(root, { theme: theme.folder })
   try {
-    await run(root, 'hugo', ['--renderToMemory', '--minify'])
+    await runHugo(root, ['--renderToMemory', '--minify'])
   } catch (error) {
     await fs.writeFile(configPath, originalConfig, 'utf8')
     if (added) await rollbackAddedTheme(root, theme.folder)
@@ -325,7 +325,7 @@ async function rollbackAddedTheme(root, folder) {
   await fs.rm(moduleRoot, { recursive: true, force: true })
 }
 
-async function createSite(parentRoot, input) {
+async function createSite(parentRoot, input, runtimeSelection = null) {
   const title = String(input?.title || '').trim()
   const folder = slugify(input?.folder || title)
   const languageCode = String(input?.languageCode || 'en-US').replace(/[^a-z-]/gi, '') || 'en-US'
@@ -338,7 +338,8 @@ async function createSite(parentRoot, input) {
   if (!parentStat.isDirectory()) throw new Error('Escolha uma pasta onde o novo blog será criado.')
   if (await fs.stat(target).catch(() => null)) throw new Error(`A pasta ${folder} já existe.`)
 
-  await run(parent, 'hugo', ['new', 'site', folder, '--format', 'toml'])
+  await runHugo(parent, ['new', 'site', folder, '--format', 'toml'])
+  if (runtimeSelection) setHugoRuntimeSelection(target, runtimeSelection)
   await updateSiteConfig(target, { title, languageCode })
   await ensureGitRepository(target)
 

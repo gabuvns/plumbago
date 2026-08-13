@@ -1,5 +1,6 @@
 import { Activity, CalendarDays, Download, FileSearch, FileText, History, ImagePlus, MoreHorizontal, Palette, Settings } from 'lucide-react'
 import { useI18n } from '../../i18n'
+import { hugoEnvironment } from '../../lib/hugo'
 
 export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, onCalendar, onReview, onHealth, onImport, onSettings }) {
   const { t, locale } = useI18n()
@@ -19,7 +20,7 @@ export function Sidebar({ context, onChooseBlog, onImages, onThemes, onHistory, 
       <div className="sidebar-spacer" />
       <div className="site-card">
         <div className="site-icon">H</div>
-        <div><strong>{context.root.split(/[\\/]/).filter(Boolean).at(-1)}</strong><span>{context.runtime.kind === 'wsl' ? `WSL · ${context.runtime.distro}` : t('sidebar.localFolder')}</span></div>
+        <div><strong>{context.root.split(/[\\/]/).filter(Boolean).at(-1)}</strong><span>{hugoEnvironment(context.runtime)}</span></div>
         <button className="icon-button small" onClick={onChooseBlog} title={t('sidebar.changeBlog')}><MoreHorizontal size={17} /></button>
       </div>
       <button className="nav-item muted" aria-label={t('sidebar.settings')} title={t('sidebar.settings')} onClick={onSettings}><Settings size={18} /><span>{t('sidebar.settings')}</span><small>{locale === 'en-US' ? 'EN' : 'PT'}</small></button>

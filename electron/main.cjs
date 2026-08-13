@@ -17,6 +17,8 @@ let cloudflareToken = ''
 let encryptedCloudflareToken = ''
 let bloggerImportPath = ''
 let ignoreGitHubCli = false
+let hugoRuntimeSelections = {}
+let defaultHugoRuntime = null
 
 const GITHUB_CLIENT_ID = process.env.PLUMBAGO_GITHUB_CLIENT_ID || packageMetadata.plumbago?.githubOAuthClientId || ''
 
@@ -44,9 +46,12 @@ async function loadSettings() {
   encryptedCloudflareToken = String(settings.cloudflareToken || '')
   githubToken = decryptStoredToken(encryptedGitHubToken)
   cloudflareToken = decryptStoredToken(encryptedCloudflareToken)
+  hugoRuntimeSelections = settings.hugoRuntimeSelections && typeof settings.hugoRuntimeSelections === 'object' ? settings.hugoRuntimeSelections : {}
+  defaultHugoRuntime = settings.defaultHugoRuntime && typeof settings.defaultHugoRuntime === 'object' ? settings.defaultHugoRuntime : null
   if (githubToken) githubTokenSource = 'plumbago'
   if (!settings.blogRoot) return
   try {
+    activateStoredHugoRuntime(settings.blogRoot)
     await service.validateBlog(settings.blogRoot)
     blogRoot = settings.blogRoot
   } catch {
@@ -56,7 +61,29 @@ async function loadSettings() {
 
 async function persistSettings() {
   await fs.mkdir(path.dirname(settingsPath()), { recursive: true })
-  await fs.writeFile(settingsPath(), JSON.stringify({ blogRoot, githubToken: encryptedGitHubToken, cloudflareToken: encryptedCloudflareToken }, null, 2), 'utf8')
+  await fs.writeFile(settingsPath(), JSON.stringify({ blogRoot, githubToken: encryptedGitHubToken, cloudflareToken: encryptedCloudflareToken, hugoRuntimeSelections, defaultHugoRuntime }, null, 2), 'utf8')
+}
+
+function activateStoredHugoRuntime(root) {
+  const key = service.runtimePreferenceKey(root)
+  const selection = hugoRuntimeSelections[key] || defaultHugoRuntime
+  if (selection) {
+    try { service.setHugoRuntimeSelection(root, selection) } catch { service.clearHugoRuntimeSelection(root) }
+  } else {
+    service.clearHugoRuntimeSelection(root)
+  }
+}
+
+function rememberHugoRuntime(root, selection) {
+  const normalized = service.setHugoRuntimeSelection(root, selection)
+  hugoRuntimeSelections[service.runtimePreferenceKey(root)] = normalized
+  defaultHugoRuntime = normalized
+  return normalized
+}
+
+function stopPreview() {
+  previewProcess?.kill()
+  previewProcess = null
 }
 
 async function setCloudflareToken(token) {
@@ -107,6 +134,7 @@ function registerIpc() {
   ipcMain.handle('plumbago:choose-blog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'], title: 'Escolha a pasta do seu blog Hugo' })
     if (result.canceled) return null
+    activateStoredHugoRuntime(result.filePaths[0])
     const context = await service.validateBlog(result.filePaths[0])
     blogRoot = result.filePaths[0]
     await persistSettings()
@@ -115,8 +143,12 @@ function registerIpc() {
   ipcMain.handle('plumbago:create-blog', async (_event, input) => {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'], title: 'Escolha onde o novo blog será criado' })
     if (result.canceled) return null
-    const context = await service.createSite(result.filePaths[0], input)
+    const parent = result.filePaths[0]
+    if (defaultHugoRuntime) service.setHugoRuntimeSelection(parent, defaultHugoRuntime)
+    const runtimeSelection = service.hugoRuntimeSelection(parent)
+    const context = await service.createSite(parent, input, runtimeSelection)
     blogRoot = context.root
+    rememberHugoRuntime(blogRoot, runtimeSelection)
     await persistSettings()
     return context
   })
@@ -147,13 +179,38 @@ function registerIpc() {
   ipcMain.handle('plumbago:trash-restore', (_event, id) => service.restoreTrashItem(requireBlog(), id))
   ipcMain.handle('plumbago:trash-delete', (_event, id) => service.deleteTrashItem(requireBlog(), id))
   ipcMain.handle('plumbago:hugo-readiness', () => service.hugoReadiness(requireBlog()))
-  ipcMain.handle('plumbago:install-hugo', () => service.installHugo(requireBlog()))
+  ipcMain.handle('plumbago:install-hugo', async (_event, runtimeId) => {
+    const root = requireBlog()
+    const readiness = await service.installHugo(root, runtimeId)
+    return { ...readiness, context: await service.validateBlog(root) }
+  })
+  ipcMain.handle('plumbago:select-hugo-runtime', async (_event, runtimeId) => {
+    const root = requireBlog()
+    const previous = service.hugoRuntimeSelection(root)
+    const key = service.runtimePreferenceKey(root)
+    const previousStored = hugoRuntimeSelections[key]
+    const previousDefault = defaultHugoRuntime
+    try {
+      const result = await service.selectHugoRuntime(root, runtimeId)
+      rememberHugoRuntime(root, result.selection)
+      await persistSettings()
+      stopPreview()
+      return { ...result, context: await service.validateBlog(root) }
+    } catch (error) {
+      service.setHugoRuntimeSelection(root, previous)
+      if (previousStored) hugoRuntimeSelections[key] = previousStored
+      else delete hugoRuntimeSelections[key]
+      defaultHugoRuntime = previousDefault
+      throw error
+    }
+  })
   ipcMain.handle('plumbago:use-wsl-for-blog', async (_event, distro) => {
-    const target = await service.useWslForBlog(requireBlog(), distro)
-    const context = await service.validateBlog(target)
-    blogRoot = target
+    const root = requireBlog()
+    const result = await service.selectHugoRuntime(root, `wsl:${distro}`)
+    rememberHugoRuntime(root, result.selection)
     await persistSettings()
-    return context
+    stopPreview()
+    return service.validateBlog(root)
   })
   ipcMain.handle('plumbago:git-status', () => service.gitStatus(requireBlog()))
   ipcMain.handle('plumbago:git-readiness', () => service.gitReadiness(requireBlog()))
@@ -314,7 +371,7 @@ function registerIpc() {
     const root = requireBlog()
     await service.ensureBundleLanguages(root)
     if (!previewProcess || previewProcess.exitCode !== null) {
-      previewProcess = service.spawnLongRunning(root, 'hugo', ['server', '--buildDrafts', '--disableFastRender', '--port', '1313'])
+      previewProcess = service.spawnHugo(root, ['server', '--buildDrafts', '--disableFastRender', '--port', '1313'])
       await new Promise((resolve) => setTimeout(resolve, 900))
     }
     await shell.openExternal('http://localhost:1313')
@@ -352,6 +409,6 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  previewProcess?.kill()
+  stopPreview()
   if (process.platform !== 'darwin') app.quit()
 })

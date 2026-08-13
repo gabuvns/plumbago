@@ -1,6 +1,6 @@
 const fs = require('node:fs/promises')
 const path = require('node:path')
-const { run, runtimeFor } = require('../../core/runtime.cjs')
+const { runHugo, selectedHugoRuntime } = require('../hugo.cjs')
 const { finding } = require('./content.cjs')
 
 async function findNamed(directory, names, output = []) {
@@ -25,11 +25,11 @@ async function inspectOutput(root, baseURL) {
   await fs.rm(output, { recursive: true, force: true })
   await fs.mkdir(path.dirname(output), { recursive: true })
   try {
-    const runtime = runtimeFor(root)
+    const runtime = selectedHugoRuntime(root)
     const cacheArgument = runtime.kind === 'wsl' && process.platform === 'win32' ? `${runtime.workingDirectory}/.plumbago/review-cache` : cache
     const args = ['--minify', '--cleanDestinationDir', '--cacheDir', cacheArgument, '--destination', '.plumbago/review-output']
     if (baseURL) args.push('--baseURL', baseURL)
-    await run(root, 'hugo', args)
+    await runHugo(root, args)
   } catch (error) {
     findings.push(finding('hugo-build-failed', 'error', { scope: 'output', detail: error.message }))
     await fs.rm(output, { recursive: true, force: true })

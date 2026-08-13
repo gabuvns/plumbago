@@ -198,22 +198,22 @@ Goal: a Windows writer can understand, choose, test, and safely update the exact
 
 ### Product work
 
-- [ ] Detect native Windows Hugo and each available WSL Hugo installation independently, including version, Extended edition, architecture, path, and availability.
-- [ ] Show both environments together with plain-language health and compatibility guidance instead of collapsing them into the currently selected blog runtime.
-- [ ] Let the writer choose a runtime per blog, test a candidate before saving it, and preserve the selection without adding Plumbago-only files to the Hugo project.
-- [ ] Route site creation, preview, builds, theme validation, and Hugo diagnostics through the selected runtime while preserving Windows, UNC, spaces, apostrophes, and Unicode paths.
-- [ ] Offer guided updates for the selected environment using a preview of the exact method and version, explicit confirmation, progress, retry, and technical details.
-- [ ] Never invoke an installer silently; keep manual official-installation guidance available when an automatic method is unavailable or unsafe.
-- [ ] Keep the current runtime usable after a failed update and re-test it before reporting success.
-- [ ] Add complete EN-US/PT-BR copy and keyboard/screen-reader accessible runtime controls.
+- [x] Detect native Windows Hugo and each available WSL Hugo installation independently, including version, Extended edition, architecture, path, and availability.
+- [x] Show both environments together with plain-language health and compatibility guidance instead of collapsing them into the currently selected blog runtime.
+- [x] Let the writer choose a runtime per blog, test a candidate before saving it, and preserve the selection without adding Plumbago-only files to the Hugo project.
+- [x] Route site creation, preview, builds, theme validation, and Hugo diagnostics through the selected runtime while preserving Windows, UNC, spaces, apostrophes, and Unicode paths.
+- [x] Offer guided updates for the selected environment using the installed version and an exact method preview, explicit confirmation, progress, retry, and technical details.
+- [x] Never invoke an installer silently; keep manual official-installation guidance available when an automatic method is unavailable or unsafe.
+- [x] Keep the current runtime usable after a failed update and re-test it with a real site build before reporting success.
+- [x] Add complete EN-US/PT-BR copy and keyboard/screen-reader accessible runtime controls.
 
 ### Release gate
 
-- [ ] Native Windows, WSL, multiple-distribution, missing-Hugo, unsupported-version, selection, update, rollback/failure, IPC, and product-contract tests pass.
-- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
-- [ ] Browser demos cover dual installations, runtime choice, missing runtime, update confirmation, success, and recovery without console errors.
-- [ ] A Windows package is inspected and the representative Windows + WSL path flow is exercised where the available environment permits it.
-- [ ] Close `CHANGELOG.md` as 0.12.3 and bump package metadata.
+- [x] Native Windows, WSL, multiple-distribution, missing-Hugo, unsupported-version, selection, update, rollback/failure, IPC, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser demos cover dual installations, runtime choice, missing runtime, WSL filesystem access, incompatible builds, update confirmation, success, and recovery without console errors.
+- [x] A Windows package is inspected and the representative Windows + WSL path flow is exercised where the available environment permits it.
+- [x] Close `CHANGELOG.md` as 0.12.3 and bump package metadata.
 - [ ] Create the release commit and `v0.12.3` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
 

@@ -317,3 +317,36 @@ test('protects published posts and keeps accessibility and Markdown hierarchy vi
   assert.match(styles, /\.markdown-preview h2 \{ font-size: 1\.65em; \}/)
   assert.match(styles, /\.markdown-preview h3 \{ font-size: 1\.28em; \}/)
 })
+
+test('keeps native Windows and WSL Hugo selection persistent, isolated, and routed through one service', () => {
+  const main = read('electron/main.cjs')
+  const preload = read('electron/preload.cjs')
+  const runtime = read('electron/core/runtime.cjs')
+  const hugo = read('electron/services/hugo.cjs')
+  const setup = read('src/features/setup/HugoSetupModal.jsx')
+  const demo = read('src/demo.js')
+
+  assert.match(main, /hugoRuntimeSelections/)
+  assert.match(main, /defaultHugoRuntime/)
+  assert.match(main, /plumbago:select-hugo-runtime/)
+  assert.match(main, /service\.spawnHugo/)
+  assert.match(main, /function stopPreview\(\)/)
+  assert.match(preload, /selectHugoRuntime:/)
+  assert.match(runtime, /nativeWorkingDirectory/)
+  assert.match(runtime, /wslWorkingDirectory/)
+  assert.match(hugo, /hugoRuntimeInventory/)
+  assert.match(hugo, /inspectHugoBuild/)
+  assert.match(hugo, /runHugo/)
+  assert.match(setup, /status\?\.runtimes/)
+  assert.match(setup, /api\.selectHugoRuntime\(runtime\.id\)/)
+  assert.match(setup, /hugoSetup\.confirmAutomaticCopy/)
+  assert.match(demo, /native:win32/)
+  assert.match(demo, /wsl:Ubuntu/)
+
+  for (const file of ['content.cjs', 'deployments.cjs', 'publishing.cjs', 'site.cjs']) {
+    const source = read(`electron/services/${file}`)
+    assert.match(source, /runHugo/)
+    assert.doesNotMatch(source, /run\([^\n]+, 'hugo'/)
+  }
+  assert.match(read('electron/services/review/output.cjs'), /runHugo/)
+})

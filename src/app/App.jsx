@@ -641,7 +641,7 @@ export default function App() {
       {reviewOpen && <Suspense fallback={<div className="app-loading"><LoaderCircle className="spin" /></div>}><ReviewModal onClose={() => setReviewOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} notify={notify} /></Suspense>}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}
-      {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} notify={notify} />}
+      {hugoSetupOpen && <HugoSetupModal onClose={() => setHugoSetupOpen(false)} onReady={finishHugoSetup} onContextChange={setContext} notify={notify} />}
       {bloggerOpen && <BloggerImportModal onClose={() => setBloggerOpen(false)} onImported={handleBloggerImported} notify={notify} />}
       {settingsOpen && <SettingsModal context={context} accessibility={accessibility} onAccessibilityChange={setAccessibility} onClose={() => setSettingsOpen(false)} onChooseBlog={() => { setSettingsOpen(false); chooseBlog() }} onCreateBlog={() => { setSettingsOpen(false); setCreateBlogOpen(true) }} onSync={showPublish} onDeploy={showDeploy} onGitHub={showGitHub} onGitSetup={() => { setSettingsOpen(false); requestGitSetup(() => setSettingsOpen(true)) }} onHugoSetup={() => { setSettingsOpen(false); setHugoSetupOpen(true) }} onSiteSettingsChanged={setSite} notify={notify} />}
       {toast && <div className={`toast ${toast.kind}`}>{toast.kind === 'success' && <Check size={17} />}{toast.message}</div>}

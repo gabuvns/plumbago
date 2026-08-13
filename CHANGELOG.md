@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.12.3 — 2026-08-13
+
+- Detect native Windows Hugo and every available WSL installation independently, including version, Extended edition, architecture, executable, and access to the selected blog folder.
+- Let each blog choose its Hugo runtime without moving the project or adding Plumbago-only settings, and route creation, preview, themes, review, deployment, and publishing through that exact selection.
+- Test each candidate with a real in-memory build before selection so theme/version incompatibilities are reported with technical details instead of surfacing later during preview or publishing.
+- Explain why native Windows Hugo cannot safely build a blog stored in WSL's Linux filesystem while allowing both native and WSL Hugo for blogs stored on Windows drives.
+- Add explicit Winget install/update confirmation, safe retry, manual WSL/Linux/macOS commands, official guides, and complete English and Brazilian Portuguese runtime controls.
+
 ## 0.12.2 — 2026-08-13
 
 - Open posts that are already live in a clearly explained read-only state and require an explicit **Start a revision** action before metadata, Markdown, visual content, formatting, or media can change.
