@@ -60,8 +60,9 @@ On Linux and macOS, those tools run natively. The same blog stays portable acros
 Plumbago can also help you:
 
 - create a Hugo site and initialize Git;
-- browse the official Hugo theme gallery;
-- check a theme's Hugo requirements and roll back a failed installation;
+- browse the official Hugo theme gallery, install a theme, and move straight into customization;
+- check a theme's Hugo requirements and roll back a failed installation or configuration;
+- personalize supported branding, colors, typography, navigation, social links, and homepage options without learning the theme's schema;
 - organize drafts, scheduled posts, published posts, tags, and featured images;
 - create About, Gallery, and other Hugo pages without arranging content folders by hand;
 - notice posts written by Obsidian or another external editor;
@@ -77,6 +78,8 @@ The **Tags & categories** workspace reads Hugo's configured taxonomies across th
 
 The **Pages & routes** workspace maps Markdown pages, leaf and branch bundles, translations, aliases, Hugo menus, automatic section and taxonomy routes, and theme-specific layouts. Create an `/about/` or `/gallery/` page from a short form, or change a public route while keeping the old address as a Hugo redirect. Before removing anything, Plumbago shows the exact source and bundled resources involved and creates a recovery point. Shared translation resources and section descendants are protected; non-Markdown Hugo content stays untouched and usable through its original files.
 
+The **Themes** workspace discovers options from the active theme's own example configuration, with focused support for popular PaperMod, Blowfish, Hugo Book, and Ananke patterns. It shows only settings Plumbago can explain safely, keeps unknown values and original TOML, YAML, or JSON files intact, and treats language-specific configuration independently. A quick visual direction helps with orientation, but Plumbago requires a real Hugo preview before anything can be applied. Every applied look receives a History recovery point and a failed build restores the previous configuration automatically. Reusable presets stay in the blog's ignored local Plumbago area instead of adding a proprietary theme format to the repository.
+
 The interface is available in English by default and Brazilian Portuguese. Accessibility settings include a persistent writing and preview font-size control with a live H1/H2/H3 sample; it changes only the local Plumbago reading surface, never your Markdown or public theme.
 
 ## Your files stay yours
@@ -87,7 +90,7 @@ YAML (`---`), TOML (`+++`), and Hugo's JSON front matter are supported. Plumbago
 
 Git authentication stays with the operating system, WSL, SSH, or the GitHub CLI whenever possible. If you connect GitHub with a token, Plumbago stores it with Electron's encrypted `safeStorage`; it is never written into the blog.
 
-Theme changes are tested before activation. Failed theme installations restore the previous configuration. Blogger imports preserve the original export and do not silently overwrite existing posts.
+Theme installation and visual customization are tested with Hugo before activation or application. Failed changes restore the previous configuration. Blogger imports preserve the original export and do not silently overwrite existing posts.
 
 ## Prefer writing in Obsidian?
 

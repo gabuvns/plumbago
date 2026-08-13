@@ -149,11 +149,11 @@ Definition of done: a writer can manage the blog's main pages and routes without
 
 Status: active
 
-- [ ] Discover supported theme parameters without assuming one universal schema.
-- [ ] Edit common branding, navigation, typography, social, and homepage options visually.
-- [ ] Preview changes before writing them to the blog.
-- [ ] Preserve unknown configuration and expose unsupported settings safely.
-- [ ] Save presets and restore the configuration that existed before a change.
+- [x] Discover supported theme parameters without assuming one universal schema.
+- [x] Edit common branding, navigation, typography, social, and homepage options visually.
+- [x] Preview changes before writing them to the blog.
+- [x] Preserve unknown configuration and expose unsupported settings safely.
+- [x] Save presets and restore the configuration that existed before a change.
 
 Definition of done: a writer can install and meaningfully customize a supported theme without editing configuration files, while unsupported themes remain fully usable through their original configuration.
 

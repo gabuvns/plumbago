@@ -277,21 +277,21 @@ Goal: a writer can meaningfully personalize a supported Hugo theme without learn
 
 ### Product work
 
-- [ ] Discover configuration capabilities from the active theme's own files and safe built-in adapters instead of assuming one universal schema.
-- [ ] Provide visual controls for supported identity, colors, typography, navigation, social links, and homepage options with plain-language support levels.
-- [ ] Preview pending changes through the real Hugo site before modifying the blog configuration.
-- [ ] Preserve unknown configuration, explain unsupported options, and keep ordinary theme files available for advanced editing.
-- [ ] Save reusable local presets and preview their exact impact before applying them.
-- [ ] Create a recovery point before every applied configuration or preset and restore the previous configuration after a failed Hugo build.
-- [ ] Add responsive keyboard-accessible interactions, a mutable browser demo, and complete EN-US/PT-BR copy.
+- [x] Discover configuration capabilities from the active theme's own files and safe built-in adapters instead of assuming one universal schema.
+- [x] Provide visual controls for supported identity, colors, typography, navigation, social links, and homepage options with plain-language support levels.
+- [x] Preview pending changes through the real Hugo site before modifying the blog configuration.
+- [x] Preserve unknown configuration, explain unsupported options, and keep ordinary theme files available for advanced editing.
+- [x] Save reusable local presets and preview their exact impact before applying them.
+- [x] Create a recovery point before every applied configuration or preset and restore the previous configuration after a failed Hugo build.
+- [x] Add responsive keyboard-accessible interactions, a mutable browser demo, and complete EN-US/PT-BR copy.
 
 ### Release gate
 
-- [ ] EN-US and PT-BR keys remain in parity.
-- [ ] Discovery, adapters, preservation, preview, presets, recovery, build rollback, IPC, and product-contract tests pass.
-- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
-- [ ] Browser demos cover supported and unsupported themes, preview, apply, preset, rollback, and both languages without fresh console errors.
-- [ ] A relevant Electron package is built and inspected.
-- [ ] Close `CHANGELOG.md` as 1.0.0 and bump package metadata.
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] Discovery, adapters, preservation, preview, presets, recovery, build rollback, IPC, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser demos cover supported and unsupported themes, preview, apply, preset, rollback, and both languages without fresh console errors.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 1.0.0 and bump package metadata.
 - [ ] Create the release commit and `v1.0.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.

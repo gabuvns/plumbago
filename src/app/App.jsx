@@ -273,7 +273,6 @@ export default function App() {
       const result = await api.installTheme(slug)
       if (result.context) setContext(result.context)
       if (result.ok) {
-        setThemesOpen(false)
         notify(t('notice.themeInstalled', { theme: result.folder }))
       }
       return result

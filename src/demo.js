@@ -27,6 +27,36 @@ const demoThemes = [
   { slug: 'blowfish', name: 'Blowfish', image: 'https://themes.gohugo.io/themes/blowfish/tn-featured.png', details: 'https://themes.gohugo.io/themes/blowfish/' },
 ]
 
+const demoThemeControls = [
+  { id: 'setting:title', category: 'identity', path: 'title', label: 'Title', labelKey: 'themeConfig.controls.title', type: 'text', value: 'Meu blog', defaultValue: '', isSet: true, options: [], origin: 'project', sourceFile: 'hugo.toml' },
+  { id: 'setting:copyright', category: 'identity', path: 'copyright', label: 'Copyright', labelKey: 'themeConfig.controls.copyright', type: 'text', value: '© 2026 Você', defaultValue: '', isSet: true, options: [], origin: 'project', sourceFile: 'hugo.toml' },
+  { id: 'setting:params.description', category: 'identity', path: 'params.description', label: 'Description', labelKey: 'themeConfig.controls.description', type: 'text', value: 'Notas sobre processo criativo, cores e observação.', defaultValue: 'A personal journal.', isSet: true, options: [], origin: 'project', sourceFile: 'hugo.toml' },
+  { id: 'setting:params.primarycolor', category: 'colors', path: 'params.primaryColor', label: 'Primary Color', labelKey: 'themeConfig.controls.accentColor', type: 'color', value: '#558B6E', defaultValue: '#558B6E', isSet: true, options: [], origin: 'project', sourceFile: 'config/_default/params.toml' },
+  { id: 'setting:params.defaulttheme', category: 'colors', path: 'params.defaultTheme', label: 'Default Theme', labelKey: 'themeConfig.controls.appearance', type: 'select', value: 'auto', defaultValue: 'auto', isSet: true, options: ['auto', 'light', 'dark'], origin: 'adapter', sourceFile: 'config/_default/params.toml' },
+  { id: 'setting:params.bodyfont', category: 'typography', path: 'params.bodyFont', label: 'Body Font', labelKey: 'themeConfig.controls.bodyFont', type: 'text', value: 'Inter', defaultValue: 'system-ui', isSet: true, options: [], origin: 'theme-example', sourceFile: 'config/_default/params.toml' },
+  { id: 'setting:params.headingfont', category: 'typography', path: 'params.headingFont', label: 'Heading Font', labelKey: 'themeConfig.controls.headingFont', type: 'text', value: 'Georgia', defaultValue: 'serif', isSet: true, options: [], origin: 'theme-example', sourceFile: 'config/_default/params.toml' },
+  { id: 'setting:params.profilemode.enabled', category: 'homepage', path: 'params.profileMode.enabled', label: 'Profile Mode', labelKey: 'themeConfig.controls.profileEnabled', type: 'boolean', value: true, defaultValue: false, isSet: true, options: [], origin: 'adapter', sourceFile: 'config/_default/params.toml' },
+  { id: 'setting:params.profilemode.title', category: 'homepage', path: 'params.profileMode.title', label: 'Profile Title', labelKey: 'themeConfig.controls.profileTitle', type: 'text', value: 'Cultivando ideias', defaultValue: '', isSet: true, options: [], origin: 'adapter', sourceFile: 'config/_default/params.toml' },
+  { id: 'setting:params.profilemode.subtitle', category: 'homepage', path: 'params.profileMode.subtitle', label: 'Profile Subtitle', labelKey: 'themeConfig.controls.profileSubtitle', type: 'text', value: 'Um diário visual e escrito.', defaultValue: '', isSet: true, options: [], origin: 'adapter', sourceFile: 'config/_default/params.toml' },
+]
+
+function demoThemeConfiguration(theme, state, presets, unsupported = false) {
+  const controls = unsupported ? state.controls.filter((item) => item.category === 'identity' && ['setting:title', 'setting:copyright'].includes(item.id)) : state.controls
+  const categories = ['identity', 'colors', 'typography', 'navigation', 'social', 'homepage'].map((id) => ({ id, controls: controls.filter((control) => control.category === id) }))
+  return {
+    revision: state.revision,
+    theme: { id: theme, name: unsupported ? 'Handmade theme' : theme === 'hugo-papermod' ? 'PaperMod' : theme, adapter: unsupported ? 'generic' : theme, supportLevel: unsupported ? 'unsupported' : 'supported', installed: true, multiple: false },
+    categories,
+    navigation: unsupported ? { id: 'navigation:main', path: '', support: 'unsupported', items: [], suggestedCount: 0, sourceRelative: '' } : { id: 'navigation:main', path: 'menus.main', support: 'configured', items: state.navigation, suggestedCount: 0, sourceRelative: 'hugo.toml' },
+    social: unsupported ? { id: 'social:links', path: '', support: 'unsupported', shape: '', items: [], suggestedCount: 0, sourceRelative: '' } : { id: 'social:links', path: 'params.socialIcons', support: 'configured', shape: 'array-pairs', items: state.social, suggestedCount: 0, sourceRelative: 'config/_default/params.toml' },
+    unsupported: unsupported ? [{ path: 'params.handmade.layout', kind: 'string' }, { path: 'params.handmade.heroBlocks', kind: 'list' }, { path: 'params.experiments.motion', kind: 'boolean' }] : [{ path: 'params.cover.hidden', kind: 'boolean' }, { path: 'params.assets.disableFingerprinting', kind: 'boolean' }],
+    configFiles: ['hugo.toml', 'config/_default/params.toml'],
+    warnings: [],
+    presets,
+    summary: { controls: controls.length, categories: categories.filter((item) => item.controls.length || (item.id === 'navigation' && !unsupported) || (item.id === 'social' && !unsupported)).length, unsupported: unsupported ? 3 : 2, presets: presets.length },
+  }
+}
+
 function fullPost(summary) {
   const assets = summary.id === samplePosts[0].id ? ['estudo-plumbago.svg'] : []
   return { ...summary, tags: summary.tags || summary.taxonomies?.tags || [], taxonomies: summary.taxonomies || {}, translationKey: summary.id.split('/')[2], body: bodies[summary.id] || '', assets }
@@ -261,6 +291,9 @@ export function createDemoBridge() {
   }
   const initialHugoRuntime = demoHugoRuntimeInventory().runtimes.find((item) => item.selected)
   context = { ...context, runtime: initialHugoRuntime.runtime, hugo: initialHugoRuntime.hugo.version || null, hugoExecutable: initialHugoRuntime.hugo.executable }
+  const demoUnsupportedTheme = demoQuery.get('theme') === 'unsupported'
+  const demoThemePreviewFailure = demoQuery.get('theme') === 'preview-fail'
+  if (demoUnsupportedTheme) context = { ...context, theme: 'handmade-theme' }
   if (demoQuery.get('calendar') === 'midnight') {
     posts = posts.map((item) => item.id === samplePosts[1].id ? { ...item, publishDate: '2026-08-12T02:30:00.000Z' } : item)
   }
@@ -275,6 +308,46 @@ export function createDemoBridge() {
     : demoQuery.get('deploy') === 'setup'
       ? { provider: '', state: 'idle', step: '', progress: 0, log: [], error: '', warning: '', liveUrl: '', accountId: '', projectName: '', deploymentId: '', dashboardUrl: '', customDomainUrl: '' }
       : { provider: 'github-pages', state: 'live', step: 'verified', progress: 100, log: ['GitHub Pages is live and the public address was verified.'], error: '', warning: '', liveUrl: 'https://voce.github.io/blog/', repository: 'voce/blog', dashboardUrl: 'https://github.com/voce/blog/actions', customDomainUrl: 'https://github.com/voce/blog/settings/pages' }
+  let demoThemeState = {
+    revision: 'theme-demo-1',
+    controls: demoThemeControls.map((item) => ({ ...item })),
+    navigation: [
+      { _id: 'menu-home-01', name: 'Início', pageRef: '/', url: '', weight: 10, identifier: 'home', parent: '' },
+      { _id: 'menu-about-02', name: 'Sobre', pageRef: '/about/', url: '', weight: 20, identifier: 'about', parent: '' },
+      { _id: 'menu-gallery3', name: 'Galeria', pageRef: '/gallery/', url: '', weight: 30, identifier: 'gallery', parent: '' },
+    ],
+    social: [
+      { _id: 'social-git01', network: 'github', url: 'https://github.com/voce' },
+      { _id: 'social-masto', network: 'mastodon', url: 'https://social.example/@voce' },
+    ],
+  }
+  let demoThemePresets = []
+  let demoThemePreviews = new Map()
+
+  function themeInventory() {
+    return demoThemeConfiguration(context.theme, demoThemeState, demoThemePresets, context.theme === 'handmade-theme')
+  }
+
+  function themePreview(input) {
+    if (input.expectedRevision !== demoThemeState.revision) throw new Error('The Hugo configuration changed outside Plumbago. Refresh the theme configurator before continuing.')
+    if (demoThemePreviewFailure) {
+      const error = new Error('Hugo could not build the theme preview. No blog configuration was changed.')
+      error.details = 'Demo: the active theme rejected one of the pending configuration values.'
+      throw error
+    }
+    const controls = new Map(demoThemeState.controls.map((item) => [item.id, item]))
+    const changes = Object.entries(input.values || {}).flatMap(([id, after]) => {
+      const control = controls.get(id)
+      return control && JSON.stringify(control.value) !== JSON.stringify(after) ? [{ id, category: control.category, path: control.path, before: control.value, after }] : []
+    })
+    if (input.navigation && JSON.stringify(input.navigation) !== JSON.stringify(demoThemeState.navigation)) changes.push({ id: 'navigation:main', category: 'navigation', path: 'menus.main', before: `${demoThemeState.navigation.length} items`, after: `${input.navigation.length} items` })
+    if (input.social && JSON.stringify(input.social) !== JSON.stringify(demoThemeState.social)) changes.push({ id: 'social:links', category: 'social', path: 'params.socialIcons', before: `${demoThemeState.social.length} links`, after: `${input.social.length} links` })
+    if (!changes.length) throw new Error('Change at least one supported theme option before creating a preview.')
+    const previewId = `preview-${Date.now()}`
+    const preview = { previewId, revision: demoThemeState.revision, theme: themeInventory().theme, changes, impact: { settings: changes.length, files: 2, categories: [...new Set(changes.map((item) => item.category))], targets: ['hugo.toml', 'config/_default/params.toml'], recoveryPoint: true }, build: { ok: true }, launchAvailable: true, payload: input }
+    demoThemePreviews.set(previewId, preview)
+    return preview
+  }
   return {
     getContext: async () => context,
     chooseBlog: async () => context,
@@ -304,6 +377,28 @@ export function createDemoBridge() {
       context = { ...context, theme: '' }
       return context
     },
+    themeConfiguration: async () => themeInventory(),
+    previewThemeConfiguration: async (input) => themePreview(input),
+    openThemePreview: async () => true,
+    applyThemeConfiguration: async ({ previewId, expectedRevision }) => {
+      const preview = demoThemePreviews.get(previewId)
+      if (!preview || expectedRevision !== demoThemeState.revision) throw new Error('The Hugo configuration changed after this preview. Refresh and review the impact again.')
+      const values = preview.payload.values || {}
+      demoThemeState = {
+        revision: `theme-demo-${Date.now()}`,
+        controls: demoThemeState.controls.map((item) => Object.hasOwn(values, item.id) ? { ...item, value: values[item.id], isSet: true, origin: 'project' } : item),
+        navigation: preview.payload.navigation || demoThemeState.navigation,
+        social: preview.payload.social || demoThemeState.social,
+      }
+      demoThemePreviews = new Map()
+      return { inventory: themeInventory(), recoveryPoint: { id: `theme-recovery-${Date.now()}`, reason: 'before-theme-configuration' }, changes: preview.changes }
+    },
+    saveThemePreset: async (input) => {
+      const preset = { id: `preset-${Date.now()}`, name: input.name, theme: context.theme, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), payload: { values: input.values || {}, ...(input.navigation ? { navigation: input.navigation } : {}), ...(input.social ? { social: input.social } : {}) }, summary: { settings: Object.keys(input.values || {}).length, navigation: input.navigation?.length || 0, social: input.social?.length || 0 } }
+      demoThemePresets = [preset, ...demoThemePresets]
+      return preset
+    },
+    deleteThemePreset: async (id) => { demoThemePresets = demoThemePresets.filter((item) => item.id !== id); return { id } },
     siteSettings: async () => ({ title: 'Meu blog', baseURL: 'https://voce.github.io/blog/', languageCode: 'pt-BR', copyright: '© 2026 Você', timeZone: demoTimeZone, hostingProvider: 'github-pages', publicUrl: 'https://voce.github.io/blog/', hostingConfigured: true, theme: context.theme, config: 'hugo.toml' }),
     saveSiteSettings: async (input) => ({ ...input, publicUrl: input.hostingProvider === 'none' ? '' : input.publicUrl, hostingConfigured: input.hostingProvider !== 'none' && Boolean(input.publicUrl), theme: context.theme, config: 'hugo.toml' }),
     openTheme: async () => true,

@@ -5,11 +5,14 @@ const os = require('node:os')
 const path = require('node:path')
 const { execFile } = require('node:child_process')
 const { promisify } = require('node:util')
+const TOML = require('@iarna/toml')
 const YAML = require('yaml')
 const service = require('../electron/plumbago-service.cjs')
 const runtimeService = require('../electron/core/runtime.cjs')
 const httpService = require('../electron/core/http.cjs')
 const themeCompatibility = require('../electron/services/theme-compatibility.cjs')
+const themeConfigFiles = require('../electron/services/theme-configurator/config-files.cjs')
+const themeConfigMutations = require('../electron/services/theme-configurator/mutations.cjs')
 
 const execFileAsync = promisify(execFile)
 
@@ -640,6 +643,311 @@ test('restaura o blog quando o tema falha na compilação de validação', async
   assert.equal(result.recoveryPoint.reason, 'before-theme-change')
   assert.equal(await fs.readFile(configPath, 'utf8'), originalConfig)
   assert.equal(await fs.stat(path.join(blogRoot, 'themes', 'broken-theme')).catch(() => null), null)
+})
+
+test('preserva configurações desconhecidas ao editar TOML, YAML e JSON por caminho', () => {
+  const fixtures = [
+    {
+      file: 'hugo.toml',
+      source: 'title = "Before"\n[params]\nknown = "old"\n[params.unknown]\nkept = 42\n',
+      expectedRoot: ['params', 'known'],
+      unknown: ['params', 'unknown', 'kept'],
+    },
+    {
+      file: 'hugo.yaml',
+      source: 'title: Before\nparams:\n  known: old\n  unknown:\n    kept: 42\n',
+      expectedRoot: ['params', 'known'],
+      unknown: ['params', 'unknown', 'kept'],
+    },
+    {
+      file: 'hugo.json',
+      source: '{"title":"Before","params":{"known":"old","unknown":{"kept":42}}}\n',
+      expectedRoot: ['params', 'known'],
+      unknown: ['params', 'unknown', 'kept'],
+    },
+    {
+      file: 'config/_default/params.yaml',
+      source: 'known: old\nunknown:\n  kept: 42\n',
+      expectedRoot: ['known'],
+      unknown: ['unknown', 'kept'],
+      operationPath: ['params', 'known'],
+    },
+    {
+      file: 'config/_default/params.pt-br.yaml',
+      source: 'known: old\nunknown:\n  kept: 42\n',
+      expectedRoot: ['known'],
+      unknown: ['unknown', 'kept'],
+      operationPath: ['languages', 'pt-br', 'params', 'known'],
+      globalPath: ['languages', 'pt-br', 'params', 'known'],
+    },
+  ]
+  for (const fixture of fixtures) {
+    const record = themeConfigFiles.configRecord(fixture.file, fixture.source)
+    if (fixture.globalPath) assert.equal(themeConfigFiles.getIn(record.globalData, fixture.globalPath), 'old')
+    const next = themeConfigFiles.mutateConfigRecord(record, [{ path: fixture.operationPath || fixture.expectedRoot, value: 'new' }])
+    const parsed = themeConfigFiles.parseConfigSource(next, fixture.file)
+    assert.equal(themeConfigFiles.getIn(parsed, fixture.expectedRoot), 'new')
+    assert.equal(themeConfigFiles.getIn(parsed, fixture.unknown), 42)
+  }
+})
+
+test('não bloqueia uma alteração visual por coleções existentes que permanecem intactas', () => {
+  const inventory = {
+    revision: 'revision-1',
+    controls: [{ id: 'setting:title', label: 'Title', type: 'text', options: [], value: 'Before' }],
+    navigation: { support: 'configured', items: [{ _id: '111111111111', name: 'Group', pageRef: '', url: '', weight: 10, identifier: 'group', parent: '' }] },
+    social: { support: 'configured', items: [{ _id: '222222222222', network: '', url: '' }] },
+  }
+  const input = {
+    expectedRevision: inventory.revision,
+    values: { 'setting:title': 'After' },
+    navigation: [{ _id: '111111111111', name: 'Group', pageRef: '', url: '', weight: 10, identifier: 'group', parent: '' }],
+    social: [{ _id: '222222222222', network: '', url: '' }],
+  }
+  assert.deepEqual(themeConfigMutations.normalizePayload(inventory, input), {
+    expectedRevision: inventory.revision,
+    values: { 'setting:title': 'After' },
+  })
+})
+
+test('descobre, pré-visualiza, salva presets e aplica configuração visual com recuperação', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-theme-configurator')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await fs.mkdir(path.join(root, 'content'), { recursive: true })
+  await fs.mkdir(path.join(root, 'themes', 'studio', 'layouts', '_default'), { recursive: true })
+  await fs.mkdir(path.join(root, 'themes', 'studio', 'exampleSite'), { recursive: true })
+  await fs.writeFile(path.join(root, 'hugo.toml'), `baseURL = "https://example.com/"
+title = "Studio journal"
+theme = "studio"
+copyright = "Original copyright"
+
+[params]
+description = "Current description"
+primaryColor = "#558B6E"
+bodyFont = "Georgia"
+
+[params.homepage]
+showRecent = false
+
+[params.unknown]
+preserveMe = "yes"
+
+[[menus.main]]
+name = "Home"
+pageRef = "/"
+weight = 10
+custom = "preserved"
+
+[[params.socialIcons]]
+name = "github"
+url = "https://github.com/example"
+rel = "me"
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'theme.toml'), 'name = "Studio Theme"\nmin_version = "0.100.0"\n', 'utf8')
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'exampleSite', 'hugo.toml'), `[params]
+description = "Theme description"
+primaryColor = "#112233"
+bodyFont = "system-ui"
+
+[params.homepage]
+showRecent = true
+
+[[menus.main]]
+name = "About"
+pageRef = "/about/"
+weight = 20
+
+[[params.socialIcons]]
+name = "mastodon"
+url = "https://social.example/@studio"
+`, 'utf8')
+  const validLayout = '<!doctype html><html><body style="color: {{ site.Params.primaryColor }}"><h1>{{ site.Title }}</h1>{{ .Content }}</body></html>'
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', 'index.html'), validLayout, 'utf8')
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', '_default', 'list.html'), validLayout, 'utf8')
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', '_default', 'single.html'), validLayout, 'utf8')
+
+  const inventory = await service.themeConfiguration(root)
+  assert.equal(inventory.theme.name, 'Studio Theme')
+  assert.equal(inventory.theme.supportLevel, 'supported')
+  assert.equal(inventory.navigation.support, 'configured')
+  assert.equal(inventory.navigation.items[0].name, 'Home')
+  assert.ok(inventory.configFiles.includes('hugo.toml'))
+  assert.equal(inventory.social.shape, 'array-pairs')
+  assert.ok(inventory.categories.find((category) => category.id === 'colors').controls.length)
+  assert.ok(inventory.categories.find((category) => category.id === 'typography').controls.length)
+  assert.ok(inventory.categories.find((category) => category.id === 'homepage').controls.length)
+  assert.ok(inventory.unsupported.some((item) => item.path.toLowerCase() === 'params.unknown.preserveme'))
+
+  const controls = new Map(inventory.categories.flatMap((category) => category.controls).map((control) => [control.path.toLowerCase(), control]))
+  const payload = {
+    expectedRevision: inventory.revision,
+    values: {
+      [controls.get('title').id]: 'A visual studio',
+      [controls.get('params.primarycolor').id]: '#524DE1',
+      [controls.get('params.bodyfont').id]: 'Inter',
+      [controls.get('params.homepage.showrecent').id]: true,
+    },
+    navigation: [{ ...inventory.navigation.items[0], name: 'Start' }, { name: 'About', pageRef: '/about/', url: '', weight: 20, identifier: 'about', parent: '' }],
+    social: [{ ...inventory.social.items[0], url: 'https://github.com/studio' }, { network: 'mastodon', url: 'https://social.example/@studio' }],
+  }
+  const originalConfig = await fs.readFile(path.join(root, 'hugo.toml'), 'utf8')
+  const preview = await service.previewThemeConfiguration(root, payload)
+  assert.equal(preview.build.ok, true)
+  assert.equal(preview.impact.files, 1)
+  assert.equal(await fs.readFile(path.join(root, 'hugo.toml'), 'utf8'), originalConfig)
+  assert.match((await service.themePreviewLaunch(root, preview.previewId)).args.join(' '), /--config hugo\.toml,\.plumbago\/theme-configurator\/preview\.toml/)
+
+  const preset = await service.saveThemePreset(root, { name: 'Studio violet', ...payload })
+  assert.equal(preset.theme, 'studio')
+  const currentPreset = await service.saveThemePreset(root, {
+    name: 'Current studio look',
+    expectedRevision: inventory.revision,
+    values: Object.fromEntries(inventory.categories.flatMap((category) => category.controls).map((control) => [control.id, control.value])),
+    navigation: inventory.navigation.items,
+    social: inventory.social.items,
+  })
+  assert.equal(currentPreset.summary.settings, inventory.summary.controls)
+  assert.equal((await service.themeConfiguration(root)).presets.length, 2)
+
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', 'index.html'), '{{ if }}', 'utf8')
+  await assert.rejects(
+    service.applyThemeConfiguration(root, { previewId: preview.previewId, expectedRevision: inventory.revision }),
+    /previous configuration was restored/,
+  )
+  assert.equal(await fs.readFile(path.join(root, 'hugo.toml'), 'utf8'), originalConfig)
+  assert.ok((await service.listRecoveryPoints(root)).some((point) => point.reason === 'before-theme-configuration'))
+
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', 'index.html'), validLayout, 'utf8')
+  const refreshed = await service.themeConfiguration(root)
+  const refreshedControls = new Map(refreshed.categories.flatMap((category) => category.controls).map((control) => [control.path.toLowerCase(), control]))
+  const successfulPayload = {
+    ...payload,
+    expectedRevision: refreshed.revision,
+    values: {
+      [refreshedControls.get('title').id]: 'A visual studio',
+      [refreshedControls.get('params.primarycolor').id]: '#524DE1',
+      [refreshedControls.get('params.bodyfont').id]: 'Inter',
+      [refreshedControls.get('params.homepage.showrecent').id]: true,
+    },
+  }
+  const successfulPreview = await service.previewThemeConfiguration(root, successfulPayload)
+  const applied = await service.applyThemeConfiguration(root, { previewId: successfulPreview.previewId, expectedRevision: refreshed.revision })
+  assert.equal(applied.inventory.theme.id, 'studio')
+  assert.equal(applied.recoveryPoint.reason, 'before-theme-configuration')
+  const appliedConfig = TOML.parse(await fs.readFile(path.join(root, 'hugo.toml'), 'utf8'))
+  assert.equal(appliedConfig.title, 'A visual studio')
+  assert.equal(appliedConfig.params.primaryColor, '#524DE1')
+  assert.equal(appliedConfig.params.bodyFont, 'Inter')
+  assert.equal(appliedConfig.params.homepage.showRecent, true)
+  assert.equal(appliedConfig.params.unknown.preserveMe, 'yes')
+  assert.equal(appliedConfig.menus.main[0].custom, 'preserved')
+  assert.equal(appliedConfig.params.socialIcons[0].rel, 'me')
+  await service.deleteThemePreset(root, preset.id)
+  await service.deleteThemePreset(root, currentPreset.id)
+  assert.equal((await service.themeConfiguration(root)).presets.length, 0)
+  await assert.rejects(service.previewThemeConfiguration(root, payload), /changed outside Plumbago/)
+})
+
+test('edita componentes de configuração do idioma padrão sem misturar outros idiomas', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-theme-configurator-i18n')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await fs.mkdir(path.join(root, 'content'), { recursive: true })
+  await fs.mkdir(path.join(root, 'config', '_default'), { recursive: true })
+  await fs.mkdir(path.join(root, 'themes', 'studio', 'layouts', '_default'), { recursive: true })
+  await fs.writeFile(path.join(root, 'config', '_default', 'hugo.toml'), `baseURL = "https://example.com/"
+theme = "studio"
+defaultContentLanguage = "en"
+
+[languages.en]
+languageName = "English"
+weight = 1
+
+[languages.pt-br]
+languageName = "Português"
+weight = 2
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'config', '_default', 'params.en.toml'), `description = "English journal"
+primaryColor = "#558B6E"
+bodyFont = "Georgia"
+
+[homepage]
+showRecent = false
+
+[unknown]
+preserveMe = 42
+
+[[socialIcons]]
+name = "github"
+url = "https://github.com/example"
+rel = "me"
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'config', '_default', 'params.pt-br.toml'), `description = "Diário em português"
+primaryColor = "#ffc759"
+
+[unknown]
+preserveMe = 84
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'config', '_default', 'menus.en.toml'), `[[main]]
+name = "Home"
+pageRef = "/"
+weight = 10
+custom = "preserved"
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'config', '_default', 'menus.pt-br.toml'), `[[main]]
+name = "Início"
+pageRef = "/"
+weight = 10
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'theme.toml'), 'name = "Studio Theme"\n', 'utf8')
+  const layout = '<!doctype html><html><body style="color: {{ site.Params.primaryColor }}"><h1>{{ site.Title }}</h1>{{ .Content }}</body></html>'
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', 'index.html'), layout, 'utf8')
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', '_default', 'list.html'), layout, 'utf8')
+  await fs.writeFile(path.join(root, 'themes', 'studio', 'layouts', '_default', 'single.html'), layout, 'utf8')
+
+  const inventory = await service.themeConfiguration(root)
+  const controls = new Map(inventory.categories.flatMap((category) => category.controls).map((control) => [control.path.toLowerCase(), control]))
+  assert.equal(inventory.navigation.path.toLowerCase(), 'languages.en.menus.main')
+  assert.equal(inventory.navigation.sourceRelative, 'config/_default/menus.en.toml')
+  assert.equal(inventory.navigation.items[0].name, 'Home')
+  assert.ok(inventory.configFiles.includes('config/_default/hugo.toml'))
+  assert.equal(inventory.social.path.toLowerCase(), 'languages.en.params.socialicons')
+  assert.equal(controls.get('languages.en.params.primarycolor').sourceFile, 'config/_default/params.en.toml')
+  assert.equal(controls.get('languages.en.params.bodyfont').value, 'Georgia')
+  assert.ok(inventory.unsupported.some((item) => item.path.toLowerCase() === 'languages.en.params.unknown.preserveme'))
+
+  await assert.rejects(service.previewThemeConfiguration(root, {
+    expectedRevision: inventory.revision,
+    values: { [controls.get('languages.en.params.primarycolor').id]: '#524DE1' },
+    social: [{ network: 'github', url: 'javascript:alert(1)' }],
+  }), /safe web address|must use HTTP/i)
+
+  const EnglishParamsBefore = await fs.readFile(path.join(root, 'config', '_default', 'params.en.toml'), 'utf8')
+  const PortugueseParamsBefore = await fs.readFile(path.join(root, 'config', '_default', 'params.pt-br.toml'), 'utf8')
+  const PortugueseMenusBefore = await fs.readFile(path.join(root, 'config', '_default', 'menus.pt-br.toml'), 'utf8')
+  const preview = await service.previewThemeConfiguration(root, {
+    expectedRevision: inventory.revision,
+    values: {
+      [controls.get('languages.en.params.primarycolor').id]: '#524DE1',
+      [controls.get('languages.en.params.bodyfont').id]: 'Inter',
+    },
+    navigation: [{ ...inventory.navigation.items[0], name: 'Start' }],
+    social: [{ ...inventory.social.items[0], url: 'https://github.com/studio' }],
+  })
+  assert.deepEqual(preview.impact.targets.sort(), ['config/_default/menus.en.toml', 'config/_default/params.en.toml'])
+  assert.equal(await fs.readFile(path.join(root, 'config', '_default', 'params.en.toml'), 'utf8'), EnglishParamsBefore)
+  const applied = await service.applyThemeConfiguration(root, { previewId: preview.previewId, expectedRevision: inventory.revision })
+  assert.equal(applied.changes.length, 4)
+
+  const EnglishParams = TOML.parse(await fs.readFile(path.join(root, 'config', '_default', 'params.en.toml'), 'utf8'))
+  const EnglishMenus = TOML.parse(await fs.readFile(path.join(root, 'config', '_default', 'menus.en.toml'), 'utf8'))
+  assert.equal(EnglishParams.primaryColor, '#524DE1')
+  assert.equal(EnglishParams.bodyFont, 'Inter')
+  assert.equal(EnglishParams.unknown.preserveMe, 42)
+  assert.equal(EnglishParams.socialIcons[0].rel, 'me')
+  assert.equal(EnglishMenus.main[0].name, 'Start')
+  assert.equal(EnglishMenus.main[0].custom, 'preserved')
+  assert.equal(await fs.readFile(path.join(root, 'config', '_default', 'params.pt-br.toml'), 'utf8'), PortugueseParamsBefore)
+  assert.equal(await fs.readFile(path.join(root, 'config', '_default', 'menus.pt-br.toml'), 'utf8'), PortugueseMenusBefore)
 })
 
 test('identifica repositórios GitHub e calcula a URL padrão do Pages', () => {

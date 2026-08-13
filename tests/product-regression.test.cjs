@@ -118,6 +118,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/features/calendar/EditorialCalendar.jsx',
     'src/features/taxonomies/TaxonomyManager.jsx',
     'src/features/pages/PageManager.jsx',
+    'src/features/themes/ThemeConfigurator.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
@@ -147,6 +148,10 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/calendar/workflow-time.cjs',
     'electron/services/taxonomies.cjs',
     'electron/services/pages.cjs',
+    'electron/services/theme-configurator/index.cjs',
+    'electron/services/theme-configurator/config-files.cjs',
+    'electron/services/theme-configurator/discovery.cjs',
+    'electron/services/theme-configurator/mutations.cjs',
     'electron/services/site.cjs',
     'electron/services/trash.cjs',
     'electron/services/updates.cjs',
@@ -357,6 +362,45 @@ test('keeps Hugo pages and routes discoverable, collision-aware, previewable, an
   assert.match(facade, /services\/pages\.cjs/)
   assert.match(demo, /pageInventory: async/)
   assert.match(demo, /applyPageChange: async/)
+})
+
+test('keeps visual theme customization discoverable, preview-first, portable, and recoverable', () => {
+  const app = read('src/app/App.jsx')
+  const manager = read('src/features/themes/ThemeManagerModal.jsx')
+  const configurator = read('src/features/themes/ThemeConfigurator.jsx')
+  const preload = read('electron/preload.cjs')
+  const main = read('electron/main.cjs')
+  const facade = read('electron/plumbago-service.cjs')
+  const configuration = read('electron/services/theme-configurator/config-files.cjs')
+  const discovery = read('electron/services/theme-configurator/discovery.cjs')
+  const mutations = read('electron/services/theme-configurator/mutations.cjs')
+  const demo = read('src/demo.js')
+
+  assert.match(app, /<ThemeManagerModal/)
+  assert.match(manager, /<ThemeConfigurator/)
+  assert.match(manager, /themes\.tabs\.customize/)
+  assert.match(configurator, /api\.themeConfiguration\(\)/)
+  assert.match(configurator, /api\.previewThemeConfiguration/)
+  assert.match(configurator, /api\.applyThemeConfiguration/)
+  assert.match(configurator, /api\.saveThemePreset/)
+  assert.match(configurator, /themeConfig\.unsupported\.title/)
+  assert.match(configurator, /themeConfig\.recovery/)
+  assert.match(preload, /themeConfiguration:/)
+  assert.match(preload, /openThemePreview:/)
+  assert.match(main, /plumbago:theme-configuration/)
+  assert.match(main, /plumbago:theme-apply-configuration/)
+  assert.match(main, /previewConfiguration/)
+  assert.match(facade, /services\/theme-configurator\/index\.cjs/)
+  assert.match(configuration, /componentLocation/)
+  assert.match(configuration, /languages.*language.*rootKey/)
+  assert.match(discovery, /defaultLanguage/)
+  assert.match(mutations, /before-theme-configuration/)
+  assert.match(mutations, /restoreRecoveryPoint/)
+  assert.match(mutations, /--renderToMemory/)
+  assert.match(mutations, /\.plumbago\/theme-configurator/)
+  assert.match(demo, /themeConfiguration: async/)
+  assert.match(demo, /previewThemeConfiguration: async/)
+  assert.match(demo, /applyThemeConfiguration: async/)
 })
 
 test('protects published posts and keeps accessibility and Markdown hierarchy visible in the editor', () => {

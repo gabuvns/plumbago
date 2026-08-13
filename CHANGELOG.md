@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.0.0 — 2026-08-13
+
+- Add a visual theme configurator that discovers supported identity, color, typography, navigation, social-link, and homepage options from each theme's own configuration instead of assuming one universal schema.
+- Recognize common PaperMod, Blowfish, Hugo Book, and Ananke patterns while safely inferring other visual scalar settings and leaving unrecognized values available in their ordinary Hugo files.
+- Keep root and split TOML, YAML, and JSON configuration portable, preserve unknown fields, and edit only the default language's matching `params.<language>` or `menus.<language>` component without mixing translations.
+- Require a real in-memory Hugo build before configuration can be applied, provide an optional real-site preview, reject stale reviews, and restore an automatic History recovery point after a failed build.
+- Save, load, and explicitly remove reusable device-local theme presets without committing a proprietary format to the blog repository.
+- Add a responsive, keyboard-accessible English and Brazilian Portuguese customization workspace with exact file impact, support levels, safe advanced-setting disclosure, and mutable supported/unsupported browser demos.
+
 ## 0.14.0 — 2026-08-13
 
 - Add a Pages & routes workspace for Markdown pages, leaf bundles, branch bundles, translations, aliases, menus, explicit URLs, layouts, content types, and protected unsupported Hugo formats.
