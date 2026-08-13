@@ -80,7 +80,7 @@ The **Pages & routes** workspace maps Markdown pages, leaf and branch bundles, t
 
 The **Themes** workspace discovers options from the active theme's own example configuration, with focused support for popular PaperMod, Blowfish, Hugo Book, and Ananke patterns. It shows only settings Plumbago can explain safely, keeps unknown values and original TOML, YAML, or JSON files intact, and treats language-specific configuration independently. A quick visual direction helps with orientation, but Plumbago requires a real Hugo preview before anything can be applied. Every applied look receives a History recovery point and a failed build restores the previous configuration automatically. Reusable presets stay in the blog's ignored local Plumbago area instead of adding a proprietary theme format to the repository.
 
-The interface is available in English by default and Brazilian Portuguese. Accessibility settings include a persistent writing and preview font-size control with a live H1/H2/H3 sample; it changes only the local Plumbago reading surface, never your Markdown or public theme.
+The interface is available in English by default and Brazilian Portuguese. Settings are organized into clear areas for the blog, accessibility, publishing, integrations, and project information. Accessibility controls independently resize the main menus and the writing/preview surface, with live samples for navigation and the H1/H2/H3 hierarchy; these local preferences never change your Markdown or public theme.
 
 ## Your files stay yours
 
