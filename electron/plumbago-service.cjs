@@ -8,7 +8,7 @@ const languages = require('./services/languages.cjs')
 const publishing = require('./services/publishing.cjs')
 const site = require('./services/site.cjs')
 const themes = require('./services/themes.cjs')
-const updates = require('./services/updates.cjs')
+const taxonomies = require('./services/taxonomies.cjs'), updates = require('./services/updates.cjs')
 async function importBloggerExport(root, filePath, options = {}) {
   const recoveryPoint = await history.createRecoveryPoint(root, { reason: 'before-import', label: 'Before Blogger import', paths: ['content', ...await history.siteConfigurationPaths(root)] })
   try { return { ...await content.importBloggerExport(root, filePath, options, site.validateBlog), recoveryPoint } }
@@ -23,7 +23,7 @@ module.exports = {
   ...languages,
   ...publishing,
   ...site,
-  ...themes,
+  ...themes, ...taxonomies,
   ...updates, importBloggerExport,
   runtimeFor: runtime.runtimeFor, spawnLongRunning: runtime.spawnLongRunning, wslCommandArgs: runtime.wslCommandArgs,
 }

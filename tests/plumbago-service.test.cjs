@@ -98,6 +98,115 @@ test('mantém a escolha do runtime do Hugo fora do projeto e reconhece instalaç
   assert.equal(service.isNoHugoUpgradeAvailable('The source could not be reached.'), false)
 })
 
+test('indexa e reorganiza taxonomias Hugo em YAML, TOML e JSON com recuperação', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-taxonomies')
+  t.after(async () => fs.rm(root, { recursive: true, force: true }))
+  await fs.mkdir(path.join(root, 'content', 'posts', 'yaml-post'), { recursive: true })
+  await fs.mkdir(path.join(root, 'content', 'posts', 'toml-post'), { recursive: true })
+  await fs.mkdir(path.join(root, 'content', 'posts', 'json-post'), { recursive: true })
+  await fs.mkdir(path.join(root, 'content', 'posts', 'custom-post'), { recursive: true })
+  await fs.mkdir(path.join(root, 'content', 'tags', 'orphan'), { recursive: true })
+  await fs.writeFile(path.join(root, 'hugo.toml'), `title = "Taxonomy test"
+disableKinds = ["taxonomy"]
+
+[taxonomies]
+tag = "tags"
+category = "categories"
+author = "authors"
+`, 'utf8')
+  const yamlId = 'content/posts/yaml-post/index.en-us.md'
+  const tomlId = 'content/posts/toml-post/index.pt-br.md'
+  const jsonId = 'content/posts/json-post/index.en-us.md'
+  const customId = 'content/posts/custom-post/index.en-us.md'
+  await fs.writeFile(path.join(root, yamlId), `---
+title: YAML post
+draft: false
+tags: [JavaScript]
+categories: Tech
+authors: [Ana]
+params:
+  accent: indigo
+---
+
+YAML body
+`, 'utf8')
+  await fs.writeFile(path.join(root, tomlId), `+++
+title = "TOML post"
+draft = true
+tags = ["Javascript"]
+categories = ["Tech"]
+authors = "Bruno"
+[params]
+accent = "green"
++++
+
+TOML body
+`, 'utf8')
+  await fs.writeFile(path.join(root, jsonId), `${JSON.stringify({ title: 'JSON post', draft: false, tags: ['Web Design'], categories: [], authors: ['Ana'], params: { accent: 'yellow' } }, null, 2)}
+
+JSON body
+`, 'utf8')
+  await fs.writeFile(path.join(root, customId), `---
+title: Theme-specific post
+draft: true
+authors:
+  primary: Carla
+params:
+  keep: true
+---
+
+Custom body
+`, 'utf8')
+  await fs.writeFile(path.join(root, 'content', 'tags', 'orphan', '_index.md'), '---\ntitle: Orphan\n---\n', 'utf8')
+
+  const indexed = await service.taxonomyIndex(root)
+  assert.deepEqual(indexed.taxonomies.map((item) => item.id), ['tags', 'categories', 'authors'])
+  assert.equal(indexed.routesEnabled, false)
+  assert.equal(indexed.summary.posts, 4)
+  assert.equal(indexed.summary.unclassified, 1)
+  assert.equal(indexed.unsupported.length, 1)
+  assert.equal(indexed.summary.variants, 1)
+  assert.equal(indexed.summary.emptyTerms, 1)
+  assert.deepEqual(new Set(indexed.taxonomies.find((item) => item.id === 'tags').variants[0].names), new Set(['JavaScript', 'Javascript']))
+  assert.equal(indexed.taxonomies.find((item) => item.id === 'tags').terms.find((item) => item.name === 'Orphan').empty, true)
+
+  const preview = await service.previewTaxonomyChange(root, { action: 'rename', taxonomy: 'tags', sourceTerm: 'JavaScript', targetTerm: 'JavaScript & Web' })
+  assert.equal(preview.changes.length, 2)
+  assert.equal(preview.impact.published, 1)
+  assert.deepEqual(preview.impact.languages, ['en-us', 'pt-br'])
+  assert.equal(preview.impact.routeBefore, '/tags/javascript/')
+  assert.equal(preview.impact.aliasesPreserved, false)
+
+  await fs.appendFile(path.join(root, yamlId), '\nExternal edit\n')
+  await assert.rejects(service.applyTaxonomyChange(root, { action: 'rename', taxonomy: 'tags', sourceTerm: 'JavaScript', targetTerm: 'JavaScript & Web', expectedRevisions: preview.revisions }), /changed after the preview/)
+
+  const refreshed = await service.previewTaxonomyChange(root, { action: 'rename', taxonomy: 'tags', sourceTerm: 'JavaScript', targetTerm: 'JavaScript & Web' })
+  const applied = await service.applyTaxonomyChange(root, { action: 'rename', taxonomy: 'tags', sourceTerm: 'JavaScript', targetTerm: 'JavaScript & Web', expectedRevisions: refreshed.revisions })
+  assert.equal(applied.recoveryPoint.reason, 'before-taxonomy-change')
+  assert.equal(applied.index.taxonomies.find((item) => item.id === 'tags').terms.find((item) => item.name === 'JavaScript & Web').count, 2)
+
+  const assignment = await service.previewTaxonomyChange(root, { action: 'assign', taxonomy: 'authors', postIds: [yamlId, jsonId, customId], addTerms: ['Editor'], removeTerms: ['Ana'] })
+  assert.equal(assignment.changes.length, 2)
+  assert.deepEqual(assignment.skipped.map((item) => item.postId), [customId])
+  await service.applyTaxonomyChange(root, { action: 'assign', taxonomy: 'authors', postIds: [yamlId, jsonId, customId], addTerms: ['Editor'], removeTerms: ['Ana'], expectedRevisions: assignment.revisions })
+
+  const yamlSource = await fs.readFile(path.join(root, yamlId), 'utf8')
+  const tomlSource = await fs.readFile(path.join(root, tomlId), 'utf8')
+  const jsonSource = await fs.readFile(path.join(root, jsonId), 'utf8')
+  const customSource = await fs.readFile(path.join(root, customId), 'utf8')
+  assert.match(yamlSource, /^---/)
+  assert.match(yamlSource, /accent: indigo/)
+  assert.match(yamlSource, /External edit/)
+  assert.match(tomlSource, /^\+\+\+/)
+  assert.match(tomlSource, /accent = "green"/)
+  assert.equal(service.parsePostSource(jsonSource).format, 'json')
+  assert.deepEqual(service.parsePostSource(jsonSource).data.params, { accent: 'yellow' })
+  assert.deepEqual(service.parsePostSource(jsonSource).data.authors, ['Editor'])
+  assert.match(service.parsePostSource(jsonSource).content, /JSON body/)
+  assert.match(customSource, /primary: Carla/)
+  assert.match(customSource, /keep: true/)
+})
+
 test('inventaria e testa o Hugo selecionado sem escrever preferências no blog', async (t) => {
   const root = await makeTemporaryDirectory('plumbago-hugo-runtime')
   t.after(async () => {

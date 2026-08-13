@@ -1,7 +1,7 @@
 const samplePosts = [
-  { id: 'content/posts/cultivando-ideias/index.pt-br.md', title: 'Cultivando ideias com calma', description: 'Notas sobre processo criativo, referências e espaço para experimentar.', date: '2026-08-07', publishDate: '', expiryDate: '', lastmod: '', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-1' },
-  { id: 'content/posts/cores-do-inverno/index.pt-br.md', title: 'As cores do inverno', description: 'Uma pequena coleção de estudos de cor.', date: '2026-08-04', publishDate: '2026-08-18T13:30:00.000Z', expiryDate: '', lastmod: '', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-2' },
-  { id: 'content/posts/primeiro-caderno/index.en-us.md', title: 'Notes from the first sketchbook', description: 'A look back at the first pages.', date: '2026-07-28', publishDate: '', expiryDate: '', lastmod: '', draft: true, language: 'en-us', featuredImage: '', revision: 'demo-3' },
+  { id: 'content/posts/cultivando-ideias/index.pt-br.md', title: 'Cultivando ideias com calma', description: 'Notas sobre processo criativo, referências e espaço para experimentar.', date: '2026-08-07', publishDate: '', expiryDate: '', lastmod: '', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-1', tags: ['Processo', 'Arte'], taxonomies: { tags: ['Processo', 'Arte'], categories: ['Criatividade'], authors: ['Equipe Plumbago'] } },
+  { id: 'content/posts/cores-do-inverno/index.pt-br.md', title: 'As cores do inverno', description: 'Uma pequena coleção de estudos de cor.', date: '2026-08-04', publishDate: '2026-08-18T13:30:00.000Z', expiryDate: '', lastmod: '', draft: false, language: 'pt-br', featuredImage: '', revision: 'demo-2', tags: ['arte', 'Paletas'], taxonomies: { tags: ['arte', 'Paletas'], categories: ['Processo'], authors: ['Equipe Plumbago'] } },
+  { id: 'content/posts/primeiro-caderno/index.en-us.md', title: 'Notes from the first sketchbook', description: 'A look back at the first pages.', date: '2026-07-28', publishDate: '', expiryDate: '', lastmod: '', draft: true, language: 'en-us', featuredImage: '', revision: 'demo-3', tags: [], taxonomies: { tags: [], categories: [], authors: [] } },
 ]
 
 const bodies = {
@@ -21,7 +21,7 @@ const demoThemes = [
 
 function fullPost(summary) {
   const assets = summary.id === samplePosts[0].id ? ['estudo-plumbago.svg'] : []
-  return { ...summary, tags: ['Processo', 'Arte'], translationKey: summary.id.split('/')[2], body: bodies[summary.id] || '', assets }
+  return { ...summary, tags: summary.tags || summary.taxonomies?.tags || [], taxonomies: summary.taxonomies || {}, translationKey: summary.id.split('/')[2], body: bodies[summary.id] || '', assets }
 }
 
 function demoWallToIso(value, timeZone) {
@@ -46,6 +46,74 @@ function demoCalendarPreview(posts, input) {
   const next = { ...item, draft: action === 'cancel', publishDate, expiryDate: action === 'schedule' && expiryLocal ? demoWallToIso(expiryLocal, timeZone) : action === 'schedule' ? '' : item.expiryDate }
   const fields = ['draft', 'publishDate', 'expiryDate']
   return { action, timeZone, ambiguous: false, post: { id: item.id, title: item.title, revision: item.revision }, changes: fields.filter((field) => item[field] !== next[field]).map((field) => ({ field, before: item[field], after: next[field] })), next }
+}
+
+const demoTaxonomyDefinitions = [
+  { id: 'tags', singular: 'tag', plural: 'tags', route: '/tags/' },
+  { id: 'categories', singular: 'category', plural: 'categories', route: '/categories/' },
+  { id: 'authors', singular: 'author', plural: 'authors', route: '/authors/' },
+]
+
+function demoTermIdentity(value) {
+  return String(value || '').trim().toLocaleLowerCase('en-US')
+}
+
+function demoTermSlug(value) {
+  return demoTermIdentity(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+function demoTerms(post, taxonomy) {
+  return [...(post.taxonomies?.[taxonomy] || (taxonomy === 'tags' ? post.tags : []) || [])]
+}
+
+function demoTaxonomyIndex(posts) {
+  const taxonomies = demoTaxonomyDefinitions.map((definition) => {
+    const terms = new Map()
+    for (const post of posts) {
+      for (const name of demoTerms(post, definition.id)) {
+        const current = terms.get(name) || { id: name, name, posts: [], languages: new Set(), draftCount: 0, publishedCount: 0, termPage: '' }
+        current.posts.push(post.id)
+        current.languages.add(post.language)
+        if (post.draft) current.draftCount += 1
+        else current.publishedCount += 1
+        terms.set(name, current)
+      }
+    }
+    if (definition.id === 'categories') terms.set('Archive', { id: 'Archive', name: 'Archive', posts: [], languages: new Set(), draftCount: 0, publishedCount: 0, termPage: 'content/categories/archive' })
+    const items = [...terms.values()].map((term) => ({ ...term, languages: [...term.languages].sort(), count: term.posts.length, empty: term.posts.length === 0, route: `/${definition.plural}/${demoTermSlug(term.name)}/` })).sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    const groups = new Map()
+    for (const term of items) groups.set(demoTermSlug(term.name), [...(groups.get(demoTermSlug(term.name)) || []), term.name])
+    const variants = [...groups.entries()].filter(([, names]) => names.length > 1).map(([identity, names]) => ({ identity, names }))
+    return { ...definition, terms: items, variants, emptyTerms: items.filter((term) => term.empty).map((term) => term.name) }
+  })
+  const publicPosts = posts.map((post) => ({ id: post.id, title: post.title, language: post.language, draft: post.draft, taxonomies: Object.fromEntries(demoTaxonomyDefinitions.map((definition) => [definition.id, demoTerms(post, definition.id)])) }))
+  const unclassified = publicPosts.filter((post) => demoTaxonomyDefinitions.every((definition) => !post.taxonomies[definition.id].length))
+  return { config: 'hugo.toml', definitions: demoTaxonomyDefinitions, routesEnabled: true, taxonomies, posts: publicPosts, unclassified, unsupported: [], summary: { taxonomies: taxonomies.length, terms: taxonomies.reduce((total, taxonomy) => total + taxonomy.terms.length, 0), variants: taxonomies.reduce((total, taxonomy) => total + taxonomy.variants.length, 0), emptyTerms: taxonomies.reduce((total, taxonomy) => total + taxonomy.emptyTerms.length, 0), unclassified: unclassified.length, posts: posts.length } }
+}
+
+function demoTaxonomyPreview(posts, input) {
+  const definition = demoTaxonomyDefinitions.find((item) => item.id === input.taxonomy)
+  if (!definition) throw new Error('Choose a configured Hugo taxonomy.')
+  const sourceTerm = String(input.sourceTerm || '').trim()
+  const targetTerm = String(input.targetTerm || '').trim()
+  const addTerms = [...new Set((input.addTerms || []).map((term) => String(term).trim()).filter(Boolean))]
+  const removeTerms = new Set((input.removeTerms || []).map(demoTermIdentity))
+  const selected = new Set(input.postIds || [])
+  const targetExists = posts.some((post) => demoTerms(post, definition.id).some((term) => demoTermIdentity(term) === demoTermIdentity(targetTerm) && String(term).trim().normalize('NFKC') !== sourceTerm.normalize('NFKC')))
+  const action = input.action === 'rename' && targetExists ? 'merge' : input.action
+  const changes = posts.flatMap((post) => {
+    if (action === 'assign' && !selected.has(post.id)) return []
+    const before = demoTerms(post, definition.id)
+    const candidates = action === 'assign'
+      ? [...before.filter((term) => !removeTerms.has(demoTermIdentity(term))), ...addTerms]
+      : before.map((term) => demoTermIdentity(term) === demoTermIdentity(sourceTerm) ? targetTerm : term)
+    const seen = new Set()
+    const after = candidates.filter((term) => { const identity = demoTermIdentity(term); if (!identity || seen.has(identity)) return false; seen.add(identity); return true })
+    if (JSON.stringify(before) === JSON.stringify(after)) return []
+    return [{ postId: post.id, title: post.title, language: post.language, draft: post.draft, before, after, revision: post.revision }]
+  })
+  if (!changes.length) throw new Error('This change would not modify any supported post.')
+  return { action, taxonomy: definition, sourceTerm, targetTerm, addTerms, removeTerms: [...removeTerms], changes, skipped: [], revisions: Object.fromEntries(changes.map((change) => [change.postId, change.revision])), impact: { files: changes.length, published: changes.filter((change) => !change.draft).length, drafts: changes.filter((change) => change.draft).length, languages: [...new Set(changes.map((change) => change.language))].sort(), routeBefore: sourceTerm ? `/${definition.plural}/${demoTermSlug(sourceTerm)}/` : '', routeAfter: targetTerm ? `/${definition.plural}/${demoTermSlug(targetTerm)}/` : '', targetExists, aliasesPreserved: false } }
 }
 
 export function createDemoBridge() {
@@ -274,6 +342,21 @@ export function createDemoBridge() {
       if (!finding?.fix || finding.fix.kind === 'text' && !String(value || '').trim()) throw new Error('Enter a value before applying this fix.')
       reviewFindings = reviewFindings.filter((item) => item.id !== findingId)
       return { findingId, rule: finding.rule, result: true }
+    },
+    taxonomyIndex: async () => demoTaxonomyIndex(posts),
+    previewTaxonomyChange: async (input) => demoTaxonomyPreview(posts, input),
+    applyTaxonomyChange: async (input) => {
+      const preview = demoTaxonomyPreview(posts, input)
+      for (const change of preview.changes) {
+        if (input.expectedRevisions?.[change.postId] !== change.revision) throw new Error(`${change.title} changed after the preview. Review the taxonomy change again before applying it.`)
+      }
+      posts = posts.map((post) => {
+        const change = preview.changes.find((item) => item.postId === post.id)
+        if (!change) return post
+        const taxonomies = { ...(post.taxonomies || {}), [preview.taxonomy.id]: change.after }
+        return { ...post, taxonomies, tags: preview.taxonomy.id === 'tags' ? change.after : post.tags, revision: `demo-${Date.now()}-${post.id}` }
+      })
+      return { preview, recoveryPoint: { id: `demo-taxonomy-${Date.now()}`, reason: 'before-taxonomy-change' }, index: demoTaxonomyIndex(posts) }
     },
     editorialCalendar: async () => {
       const now = '2026-08-11T12:00:00.000Z'

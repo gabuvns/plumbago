@@ -75,10 +75,37 @@ function parseTomlFrontMatter(raw) {
   }
 }
 
+function parseJsonFrontMatter(raw) {
+  const source = String(raw).replace(/^\uFEFF/, '')
+  if (source[0] !== '{') return null
+  let depth = 0
+  let quoted = false
+  let escaped = false
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]
+    if (quoted) {
+      if (escaped) escaped = false
+      else if (character === '\\') escaped = true
+      else if (character === '"') quoted = false
+      continue
+    }
+    if (character === '"') quoted = true
+    else if (character === '{') depth += 1
+    else if (character === '}') {
+      depth -= 1
+      if (depth === 0) {
+        const data = JSON.parse(source.slice(0, index + 1))
+        return { data, content: source.slice(index + 1).replace(/^\s*\r?\n/, ''), format: 'json', hasMatter: true }
+      }
+    }
+  }
+  return null
+}
+
 function parsePostSource(raw) {
   const source = String(raw).replace(/^\uFEFF/, '')
-  const toml = parseTomlFrontMatter(source)
-  const outer = toml || (() => {
+  const structured = parseTomlFrontMatter(source) || parseJsonFrontMatter(source)
+  const outer = structured || (() => {
     const parsed = matter(source)
     return {
       data: parsed.data || {},
@@ -97,6 +124,16 @@ function parsePostSource(raw) {
     content: nested.content,
     repairedNestedFrontMatter: true,
   }
+}
+
+function taxonomyValues(data = {}) {
+  return Object.fromEntries(Object.entries(data).flatMap(([key, value]) => {
+    if (typeof value === 'string' || typeof value === 'number') return [[key, [String(value)]]]
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string' || typeof item === 'number')) {
+      return [[key, value.map(String)]]
+    }
+    return []
+  }))
 }
 
 async function readPost(root, id) {
@@ -119,6 +156,7 @@ async function readPost(root, id) {
     lastmod: normalizeDateTime(parsed.data.lastmod),
     draft: parsed.data.draft !== false,
     tags: Array.isArray(parsed.data.tags) ? parsed.data.tags : [],
+    taxonomies: taxonomyValues(parsed.data),
     featuredImage: parsed.data.featuredImage || '',
     translationKey: parsed.data.translationKey || '',
     language: languageFromId(id),
@@ -145,6 +183,7 @@ async function listPosts(root) {
         lastmod: post.lastmod,
         draft: post.draft,
         tags: post.tags,
+        taxonomies: post.taxonomies,
         language: post.language,
         featuredImage: post.featuredImage,
         revision: post.revision,
@@ -171,11 +210,17 @@ function serializePost(existingData, post, format = 'yaml') {
     featuredImage: post.featuredImage || '',
   }
   const compact = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
+  if (format === 'json') return `${JSON.stringify(compact, null, 2)}\n\n${String(post.body || '').replace(/^\s+/, '')}`
   const delimiter = format === 'toml' ? '+++' : '---'
-  const frontMatter = format === 'toml'
-    ? TOML.stringify(compact).trim()
-    : YAML.stringify(compact, { lineWidth: 0 }).trim()
+  const frontMatter = format === 'toml' ? TOML.stringify(compact).trim() : YAML.stringify(compact, { lineWidth: 0 }).trim()
   return `${delimiter}\n${frontMatter}\n${delimiter}\n\n${String(post.body || '').replace(/^\s+/, '')}`
+}
+
+function serializePostSource(data, content, format = 'yaml') {
+  if (format === 'json') return `${JSON.stringify(data, null, 2)}\n\n${String(content || '').replace(/^\s+/, '')}`
+  const delimiter = format === 'toml' ? '+++' : '---'
+  const frontMatter = format === 'toml' ? TOML.stringify(data).trim() : YAML.stringify(data, { lineWidth: 0 }).trim()
+  return `${delimiter}\n${frontMatter}\n${delimiter}\n\n${String(content || '').replace(/^\s+/, '')}`
 }
 
 async function savePost(root, post) {
@@ -422,11 +467,14 @@ module.exports = {
   inspectBloggerExport,
   listPosts,
   parseBloggerExport,
+  parseJsonFrontMatter,
   parsePostSource,
   readAsset,
   readAssetInfo,
   readPost,
   revisionFor,
   savePost,
+  serializePostSource,
   slugify,
+  taxonomyValues,
 }
