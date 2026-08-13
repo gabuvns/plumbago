@@ -7,6 +7,7 @@ import { BloggerImportModal } from '../features/importing/BloggerImportModal'
 import { HistoryModal } from '../features/history/HistoryModal'
 import { MediaLibrary } from '../features/media/MediaLibrary'
 import { Welcome } from '../features/onboarding/Welcome'
+import { PageManager } from '../features/pages/PageManager'
 import { DeletePostModal } from '../features/posts/DeletePostModal'
 import { NewPostModal } from '../features/posts/NewPostModal'
 import { PostList } from '../features/posts/PostList'
@@ -51,6 +52,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [taxonomiesOpen, setTaxonomiesOpen] = useState(false)
+  const [pagesOpen, setPagesOpen] = useState(false)
   const [taxonomyFilters, setTaxonomyFilters] = useState([])
   const [reviewOpen, setReviewOpen] = useState(false)
   const [gitSetupOpen, setGitSetupOpen] = useState(false)
@@ -617,6 +619,11 @@ export default function App() {
     setTaxonomiesOpen(true)
   }
 
+  async function showPages() {
+    if (dirty && !(await performSave(post))) return
+    setPagesOpen(true)
+  }
+
   async function handleReviewChanged() {
     await Promise.all([refreshPosts(activeId, true), refreshSiteSettings()])
   }
@@ -626,7 +633,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onCalendar={showCalendar} onTaxonomies={showTaxonomies} onReview={showReview} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Sidebar context={context} onChooseBlog={chooseBlog} onImages={() => setImagesOpen(true)} onThemes={() => setThemesOpen(true)} onHistory={() => setHistoryOpen(true)} onCalendar={showCalendar} onTaxonomies={showTaxonomies} onPages={showPages} onReview={showReview} onHealth={() => setHealthOpen(true)} onImport={() => setBloggerOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <PostList posts={posts} activeId={activeId} taxonomyFilters={taxonomyFilters} onSelect={selectPost} onNew={() => setNewPostOpen(true)} onDelete={requestDelete} onRemoveTaxonomyFilter={(target) => setTaxonomyFilters((current) => current.filter((item) => item !== target))} onClearTaxonomyFilters={() => setTaxonomyFilters([])} />
       <main className="content-area">
         <header className="topbar">
@@ -647,6 +654,7 @@ export default function App() {
       {historyOpen && <HistoryModal post={post} onClose={() => setHistoryOpen(false)} onPostRestored={handleHistoryPostRestored} onSiteRestored={handleHistorySiteRestored} notify={notify} />}
       {calendarOpen && <Suspense fallback={<div className="app-loading"><LoaderCircle className="spin" /></div>}><EditorialCalendar onClose={() => setCalendarOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} onDeploy={() => { setCalendarOpen(false); setDeployOpen(true) }} notify={notify} /></Suspense>}
       {taxonomiesOpen && <TaxonomyManager filters={taxonomyFilters} onApplyFilters={setTaxonomyFilters} onChanged={handleReviewChanged} onClose={() => setTaxonomiesOpen(false)} notify={notify} />}
+      {pagesOpen && <PageManager onChanged={handleReviewChanged} onClose={() => setPagesOpen(false)} notify={notify} />}
       {reviewOpen && <Suspense fallback={<div className="app-loading"><LoaderCircle className="spin" /></div>}><ReviewModal onClose={() => setReviewOpen(false)} onOpenPost={selectPost} onChanged={handleReviewChanged} notify={notify} /></Suspense>}
       {healthOpen && <PublishingHealthModal onClose={() => setHealthOpen(false)} onAction={handleHealthAction} notify={notify} />}
       {gitSetupOpen && <GitSetupModal onClose={closeGitSetup} onReady={finishGitSetup} notify={notify} />}

@@ -117,6 +117,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'src/features/review/ReviewModal.jsx',
     'src/features/calendar/EditorialCalendar.jsx',
     'src/features/taxonomies/TaxonomyManager.jsx',
+    'src/features/pages/PageManager.jsx',
     'src/features/setup/GitSetupModal.jsx',
     'electron/core/runtime.cjs',
     'electron/services/content.cjs',
@@ -145,6 +146,7 @@ test('mantém as entradas principais como fachadas modulares', () => {
     'electron/services/calendar/time.cjs',
     'electron/services/calendar/workflow-time.cjs',
     'electron/services/taxonomies.cjs',
+    'electron/services/pages.cjs',
     'electron/services/site.cjs',
     'electron/services/trash.cjs',
     'electron/services/updates.cjs',
@@ -325,6 +327,36 @@ test('keeps Hugo taxonomies searchable, filterable, previewable, and recoverable
   assert.match(service, /restoreRecoveryPoint/)
   assert.match(demo, /taxonomyIndex: async/)
   assert.match(demo, /applyTaxonomyChange: async/)
+})
+
+test('keeps Hugo pages and routes discoverable, collision-aware, previewable, and recoverable', () => {
+  const app = read('src/app/App.jsx')
+  const sidebar = read('src/components/layout/Sidebar.jsx')
+  const manager = read('src/features/pages/PageManager.jsx')
+  const preload = read('electron/preload.cjs')
+  const main = read('electron/main.cjs')
+  const service = read('electron/services/pages.cjs')
+  const facade = read('electron/plumbago-service.cjs')
+  const demo = read('src/demo.js')
+
+  assert.match(app, /<PageManager/)
+  assert.match(sidebar, /sidebar\.pages/)
+  assert.match(manager, /api\.pageInventory\(\)/)
+  assert.match(manager, /api\.previewPageChange/)
+  assert.match(manager, /api\.applyPageChange/)
+  assert.match(manager, /pages\.routeCollisionTitle/)
+  assert.match(manager, /pages\.preservedFields/)
+  assert.match(manager, /pages\.removeResources/)
+  assert.match(preload, /pageInventory:/)
+  assert.match(main, /plumbago:page-inventory/)
+  assert.match(service, /before-page-change/)
+  assert.match(service, /createRecoveryPoint/)
+  assert.match(service, /restoreRecoveryPoint/)
+  assert.match(service, /serializePostSource/)
+  assert.match(service, /virtualRouteRecords/)
+  assert.match(facade, /services\/pages\.cjs/)
+  assert.match(demo, /pageInventory: async/)
+  assert.match(demo, /applyPageChange: async/)
 })
 
 test('protects published posts and keeps accessibility and Markdown hierarchy visible in the editor', () => {

@@ -138,10 +138,10 @@ Definition of done: a writer can keep a large blog consistently organized withou
 
 Status: active
 
-- [ ] Browse and create standalone routes such as `/about` and `/gallery`.
-- [ ] Detect collisions, aliases, menus, multilingual routes, and theme-dependent layouts.
-- [ ] Rename or remove pages through an exact impact preview and recovery point.
-- [ ] Preserve unknown front matter and ordinary Hugo content portability.
+- [x] Browse and create standalone routes such as `/about` and `/gallery`.
+- [x] Detect collisions, aliases, menus, multilingual routes, and theme-dependent layouts.
+- [x] Rename or remove pages through an exact impact preview and recovery point.
+- [x] Preserve unknown front matter and ordinary Hugo content portability.
 
 Definition of done: a writer can manage the blog's main pages and routes without manually reorganizing the content tree.
 

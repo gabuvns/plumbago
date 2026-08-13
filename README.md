@@ -63,6 +63,7 @@ Plumbago can also help you:
 - browse the official Hugo theme gallery;
 - check a theme's Hugo requirements and roll back a failed installation;
 - organize drafts, scheduled posts, published posts, tags, and featured images;
+- create About, Gallery, and other Hugo pages without arranging content folders by hand;
 - notice posts written by Obsidian or another external editor;
 - remove Markdown posts without silently deleting their attached images;
 - import posts and images from a Blogger XML backup;
@@ -73,6 +74,8 @@ Plumbago can also help you:
 - check for and install new Plumbago releases.
 
 The **Tags & categories** workspace reads Hugo's configured taxonomies across the whole blog. It highlights spelling variants, empty term pages, draft-only usage, and posts that still need classification. You can filter the post list, edit several posts, or rename and merge terms only after reviewing the exact files, languages, publication states, and public routes affected. Every bulk change creates a local recovery point first.
+
+The **Pages & routes** workspace maps Markdown pages, leaf and branch bundles, translations, aliases, Hugo menus, automatic section and taxonomy routes, and theme-specific layouts. Create an `/about/` or `/gallery/` page from a short form, or change a public route while keeping the old address as a Hugo redirect. Before removing anything, Plumbago shows the exact source and bundled resources involved and creates a recovery point. Shared translation resources and section descendants are protected; non-Markdown Hugo content stays untouched and usable through its original files.
 
 The interface is available in English by default and Brazilian Portuguese. Accessibility settings include a persistent writing and preview font-size control with a live H1/H2/H3 sample; it changes only the local Plumbago reading surface, never your Markdown or public theme.
 

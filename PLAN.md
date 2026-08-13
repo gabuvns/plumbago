@@ -250,6 +250,23 @@ Goal: a writer can understand and reorganize tags, categories, and custom Hugo t
 
 Goal: a writer can add and manage standalone Hugo pages such as `/about` and `/gallery` without learning the content tree or route configuration.
 
-- [ ] Discover existing branch bundles, leaf bundles, aliases, menus, and explicit URLs without rewriting unknown front matter.
-- [ ] Create, rename, preview, and safely remove standalone pages with route-collision checks and recovery points.
-- [ ] Explain theme-dependent layouts and keep unsupported page types editable through ordinary Hugo files.
+### Product work
+
+- [x] Discover existing Markdown pages, branch bundles, leaf bundles, aliases, menus, translations, explicit URLs, and automatic Hugo routes without rewriting content.
+- [x] Create portable leaf, branch, or standalone pages for routes such as `/about/` and `/gallery/`.
+- [x] Detect collisions across pages, posts, aliases, sections, taxonomies, languages, and root-scoped URLs.
+- [x] Change public routes through standard Hugo URL and alias front matter while preserving Markdown, unknown fields, and YAML, TOML, or JSON format.
+- [x] Preview and safely remove standalone or leaf pages with recovery points, shared-resource protection, and exact file impact.
+- [x] Explain theme-dependent layouts, protect homepage and section semantics, and keep unsupported Hugo formats editable through their ordinary files.
+- [x] Add responsive keyboard-accessible interactions, a mutable browser demo, and complete EN-US/PT-BR copy.
+
+### Release gate
+
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] Bundle, route, language, collision, front matter, recovery, IPC, and product-contract tests pass.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser demos cover browsing, filtering, creation, route changes, collision guidance, protected resources, deletion, recovery, and both languages without fresh console errors.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 0.14.0 and bump package metadata.
+- [ ] Create the release commit and `v0.14.0` tag.
+- [ ] Publish the GitHub Release and verify every platform asset.
