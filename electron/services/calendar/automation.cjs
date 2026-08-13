@@ -107,7 +107,7 @@ jobs:
 }
 
 async function automationStatus(root, credentials = {}) {
-  const [metadata, git] = await Promise.all([siteMetadata(root), gitStatus(root).catch(() => ({ branch: '', remote: '' }))])
+  const [metadata, git] = await Promise.all([siteMetadata(root), gitStatus(root).catch(() => ({ branch: '', remote: '', changes: [], ahead: 0, behind: 0, hasUpstream: false }))])
   const hosting = await hostingSettings(root, metadata.baseURL)
   const provider = hosting.hostingProvider
   const supported = Object.hasOwn(WORKFLOWS, provider)
@@ -120,7 +120,21 @@ async function automationStatus(root, credentials = {}) {
   const lastRun = repository && credentials.githubToken && raw
     ? await githubWorkflowRunStatus(credentials.githubToken, repository, WORKFLOWS[provider])
     : { state: raw ? 'unavailable' : 'not-configured', conclusion: '', runUrl: '', updatedAt: '' }
-  return { provider, supported: true, enabled, workflow, repository, branch: git.branch || 'main', timeZone: metadata.timeZone || '', intervalMinutes, lastRun }
+  const pendingSync = enabled && Boolean(git.changes?.length || git.ahead > 0)
+  return {
+    provider,
+    supported: true,
+    enabled,
+    workflow,
+    repository,
+    branch: git.branch || 'main',
+    timeZone: metadata.timeZone || '',
+    intervalMinutes,
+    lastRun,
+    pendingSync,
+    localChanges: git.changes?.length || 0,
+    ahead: git.ahead || 0,
+  }
 }
 
 async function requireAutomationRepository(root, token) {

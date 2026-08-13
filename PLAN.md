@@ -143,7 +143,40 @@ Goal: a writer can see the publication plan, move posts to meaningful dates, and
 - [x] Create the release commit and `v0.12.0` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.0) and verify every platform asset.
 
-## Active milestone: 0.13.0 — Taxonomy manager
+## Active milestone: 0.12.1 — Editorial integrity hotfix
+
+Goal: scheduling and autosave remain trustworthy when files change externally, dates cross timezone boundaries, and background publication depends on repository state.
+
+### Product work
+
+- [x] Prevent Plumbago's own autosave and refresh cycle from being reported as an external edit while preserving genuine conflict protection.
+- [x] Keep editor, preview, and calendar dates on the same blog-local day across UTC offsets and daylight-saving transitions.
+- [x] Synchronize schedule changes to the connected repository when background publication is enabled, with explicit status and a safe retry when Git cannot push.
+- [x] Add focused regression coverage for stale revisions, saves completing out of order, local-midnight scheduling, and scheduled repository synchronization.
+
+### Release gate
+
+- [x] EN-US and PT-BR keys remain in parity.
+- [x] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [x] Browser QA covers a near-midnight schedule and a failed/retried schedule sync without console errors; focused state tests cover queued autosave.
+- [x] A relevant Electron package is built and inspected.
+- [x] Close `CHANGELOG.md` as 0.12.1 and bump package metadata.
+- [ ] Create the release commit and `v0.12.1` tag.
+- [ ] Publish the GitHub Release and verify every platform asset.
+
+## Planned milestone: 0.12.2 — Editorial safeguards and accessibility
+
+- [ ] Make published posts read-only by default with a deliberate revise/unlock action.
+- [ ] Render Markdown `#`, `##`, and `###` with an accurate visual hierarchy in the live preview.
+- [ ] Add an accessible font-size preference with a live preview, keyboard support, and persistent local settings.
+
+## Planned milestone: 0.12.3 — Windows and WSL Hugo management
+
+- [ ] Detect and display native Windows and WSL Hugo installations independently.
+- [ ] Let the writer choose the runtime used by each blog and test it before saving.
+- [ ] Offer an in-app guided update for the chosen runtime with diagnostics and retry.
+
+## Planned milestone: 0.13.0 — Taxonomy manager
 
 Goal: a writer can understand and reorganize tags, categories, and custom Hugo taxonomies across a large blog without bulk-editing front matter by hand.
 
@@ -167,3 +200,11 @@ Goal: a writer can understand and reorganize tags, categories, and custom Hugo t
 - [ ] Close `CHANGELOG.md` as 0.13.0 and bump package metadata.
 - [ ] Create the release commit and `v0.13.0` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
+
+## Planned milestone: 0.14.0 — Route and page manager
+
+Goal: a writer can add and manage standalone Hugo pages such as `/about` and `/gallery` without learning the content tree or route configuration.
+
+- [ ] Discover existing branch bundles, leaf bundles, aliases, menus, and explicit URLs without rewriting unknown front matter.
+- [ ] Create, rename, preview, and safely remove standalone pages with route-collision checks and recovery points.
+- [ ] Explain theme-dependent layouts and keep unsupported page types editable through ordinary Hugo files.

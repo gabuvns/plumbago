@@ -80,6 +80,15 @@ export function EditorialCalendar({ onClose, onOpenPost, onChanged, onDeploy, no
     } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking('') }
   }
 
+  async function syncChanges() {
+    setWorking('sync')
+    try {
+      await api.syncCalendarChanges()
+      notify(t('calendar.notice.syncCompleted'))
+      await load()
+    } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking('') }
+  }
+
   function openAutomationRun() {
     if (!calendar.automation.lastRun?.runUrl) return
     api.openPublishingUrl(calendar.automation.lastRun.runUrl).catch((error) => notify(friendlyError(error, t), 'error'))
@@ -124,7 +133,7 @@ export function EditorialCalendar({ onClose, onOpenPost, onChanged, onDeploy, no
         <div className="calendar-next"><small>{t('calendar.next')}</small><strong>{calendar.next ? calendar.next.title : t('calendar.noNext')}</strong><span>{calendar.next ? formatMoment(calendar.next.effectiveAt, locale, calendar.timeZone) : t('calendar.noNextCopy')}</span></div>
       </section>
 
-      <AutomationCard calendar={calendar} working={working} confirming={automationConfirm} onChange={changeAutomation} onRun={runNow} onOpenRun={openAutomationRun} onDeploy={onDeploy} t={t} locale={locale} />
+      <AutomationCard calendar={calendar} working={working} confirming={automationConfirm} onChange={changeAutomation} onRun={runNow} onSync={syncChanges} onOpenRun={openAutomationRun} onDeploy={onDeploy} t={t} locale={locale} />
 
       <div className="calendar-viewbar">
         <nav>{views.map((name) => <button key={name} className={view === name ? 'active' : ''} onClick={() => changeView(name)}>{name === 'month' ? <LayoutGrid size={14} /> : name === 'week' ? <CalendarClock size={14} /> : <List size={14} />} {t(`calendar.view.${name}`)}</button>)}</nav>
@@ -138,7 +147,7 @@ export function EditorialCalendar({ onClose, onOpenPost, onChanged, onDeploy, no
         {!loading && view === 'unscheduled' && <Unscheduled items={calendar.items.filter((item) => ['unscheduled', 'draft', 'scheduled-draft'].includes(item.state))} onSelect={setSelectedId} t={t} />}
       </main>
 
-      {selected && <SchedulePanel key={selected.id} item={selected} dropRequest={dropRequest?.id === selected.id ? dropRequest : null} timeZone={calendar.timeZone} locale={locale} onClose={() => { setSelectedId(''); setDropRequest(null) }} onOpenPost={openPost} onApplied={async (post) => { await onChanged(post.id); await load() }} notify={notify} t={t} />}
+      {selected && <SchedulePanel key={selected.id} item={selected} dropRequest={dropRequest?.id === selected.id ? dropRequest : null} timeZone={calendar.timeZone} locale={locale} syncRequired={calendar.automation.enabled} onClose={() => { setSelectedId(''); setDropRequest(null) }} onOpenPost={openPost} onApplied={async (result) => { await onChanged(result.post.id); await load(); setCalendar((current) => mergeChangedPost(current, result.post)) }} onReload={load} notify={notify} t={t} />}
       <footer className="calendar-footer"><small><ShieldCheck size={13} /> {t('calendar.portable')}</small><button className="button quiet" onClick={onClose}>{t('common.close')}</button></footer>
     </div>
   </Modal>
@@ -148,15 +157,15 @@ function Summary({ icon, value, label, tone = '' }) {
   return <div className={tone}><span>{icon}</span><strong>{value}</strong><small>{label}</small></div>
 }
 
-function AutomationCard({ calendar, working, confirming, onChange, onRun, onOpenRun, onDeploy, t, locale }) {
+function AutomationCard({ calendar, working, confirming, onChange, onRun, onSync, onOpenRun, onDeploy, t, locale }) {
   const automation = calendar.automation
-  const state = !automation.supported ? 'unsupported' : automation.enabled ? automation.overdue ? 'overdue' : automation.lastRun?.state === 'failed' ? 'failed' : 'enabled' : 'disabled'
+  const state = !automation.supported ? 'unsupported' : automation.enabled ? automation.pendingSync ? 'syncPending' : automation.overdue ? 'overdue' : automation.lastRun?.state === 'failed' ? 'failed' : 'enabled' : 'disabled'
   return <section className={`calendar-automation ${state}`}>
-    <span>{['failed', 'overdue'].includes(state) ? <AlertCircle size={20} /> : automation.enabled ? <Cloud size={20} /> : <Settings2 size={20} />}</span>
+    <span>{['failed', 'overdue', 'syncPending'].includes(state) ? <AlertCircle size={20} /> : automation.enabled ? <Cloud size={20} /> : <Settings2 size={20} />}</span>
     <div><strong>{t(`calendar.automation.${state}`)}</strong><p>{t(`calendar.automation.${state}Copy`, { provider: providerName(automation.provider, t), minutes: automation.intervalMinutes || 30 })}</p>{automation.lastRun?.updatedAt && <small>{t('calendar.automation.lastRun', { date: formatMoment(automation.lastRun.updatedAt, locale, calendar.timeZone) })}</small>}</div>
     {!automation.supported && <button className="button quiet" onClick={onDeploy}><Rocket size={14} /> {t('calendar.automation.chooseProvider')}</button>}
     {automation.supported && !automation.enabled && <button className={confirming === 'enable' ? 'button primary' : 'button quiet'} onClick={() => onChange('enable')} disabled={Boolean(working)}>{working === 'enable' ? <LoaderCircle className="spin" size={14} /> : confirming === 'enable' ? <Check size={14} /> : <Sparkles size={14} />} {t(confirming === 'enable' ? 'calendar.automation.confirmEnable' : 'calendar.automation.enable')}</button>}
-    {automation.enabled && <div className="calendar-automation-actions">{automation.lastRun?.runUrl && <button className="button quiet" onClick={onOpenRun}><ArrowRight size={14} /> {t('calendar.automation.openRun')}</button>}<button className="button quiet" onClick={onRun} disabled={Boolean(working)}>{working === 'run' ? <LoaderCircle className="spin" size={14} /> : <Play size={14} />} {t('calendar.automation.runNow')}</button><button className={confirming === 'disable' ? 'button danger' : 'button quiet'} onClick={() => onChange('disable')} disabled={Boolean(working)}>{working === 'disable' ? <LoaderCircle className="spin" size={14} /> : confirming === 'disable' ? <Check size={14} /> : <CircleOff size={14} />} {t(confirming === 'disable' ? 'calendar.automation.confirmDisable' : 'calendar.automation.disable')}</button></div>}
+    {automation.enabled && <div className="calendar-automation-actions">{automation.pendingSync && <button className="button primary" onClick={onSync} disabled={Boolean(working)}>{working === 'sync' ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />} {t('calendar.automation.syncNow')}</button>}{automation.lastRun?.runUrl && <button className="button quiet" onClick={onOpenRun}><ArrowRight size={14} /> {t('calendar.automation.openRun')}</button>}<button className="button quiet" onClick={onRun} disabled={Boolean(working)}>{working === 'run' ? <LoaderCircle className="spin" size={14} /> : <Play size={14} />} {t('calendar.automation.runNow')}</button><button className={confirming === 'disable' ? 'button danger' : 'button quiet'} onClick={() => onChange('disable')} disabled={Boolean(working)}>{working === 'disable' ? <LoaderCircle className="spin" size={14} /> : confirming === 'disable' ? <Check size={14} /> : <CircleOff size={14} />} {t(confirming === 'disable' ? 'calendar.automation.confirmDisable' : 'calendar.automation.disable')}</button></div>}
     {confirming === 'enable' && <div className="calendar-automation-impact"><TriangleAlert size={14} /><span>{t(`calendar.automation.consent.${automation.provider}`)}</span></div>}
   </section>
 }
@@ -189,12 +198,13 @@ function Unscheduled({ items, onSelect, t }) {
   return <div className="calendar-unscheduled">{items.map((item) => <button key={item.id} onClick={() => onSelect(item.id)}><FileText size={18} /><div><strong>{item.title}</strong><small>{item.description || t('posts.noDescription')}</small></div><span className={`calendar-state ${item.state}`}>{t(`calendar.state.${item.state}`)}</span><ChevronRight size={16} /></button>)}</div>
 }
 
-function SchedulePanel({ item, dropRequest, timeZone, locale, onClose, onOpenPost, onApplied, notify, t }) {
+function SchedulePanel({ item, dropRequest, timeZone, locale, syncRequired, onClose, onOpenPost, onApplied, onReload, notify, t }) {
   const initial = item.publishDate ? wallInput(item.publishDate, timeZone) : defaultFutureWall(timeZone)
   const [publishLocal, setPublishLocal] = useState(initial)
   const [expiryLocal, setExpiryLocal] = useState(item.expiryDate ? wallInput(item.expiryDate, timeZone) : '')
   const [preview, setPreview] = useState(null)
   const [working, setWorking] = useState(false)
+  const [syncFailure, setSyncFailure] = useState('')
 
   useEffect(() => {
     if (!dropRequest) return
@@ -220,11 +230,27 @@ function SchedulePanel({ item, dropRequest, timeZone, locale, onClose, onOpenPos
     setWorking(true)
     try {
       const result = await api.applyCalendarChange({ postId: item.id, action: preview.action, timeZone, publishLocal, expiryLocal, publishInstant: preview.action === 'publish-now' ? preview.next.publishDate : undefined })
-      notify(t(`calendar.notice.${preview.action === 'publish-now' ? 'publishedNow' : preview.action === 'cancel' ? 'cancelled' : 'scheduled'}`))
       setPreview(null)
-      await onApplied(result.post)
+      await onApplied(result)
+      if (result.sync?.state === 'failed') {
+        setSyncFailure(result.sync.message || t('calendar.sync.unknownError'))
+        notify(t('calendar.notice.savedLocally'), 'error')
+        return
+      }
+      notify(t(result.sync?.state === 'synced' ? 'calendar.notice.scheduleSynced' : `calendar.notice.${preview.action === 'publish-now' ? 'publishedNow' : preview.action === 'cancel' ? 'cancelled' : 'scheduled'}`))
       onClose()
     } catch (error) { notify(friendlyError(error, t), 'error') } finally { setWorking(false) }
+  }
+
+  async function retrySync() {
+    setWorking(true)
+    try {
+      await api.syncCalendarChanges()
+      setSyncFailure('')
+      notify(t('calendar.notice.syncCompleted'))
+      await onReload()
+      onClose()
+    } catch (error) { setSyncFailure(friendlyError(error, t)); notify(t('calendar.notice.savedLocally'), 'error') } finally { setWorking(false) }
   }
 
   return <aside className="calendar-panel">
@@ -233,12 +259,39 @@ function SchedulePanel({ item, dropRequest, timeZone, locale, onClose, onOpenPos
     <label>{t('calendar.panel.publishAt')}<input type="datetime-local" value={publishLocal} onChange={(event) => { setPublishLocal(event.target.value); setPreview(null) }} /></label>
     <label>{t('calendar.panel.expiryAt')}<input type="datetime-local" value={expiryLocal} min={publishLocal} onChange={(event) => { setExpiryLocal(event.target.value); setPreview(null) }} /><small>{t('calendar.panel.expiryHint')}</small></label>
     <div className="calendar-panel-actions"><button className="button primary" onClick={() => requestPreview('schedule')} disabled={working || !publishLocal}>{working ? <LoaderCircle className="spin" size={14} /> : <Clock3 size={14} />} {t(item.publishDate ? 'calendar.panel.reschedule' : 'calendar.panel.schedule')}</button><button className="button quiet" onClick={() => requestPreview('publish-now')} disabled={working}><Send size={14} /> {t('calendar.panel.publishNow')}</button>{item.publishDate && <button className="button quiet" onClick={() => requestPreview('cancel')} disabled={working}><CircleOff size={14} /> {t('calendar.panel.cancel')}</button>}</div>
-    {preview && <div className="calendar-preview"><div><Sparkles size={14} /><span><strong>{t('calendar.preview.title')}</strong><small>{t('calendar.preview.copy')}</small></span></div>{preview.changes.map((change) => <div key={change.field}><small>{t(`calendar.field.${change.field}`)}</small><code>{previewValue(change.before, change.field, locale, timeZone, t)}</code><ArrowRight size={14} /><code>{previewValue(change.after, change.field, locale, timeZone, t)}</code></div>)}{preview.ambiguous && <p><TriangleAlert size={13} /> {t('calendar.preview.ambiguous')}</p>}<button className="button primary" onClick={apply} disabled={working}>{working ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />} {t('calendar.preview.apply')}</button></div>}
+    {preview && <div className="calendar-preview"><div><Sparkles size={14} /><span><strong>{t('calendar.preview.title')}</strong><small>{t(syncRequired ? 'calendar.preview.syncCopy' : 'calendar.preview.copy')}</small></span></div>{preview.changes.map((change) => <div key={change.field}><small>{t(`calendar.field.${change.field}`)}</small><code>{previewValue(change.before, change.field, locale, timeZone, t)}</code><ArrowRight size={14} /><code>{previewValue(change.after, change.field, locale, timeZone, t)}</code></div>)}{preview.ambiguous && <p><TriangleAlert size={13} /> {t('calendar.preview.ambiguous')}</p>}<button className="button primary" onClick={apply} disabled={working}>{working ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />} {t(syncRequired ? 'calendar.preview.applyAndSync' : 'calendar.preview.apply')}</button></div>}
+    {syncFailure && <div className="calendar-sync-failure" role="alert"><TriangleAlert size={16} /><div><strong>{t('calendar.sync.failed')}</strong><p>{t('calendar.sync.failedCopy')}</p><small>{syncFailure}</small></div><button className="button primary" onClick={retrySync} disabled={working}>{working ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />} {t('calendar.sync.retry')}</button></div>}
     <button className="button quiet calendar-open-post" onClick={() => onOpenPost(item.id)}><FileText size={14} /> {t('calendar.panel.openPost')}</button>
   </aside>
 }
 
 function providerName(provider, t) { return ['github-pages', 'cloudflare-pages'].includes(provider) ? t(`hosting.${provider}`) : t('hosting.none') }
+function mergeChangedPost(calendar, post) {
+  const previous = calendar.items.find((item) => item.id === post.id)
+  if (!previous) return calendar
+  const now = new Date(calendar.now)
+  const publishAt = post.publishDate ? new Date(post.publishDate) : null
+  const expiryAt = post.expiryDate ? new Date(post.expiryDate) : null
+  let state = previous.state
+  let effectiveAt = previous.effectiveAt
+  let source = previous.source
+  if (expiryAt && expiryAt <= now) {
+    state = 'expired'; effectiveAt = post.expiryDate; source = 'expiryDate'
+  } else if (post.draft) {
+    state = publishAt ? publishAt > now ? 'scheduled-draft' : 'draft' : 'unscheduled'
+    effectiveAt = publishAt ? post.publishDate : ''
+    source = publishAt ? 'publishDate' : ''
+  } else if (publishAt) {
+    state = publishAt > now ? 'scheduled' : 'published'
+    effectiveAt = post.publishDate
+    source = 'publishDate'
+  }
+  const items = calendar.items.map((item) => item.id === post.id ? { ...item, ...post, state, effectiveAt, source } : item)
+  const states = ['published', 'scheduled', 'unscheduled', 'draft', 'scheduled-draft', 'expired']
+  const summary = { total: items.length, ...Object.fromEntries(states.map((name) => [name, items.filter((item) => item.state === name).length])) }
+  const next = items.filter((item) => item.state === 'scheduled').sort((left, right) => left.effectiveAt.localeCompare(right.effectiveAt))[0] || null
+  return { ...calendar, items, summary, next }
+}
 function pad(value) { return String(value).padStart(2, '0') }
 function startMonth(value) { return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1)) }
 function startWeek(value) { const date = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate())); date.setUTCDate(date.getUTCDate() - date.getUTCDay()); return date }

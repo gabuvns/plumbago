@@ -84,8 +84,13 @@ export function createDemoBridge() {
   }
   let context = { root: '/home/voce/meu-blog', config: 'hugo.toml', runtime: { kind: 'wsl', distro: 'Ubuntu' }, hugo: 'hugo v0.123.7', hugoExecutable: '/usr/bin/hugo', git: 'git version 2.43.0', theme: 'hugo-papermod' }
   const demoQuery = new URLSearchParams(window.location.search)
+  if (demoQuery.get('calendar') === 'midnight') {
+    posts = posts.map((item) => item.id === samplePosts[1].id ? { ...item, publishDate: '2026-08-12T02:30:00.000Z' } : item)
+  }
   let demoTimeZone = 'America/Sao_Paulo'
   let demoAutomationEnabled = demoQuery.get('calendar') !== 'automation-off'
+  let demoCalendarSyncPending = ['sync-pending', 'sync-failed'].includes(demoQuery.get('calendar'))
+  let demoCalendarSyncFailure = demoQuery.get('calendar') === 'sync-failed'
   let githubConnected = demoQuery.get('github') !== 'signin'
   let cloudflareConnected = demoQuery.get('cloudflare') !== 'signin'
   let demoDeployment = demoQuery.get('deploy') === 'progress'
@@ -127,7 +132,7 @@ export function createDemoBridge() {
     openTheme: async () => true,
     listPosts: async () => posts,
     readPost: async (id) => fullPost(posts.find((post) => post.id === id)),
-    savePost: async (post) => { const saved = { ...post, revision: `demo-${Date.now()}` }; posts = posts.map((item) => item.id === post.id ? { ...item, ...saved } : item); return saved },
+    savePost: async (post) => { if (demoQuery.get('autosave') === 'slow') await new Promise((resolve) => setTimeout(resolve, 700)); const saved = { ...post, revision: `demo-${Date.now()}` }; posts = posts.map((item) => item.id === post.id ? { ...item, ...saved } : item); return saved },
     createPost: async (input) => { const summary = { id: `content/posts/novo-post/index.${input.language}.md`, title: input.title, description: '', date: '2026-08-08', draft: true, language: input.language, featuredImage: '' }; posts.unshift(summary); return fullPost(summary) },
     deletePost: async (id) => {
       const post = posts.find((item) => item.id === id)
@@ -241,15 +246,22 @@ export function createDemoBridge() {
       const states = ['published', 'scheduled', 'unscheduled', 'draft', 'scheduled-draft', 'expired']
       const summary = { total: items.length, ...Object.fromEntries(states.map((state) => [state, items.filter((item) => item.state === state).length])) }
       const next = items.filter((item) => item.state === 'scheduled').sort((left, right) => left.effectiveAt.localeCompare(right.effectiveAt))[0] || null
-      return { timeZone: demoTimeZone, timeZoneConfigured: true, now, items, summary, next, automation: { provider: 'github-pages', supported: true, enabled: demoAutomationEnabled, workflow: '.github/workflows/plumbago-pages.yml', repository: { fullName: 'voce/blog' }, branch: 'main', intervalMinutes: 30, overdue: demoQuery.get('calendar') === 'overdue', lastRun: demoAutomationEnabled ? { state: demoQuery.get('calendar') === 'overdue' ? 'failed' : 'success', updatedAt: '2026-08-11T11:43:00.000Z', runUrl: 'https://github.com/voce/blog/actions' } : { state: 'not-configured', updatedAt: '' } } }
+      return { timeZone: demoTimeZone, timeZoneConfigured: true, now, items, summary, next, automation: { provider: 'github-pages', supported: true, enabled: demoAutomationEnabled, workflow: '.github/workflows/plumbago-pages.yml', repository: { fullName: 'voce/blog' }, branch: 'main', intervalMinutes: 30, overdue: demoQuery.get('calendar') === 'overdue', pendingSync: demoAutomationEnabled && demoCalendarSyncPending, localChanges: demoCalendarSyncPending ? 1 : 0, ahead: 0, lastRun: demoAutomationEnabled ? { state: demoQuery.get('calendar') === 'overdue' ? 'failed' : 'success', updatedAt: '2026-08-11T11:43:00.000Z', runUrl: 'https://github.com/voce/blog/actions' } : { state: 'not-configured', updatedAt: '' } } }
     },
     previewCalendarChange: async (input) => demoCalendarPreview(posts, input),
     applyCalendarChange: async (input) => {
       const preview = demoCalendarPreview(posts, input)
       const saved = { ...preview.next, revision: `demo-${Date.now()}` }
       posts = posts.map((item) => item.id === input.postId ? saved : item)
-      return { action: input.action, changes: preview.changes, post: fullPost(saved), recoveryPoint: { id: 'demo-calendar-recovery' } }
+      if (demoAutomationEnabled && demoCalendarSyncFailure) {
+        demoCalendarSyncPending = true
+        demoCalendarSyncFailure = false
+        return { action: input.action, changes: preview.changes, post: fullPost(saved), recoveryPoint: { id: 'demo-calendar-recovery' }, sync: { required: true, state: 'failed', message: 'The network interrupted the GitHub push.' } }
+      }
+      demoCalendarSyncPending = false
+      return { action: input.action, changes: preview.changes, post: fullPost(saved), recoveryPoint: { id: 'demo-calendar-recovery' }, sync: demoAutomationEnabled ? { required: true, state: 'synced' } : { required: false, state: 'not-required' } }
     },
+    syncCalendarChanges: async () => { demoCalendarSyncPending = false; return { required: true, state: 'synced', log: ['Conteúdo enviado ao repositório remoto.'] } },
     saveCalendarTimeZone: async (value) => { demoTimeZone = value; return { timeZone: value, changed: true } },
     enableCalendarAutomation: async () => { demoAutomationEnabled = true; return true },
     disableCalendarAutomation: async () => { demoAutomationEnabled = false; return true },

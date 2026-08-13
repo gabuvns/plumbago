@@ -619,6 +619,11 @@ test('agenda, reagenda, cancela e publica conteúdo Hugo no fuso do blog sem per
   assert.equal(calendar.summary.scheduled, 1)
   assert.equal(calendar.next.id, created.id)
 
+  const dateAfterSchedule = await service.savePost(root, { ...scheduled.post, date: '2030-06-16' })
+  const calendarWithLaterEditorialDate = await service.editorialCalendar(root, {}, { now: '2026-08-11T12:00:00.000Z' })
+  assert.equal(calendarWithLaterEditorialDate.items[0].effectiveAt, dateAfterSchedule.publishDate)
+  assert.equal(service.wallDateTimeFromIso(calendarWithLaterEditorialDate.items[0].effectiveAt, calendarWithLaterEditorialDate.timeZone), '2030-06-15T09:30')
+
   const cancelled = await service.applyCalendarChange(root, { postId: created.id, action: 'cancel', timeZone: 'America/Sao_Paulo' })
   assert.equal(cancelled.post.draft, true)
   assert.equal(cancelled.post.publishDate, '')
@@ -631,6 +636,50 @@ test('agenda, reagenda, cancela e publica conteúdo Hugo no fuso do blog sem per
 
   assert.throws(() => service.zonedDateTimeToIso('2026-03-08T02:30', 'America/New_York'), /does not exist/i)
   assert.equal(service.zonedDateTimeToIso('2026-11-01T01:30', 'America/New_York').ambiguous, true)
+})
+
+test('sincroniza mudanças de agenda quando o relógio remoto está ativo e mantém retry seguro quando o push falha', async (t) => {
+  const root = await makeTemporaryDirectory('plumbago-calendar-sync')
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await execFileAsync('hugo', ['new', 'site', root, '--force'])
+  await execFileAsync('git', ['init', '-b', 'main'], { cwd: root })
+  const created = await service.createPost(root, { title: 'Agenda sincronizada', language: 'pt-br' })
+  const calls = []
+  const automationStatus = async () => ({ enabled: true, pendingSync: calls.length === 0 })
+  const syncGit = async (_root, message, options) => {
+    calls.push({ message, options })
+    return { log: ['sent'] }
+  }
+
+  const applied = await service.applyEditorialCalendarChange(root, {
+    postId: created.id,
+    action: 'schedule',
+    timeZone: 'America/Sao_Paulo',
+    publishLocal: '2030-06-11T23:30',
+  }, { githubToken: 'test-token' }, { automationStatus, syncGit })
+
+  assert.equal(applied.sync.state, 'synced')
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].message, 'Update editorial schedule with Plumbago')
+  assert.equal(calls[0].options.githubToken, 'test-token')
+  assert.equal(service.wallDateTimeFromIso(applied.post.publishDate, 'America/Sao_Paulo'), '2030-06-11T23:30')
+
+  const failed = await service.applyEditorialCalendarChange(root, {
+    postId: created.id,
+    action: 'schedule',
+    timeZone: 'America/Sao_Paulo',
+    publishLocal: '2030-06-12T23:30',
+  }, {}, {
+    automationStatus: async () => ({ enabled: true }),
+    syncGit: async () => { throw new Error('network unavailable') },
+  })
+  assert.equal(failed.sync.state, 'failed')
+  assert.match(failed.sync.message, /network unavailable/)
+  assert.equal(service.wallDateTimeFromIso((await service.readPost(root, created.id)).publishDate, 'America/Sao_Paulo'), '2030-06-12T23:30')
+
+  const retried = await service.syncCalendarChanges(root, {}, { automationStatus: async () => ({ enabled: true }), syncGit })
+  assert.equal(retried.state, 'synced')
+  assert.equal(calls.length, 2)
 })
 
 test('gera um relógio Cloudflare portátil sem gravar credenciais no workflow', () => {
@@ -976,9 +1025,16 @@ test('sincroniza commits com um remoto Git e reutiliza o upstream', async (t) =>
   const first = await service.syncGit(blogRoot, 'Primeira sincronização')
   assert.equal(first.status.branch, 'main')
   assert.deepEqual(first.status.changes, [])
+  assert.equal(first.status.hasUpstream, true)
+  assert.equal(first.status.ahead, 0)
   assert.match(first.log.join('\n'), /Conteúdo enviado/)
 
   await fs.writeFile(path.join(blogRoot, 'README.md'), '# Blog Plumbago\n', 'utf8')
+  await execFileAsync('git', ['add', 'README.md'], { cwd: blogRoot })
+  await execFileAsync('git', ['commit', '-m', 'Local scheduled change'], { cwd: blogRoot })
+  const pending = await service.gitStatus(blogRoot)
+  assert.equal(pending.ahead, 1)
+  assert.equal(pending.hasUpstream, true)
   const prePublishReview = await service.siteReview(blogRoot)
   assert.equal(prePublishReview.summary.errors, 0, JSON.stringify(prePublishReview.findings, null, 2))
   const second = await service.publishBlog(blogRoot, 'Segunda sincronização')

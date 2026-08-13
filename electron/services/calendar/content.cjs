@@ -17,10 +17,10 @@ function stateFor(post, timeZone, now) {
   const publishAt = instant(post.publishDate)
   const contentAt = dateInstant(post.date, timeZone)
   const expiryAt = instant(post.expiryDate)
-  const effectiveAt = [publishAt, contentAt].filter(Boolean).sort((left, right) => right - left)[0] || null
+  const effectiveAt = publishAt || contentAt
   if (expiryAt && expiryAt <= now) return { state: 'expired', effectiveAt: expiryAt.toISOString(), source: 'expiryDate' }
   if (post.draft) return publishAt ? { state: publishAt > now ? 'scheduled-draft' : 'draft', effectiveAt: publishAt.toISOString(), source: 'publishDate' } : { state: 'unscheduled', effectiveAt: '', source: '' }
-  if (effectiveAt && effectiveAt > now) return { state: 'scheduled', effectiveAt: effectiveAt.toISOString(), source: publishAt && publishAt >= contentAt ? 'publishDate' : 'date' }
+  if (effectiveAt && effectiveAt > now) return { state: 'scheduled', effectiveAt: effectiveAt.toISOString(), source: publishAt ? 'publishDate' : 'date' }
   return { state: 'published', effectiveAt: (publishAt || contentAt)?.toISOString() || '', source: publishAt ? 'publishDate' : 'date' }
 }
 

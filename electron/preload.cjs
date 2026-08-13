@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('plumbago', {
   editorialCalendar: () => ipcRenderer.invoke('plumbago:editorial-calendar'),
   previewCalendarChange: (input) => ipcRenderer.invoke('plumbago:calendar-preview-change', input),
   applyCalendarChange: (input) => ipcRenderer.invoke('plumbago:calendar-apply-change', input),
+  syncCalendarChanges: () => ipcRenderer.invoke('plumbago:calendar-sync-changes'),
   saveCalendarTimeZone: (timeZone) => ipcRenderer.invoke('plumbago:calendar-save-timezone', timeZone),
   enableCalendarAutomation: (input) => ipcRenderer.invoke('plumbago:calendar-enable-automation', input),
   disableCalendarAutomation: () => ipcRenderer.invoke('plumbago:calendar-disable-automation'),

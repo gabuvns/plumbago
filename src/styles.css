@@ -872,6 +872,7 @@ button { color: inherit; }
 .calendar-automation { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 9px 20px 0; padding: 9px 11px; color: var(--green); border: 1px solid #c8dbcdbb; border-radius: 8px; background: #f2f8f4; }
 .calendar-automation.disabled, .calendar-automation.unsupported { color: var(--brand); border-color: #d9d4e9; background: #f7f5fc; }
 .calendar-automation.failed, .calendar-automation.overdue { color: #a34e56; border-color: #e4bfc2; background: #fff3f4; }
+.calendar-automation.syncPending { color: #7a5b16; border-color: #e4cd91; background: #fff8e5; }
 .calendar-automation > span { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 8px; background: #ffffffb8; }
 .calendar-automation strong, .calendar-automation p, .calendar-automation small { display: block; }
 .calendar-automation strong { color: #4b4340; font-size: 9px; }
@@ -879,6 +880,11 @@ button { color: inherit; }
 .calendar-automation small { margin-top: 2px; color: #8f8781; font-size: 7px; }
 .calendar-automation-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .calendar-automation-impact { grid-column: 2 / -1; display: flex; align-items: flex-start; gap: 6px; padding: 7px 8px; color: #795e23; border-radius: 6px; background: #fff2cf; font-size: 8px; line-height: 1.4; }
+.calendar-sync-failure { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 9px; color: #8b3f49; border: 1px solid #e4bfc2; border-radius: 8px; background: #fff3f4; }
+.calendar-sync-failure strong, .calendar-sync-failure p, .calendar-sync-failure small { display: block; }
+.calendar-sync-failure strong { color: #6f3038; font-size: 9px; }
+.calendar-sync-failure p { margin: 2px 0 0; color: #805e61; font-size: 8px; line-height: 1.4; }
+.calendar-sync-failure small { margin-top: 3px; color: #9b7478; font-size: 7px; overflow-wrap: anywhere; }
 .calendar-viewbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 20px; border-bottom: 1px solid var(--line); background: white; }
 .calendar-viewbar nav { display: flex; padding: 2px; border-radius: 7px; background: #f1eeea; }
 .calendar-viewbar nav button { display: flex; align-items: center; gap: 4px; padding: 6px 9px; color: #8b817a; border: 0; border-radius: 5px; background: transparent; cursor: pointer; font-size: 8px; }

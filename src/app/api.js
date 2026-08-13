@@ -1,6 +1,6 @@
 import { createDemoBridge } from '../demo'
 
-export const api = window.plumbago || createDemoBridge()
+export const api = window.plumbago || (window.__plumbagoDemoBridge ||= createDemoBridge())
 
 export const emptyContext = {
   root: '',

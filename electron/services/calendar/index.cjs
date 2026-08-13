@@ -1,5 +1,6 @@
 const { automationStatus, cloudflareWorkflow, disableAutomation, enableAutomation, runAutomationNow } = require('./automation.cjs')
 const { applyCalendarChange, calendarContent, previewCalendarChange, saveCalendarTimeZone } = require('./content.cjs')
+const { syncGit } = require('../publishing.cjs')
 const { defaultTimeZone, validTimeZone, wallDateTimeFromIso, zonedDateTimeToIso } = require('./time.cjs')
 
 async function editorialCalendar(root, credentials = {}, options = {}) {
@@ -15,8 +16,35 @@ async function editorialCalendar(root, credentials = {}, options = {}) {
   return { ...content, automation: { ...automation, overdue, missed: missed ? { postId: missed.item.id, postTitle: missed.item.title, boundaryAt: missed.at, kind: missed.kind } : null } }
 }
 
+async function syncCalendarChanges(root, credentials = {}, options = {}) {
+  const readStatus = options.automationStatus || automationStatus
+  const sync = options.syncGit || syncGit
+  const automation = options.automation || await readStatus(root, credentials)
+  if (!automation.enabled) throw new Error('Enable background publishing before synchronizing an editorial schedule.')
+  const result = await sync(root, 'Update editorial schedule with Plumbago', { githubToken: credentials.githubToken })
+  return { required: true, state: 'synced', log: result.log || [], automation: await readStatus(root, credentials) }
+}
+
+async function applyEditorialCalendarChange(root, input = {}, credentials = {}, options = {}) {
+  const applied = await applyCalendarChange(root, input)
+  const readStatus = options.automationStatus || automationStatus
+  let automation
+  try {
+    automation = await readStatus(root, credentials)
+  } catch (error) {
+    return { ...applied, sync: { required: true, state: 'failed', message: error.message } }
+  }
+  if (!automation.enabled) return { ...applied, sync: { required: false, state: 'not-required' } }
+  try {
+    return { ...applied, sync: await syncCalendarChanges(root, credentials, { ...options, automation }) }
+  } catch (error) {
+    return { ...applied, sync: { required: true, state: 'failed', message: error.message } }
+  }
+}
+
 module.exports = {
   applyCalendarChange,
+  applyEditorialCalendarChange,
   calendarCloudflareWorkflow: cloudflareWorkflow,
   calendarDefaultTimeZone: defaultTimeZone,
   disableCalendarAutomation: disableAutomation,
@@ -25,6 +53,7 @@ module.exports = {
   previewCalendarChange,
   runCalendarAutomationNow: runAutomationNow,
   saveCalendarTimeZone,
+  syncCalendarChanges,
   validCalendarTimeZone: validTimeZone,
   wallDateTimeFromIso,
   zonedDateTimeToIso,

@@ -21,13 +21,10 @@ import { ThemeManagerModal } from '../features/themes/ThemeManagerModal'
 import { useI18n } from '../i18n'
 import { friendlyError } from '../lib/errors'
 import { api, emptyContext } from './api'
+import { rebaseQueuedSubmission, reconcileSavedPost, savedSnapshot } from './editor-save-state'
 
 const EditorialCalendar = lazy(() => import('../features/calendar/EditorialCalendar').then((module) => ({ default: module.EditorialCalendar })))
 const ReviewModal = lazy(() => import('../features/review/ReviewModal').then((module) => ({ default: module.ReviewModal })))
-
-function savedSnapshot(value) {
-  return JSON.stringify(value?.repairedNestedFrontMatter ? { ...value, repairedNestedFrontMatter: false } : value)
-}
 
 export default function App() {
   const { t } = useI18n()
@@ -78,17 +75,28 @@ export default function App() {
 
   const performSave = useCallback(async (target, announce = false) => {
     if (!target) return false
-    if (savePromiseRef.current) await savePromiseRef.current.catch(() => {})
+    const pending = savePromiseRef.current
+    if (pending) await pending.promise.catch(() => {})
 
-    const snapshot = JSON.stringify(target)
+    const submitted = rebaseQueuedSubmission(target, pending)
+    const inFlight = {
+      id: submitted.id,
+      submittedRevision: submitted.revision,
+      saved: null,
+      promise: null,
+    }
+    inFlight.promise = api.savePost(submitted).then((saved) => {
+      inFlight.saved = saved
+      return saved
+    })
+
     setSaving(true)
     setSaveError(null)
-    const request = api.savePost(target)
-    savePromiseRef.current = request
+    savePromiseRef.current = inFlight
     try {
-      const saved = await request
-      setSavedPost(JSON.stringify(saved))
-      setPost((current) => JSON.stringify(current) === snapshot ? saved : current)
+      const saved = await inFlight.promise
+      setSavedPost(savedSnapshot(saved))
+      setPost((current) => reconcileSavedPost(current, submitted, saved))
       setPosts((current) => current.map((item) => item.id === saved.id ? {
         ...item,
         title: saved.title,
@@ -111,7 +119,7 @@ export default function App() {
       notify(message, 'error')
       return false
     } finally {
-      if (savePromiseRef.current === request) savePromiseRef.current = null
+      if (savePromiseRef.current === inFlight) savePromiseRef.current = null
       setSaving(false)
     }
   }, [notify, t])

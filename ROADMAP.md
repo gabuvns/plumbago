@@ -91,6 +91,37 @@ Status: released in [v0.12.0](https://github.com/gabuvns/plumbago/releases/tag/v
 
 Definition of done: scheduled publishing is reliable without requiring the desktop app to remain running.
 
+### 0.12.1 — Editorial integrity hotfix
+
+Status: active
+
+- [ ] Keep genuine external-edit protection without false conflicts caused by Plumbago's own saves or refresh loop.
+- [ ] Show scheduled content on the same blog-local calendar day selected in the editor.
+- [ ] Ensure schedule changes reach Git whenever background publication relies on the remote repository.
+- [ ] Explain and recover from a schedule that was saved locally but could not be pushed.
+
+Definition of done: editing and scheduling cannot silently lose work, drift a calendar day, or leave background publication dependent on an unsynchronized local change.
+
+### 0.12.2 — Editorial safeguards and accessibility
+
+Status: planned
+
+- [ ] Make published posts read-only by default and provide an explicit revise flow.
+- [ ] Match Markdown heading hierarchy in the live preview.
+- [ ] Add a persistent font-size slider with preview, keyboard operation, and screen-reader labels.
+
+Definition of done: published content is protected from accidental edits and writers can comfortably read and operate the editor without losing Markdown semantics.
+
+### 0.12.3 — Windows and WSL Hugo management
+
+Status: planned
+
+- [ ] Detect native Windows and WSL Hugo versions separately.
+- [ ] Let each blog choose its Hugo runtime and validate that choice.
+- [ ] Update the selected installation in place through a guided, diagnosable flow.
+
+Definition of done: a Windows writer can see, choose, test, and update the exact Hugo installation Plumbago will use.
+
 ### 0.13.0 — Taxonomy manager
 
 Status: planned
@@ -102,6 +133,17 @@ Status: planned
 - [ ] Preserve unknown front matter and theme-specific taxonomy settings.
 
 Definition of done: a writer can keep a large blog consistently organized without bulk-editing front matter.
+
+### 0.14.0 — Route and page manager
+
+Status: planned
+
+- [ ] Browse and create standalone routes such as `/about` and `/gallery`.
+- [ ] Detect collisions, aliases, menus, multilingual routes, and theme-dependent layouts.
+- [ ] Rename or remove pages through an exact impact preview and recovery point.
+- [ ] Preserve unknown front matter and ordinary Hugo content portability.
+
+Definition of done: a writer can manage the blog's main pages and routes without manually reorganizing the content tree.
 
 ### 1.0.0 — Visual theme configurator
 
@@ -117,4 +159,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.12.0` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, and a real editorial calendar with background scheduled publishing. It is the stable starting point for the remaining roadmap.
+Version `0.12.0` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, and a real editorial calendar with background scheduled publishing. The active 0.12.1 hotfix hardens that calendar and autosave baseline before the remaining roadmap continues.

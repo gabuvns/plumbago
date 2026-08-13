@@ -147,7 +147,11 @@ async function gitStatus(root) {
   const branch = await run(root, 'git', ['branch', '--show-current']).then((result) => result.stdout).catch(() => '')
   const remote = await run(root, 'git', ['remote', 'get-url', 'origin']).then((result) => result.stdout).catch(() => '')
   const changes = await run(root, 'git', ['status', '--porcelain=v1']).then((result) => result.stdout.split('\n').filter(Boolean)).catch(() => [])
-  return { branch, remote, changes }
+  const divergence = await run(root, 'git', ['rev-list', '--left-right', '--count', '@{u}...HEAD'])
+    .then((result) => result.stdout.split(/\s+/).map(Number))
+    .catch(() => [])
+  const [behind = 0, ahead = 0] = divergence
+  return { branch, remote, changes, ahead, behind, hasUpstream: divergence.length === 2 }
 }
 
 async function gitConfig(root) {

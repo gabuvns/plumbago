@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.12.1 — 2026-08-13
+
+- Keep edits made while autosave is finishing on top of Plumbago's own new file revision, preventing false external-change conflicts without weakening protection for genuine Obsidian or filesystem edits.
+- Make an explicit Hugo `publishDate` the calendar authority so a late-night schedule stays on the blog-local day the writer selected, even when its UTC timestamp falls on the following day.
+- Commit and push schedule changes immediately when background publishing is enabled, allowing the remote publication clock to see due content while Plumbago is closed.
+- Detect local or unpushed calendar changes, explain when a schedule is safe locally but unavailable to GitHub, and provide a persistent retry action without rolling back the writer's work.
+- Add regression coverage for queued autosaves, genuine external conflicts, near-midnight timezone conversion, Git divergence, schedule synchronization, and failed-push recovery.
+
 ## 0.12.0 — 2026-08-11
 
 - Add a timezone-aware editorial calendar with month, week, agenda, and unscheduled views for published, scheduled, draft, conflicting, and expired Hugo content.
