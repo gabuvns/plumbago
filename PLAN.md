@@ -219,7 +219,9 @@ Goal: a Windows writer can understand, choose, test, and safely update the exact
 - [x] Create the release commit and `v0.12.3` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.3) and verify every platform asset.
 
-## Active milestone: 0.13.0 — Taxonomy manager
+## Completed milestone: 0.13.0 — Taxonomy manager
+
+Released on 2026-08-13 — [v0.13.0](https://github.com/gabuvns/plumbago/releases/tag/v0.13.0)
 
 Goal: a writer can understand and reorganize tags, categories, and custom Hugo taxonomies across a large blog without bulk-editing front matter by hand.
 
@@ -241,10 +243,10 @@ Goal: a writer can understand and reorganize tags, categories, and custom Hugo t
 - [x] Browser demos cover browsing, filtering, adding, renaming, merging, variants, unclassified posts, and recovery without console errors.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 0.13.0 and bump package metadata.
-- [ ] Create the release commit and `v0.13.0` tag.
-- [ ] Publish the GitHub Release and verify every platform asset.
+- [x] Create the release commit and `v0.13.0` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.13.0) and verify every platform asset.
 
-## Planned milestone: 0.14.0 — Route and page manager
+## Active milestone: 0.14.0 — Route and page manager
 
 Goal: a writer can add and manage standalone Hugo pages such as `/about` and `/gallery` without learning the content tree or route configuration.
 

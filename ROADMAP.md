@@ -124,19 +124,19 @@ Definition of done: a Windows writer can see, choose, test, and update the exact
 
 ### 0.13.0 — Taxonomy manager
 
-Status: active
+Status: released on 2026-08-13 — [v0.13.0](https://github.com/gabuvns/plumbago/releases/tag/v0.13.0)
 
-- [ ] Browse tags, categories, and custom Hugo taxonomies with post counts.
-- [ ] Rename or merge terms across posts with a preview of affected files.
-- [ ] Find duplicates, spelling variants, empty terms, and unclassified posts.
-- [ ] Filter the post list by one or more terms.
-- [ ] Preserve unknown front matter and theme-specific taxonomy settings.
+- [x] Browse tags, categories, and custom Hugo taxonomies with post counts.
+- [x] Rename or merge terms across posts with a preview of affected files.
+- [x] Find duplicates, spelling variants, empty terms, and unclassified posts.
+- [x] Filter the post list by one or more terms.
+- [x] Preserve unknown front matter and theme-specific taxonomy settings.
 
 Definition of done: a writer can keep a large blog consistently organized without bulk-editing front matter.
 
 ### 0.14.0 — Route and page manager
 
-Status: planned
+Status: active
 
 - [ ] Browse and create standalone routes such as `/about` and `/gallery`.
 - [ ] Detect collisions, aliases, menus, multilingual routes, and theme-dependent layouts.
@@ -159,4 +159,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.12.3` provides GitHub connection, one-click deployment, external post refresh, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, persistent editor reading preferences, and per-blog native Windows or WSL Hugo selection with real compatibility builds and guided updates. The taxonomy manager is the active next milestone.
+Version `0.13.0` provides GitHub connection, one-click deployment, external post refresh, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, persistent editor reading preferences, per-blog native Windows or WSL Hugo selection, and a recoverable manager for tags, categories, and custom Hugo taxonomies. The route and page manager is the active next milestone.
