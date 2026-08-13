@@ -104,17 +104,17 @@ Definition of done: editing and scheduling cannot silently lose work, drift a ca
 
 ### 0.12.2 — Editorial safeguards and accessibility
 
-Status: active
+Status: released on 2026-08-13 — [v0.12.2](https://github.com/gabuvns/plumbago/releases/tag/v0.12.2)
 
-- [ ] Make published posts read-only by default and provide an explicit revise flow.
-- [ ] Match Markdown heading hierarchy in the live preview.
-- [ ] Add a persistent font-size slider with preview, keyboard operation, and screen-reader labels.
+- [x] Make published posts read-only by default and provide an explicit revise flow.
+- [x] Match Markdown heading hierarchy in the live preview.
+- [x] Add a persistent font-size slider with preview, keyboard operation, and screen-reader labels.
 
 Definition of done: published content is protected from accidental edits and writers can comfortably read and operate the editor without losing Markdown semantics.
 
 ### 0.12.3 — Windows and WSL Hugo management
 
-Status: planned
+Status: active
 
 - [ ] Detect native Windows and WSL Hugo versions separately.
 - [ ] Let each blog choose its Hugo runtime and validate that choice.
@@ -159,4 +159,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.12.1` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, and a hardened editorial calendar with reliable autosave and synchronized background schedules. Editorial safeguards and accessibility are the active next milestone.
+Version `0.12.2` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, a hardened editorial calendar, protected published posts, accurate Markdown heading hierarchy, and persistent editor reading preferences. Windows and WSL Hugo runtime management is the active next milestone.

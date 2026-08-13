@@ -166,7 +166,9 @@ Goal: scheduling and autosave remain trustworthy when files change externally, d
 - [x] Create the release commit and `v0.12.1` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.1) and verify every platform asset.
 
-## Active milestone: 0.12.2 — Editorial safeguards and accessibility
+## Completed milestone: 0.12.2 — Editorial safeguards and accessibility
+
+Released on 2026-08-13 — [v0.12.2](https://github.com/gabuvns/plumbago/releases/tag/v0.12.2)
 
 Goal: published work is protected from accidental edits, while the writing surface remains readable and keeps Markdown semantics visually clear.
 
@@ -187,14 +189,33 @@ Goal: published work is protected from accidental edits, while the writing surfa
 - [x] Browser QA covers locked/unlocked editing, slider persistence, and real H1/H2/H3 rendering without console errors.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 0.12.2 and bump package metadata.
-- [ ] Create the release commit and `v0.12.2` tag.
+- [x] Create the release commit and `v0.12.2` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.2) and verify every platform asset.
+
+## Active milestone: 0.12.3 — Windows and WSL Hugo management
+
+Goal: a Windows writer can understand, choose, test, and safely update the exact Hugo installation Plumbago uses, whether it runs natively or inside WSL.
+
+### Product work
+
+- [ ] Detect native Windows Hugo and each available WSL Hugo installation independently, including version, Extended edition, architecture, path, and availability.
+- [ ] Show both environments together with plain-language health and compatibility guidance instead of collapsing them into the currently selected blog runtime.
+- [ ] Let the writer choose a runtime per blog, test a candidate before saving it, and preserve the selection without adding Plumbago-only files to the Hugo project.
+- [ ] Route site creation, preview, builds, theme validation, and Hugo diagnostics through the selected runtime while preserving Windows, UNC, spaces, apostrophes, and Unicode paths.
+- [ ] Offer guided updates for the selected environment using a preview of the exact method and version, explicit confirmation, progress, retry, and technical details.
+- [ ] Never invoke an installer silently; keep manual official-installation guidance available when an automatic method is unavailable or unsafe.
+- [ ] Keep the current runtime usable after a failed update and re-test it before reporting success.
+- [ ] Add complete EN-US/PT-BR copy and keyboard/screen-reader accessible runtime controls.
+
+### Release gate
+
+- [ ] Native Windows, WSL, multiple-distribution, missing-Hugo, unsupported-version, selection, update, rollback/failure, IPC, and product-contract tests pass.
+- [ ] `npm test`, `npm run check`, and `npm audit --audit-level=high` pass.
+- [ ] Browser demos cover dual installations, runtime choice, missing runtime, update confirmation, success, and recovery without console errors.
+- [ ] A Windows package is inspected and the representative Windows + WSL path flow is exercised where the available environment permits it.
+- [ ] Close `CHANGELOG.md` as 0.12.3 and bump package metadata.
+- [ ] Create the release commit and `v0.12.3` tag.
 - [ ] Publish the GitHub Release and verify every platform asset.
-
-## Planned milestone: 0.12.3 — Windows and WSL Hugo management
-
-- [ ] Detect and display native Windows and WSL Hugo installations independently.
-- [ ] Let the writer choose the runtime used by each blog and test it before saving.
-- [ ] Offer an in-app guided update for the chosen runtime with diagnostics and retry.
 
 ## Planned milestone: 0.13.0 — Taxonomy manager
 
