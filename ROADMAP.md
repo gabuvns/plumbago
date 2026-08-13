@@ -93,18 +93,18 @@ Definition of done: scheduled publishing is reliable without requiring the deskt
 
 ### 0.12.1 — Editorial integrity hotfix
 
-Status: active
+Status: released on 2026-08-13 — [v0.12.1](https://github.com/gabuvns/plumbago/releases/tag/v0.12.1)
 
-- [ ] Keep genuine external-edit protection without false conflicts caused by Plumbago's own saves or refresh loop.
-- [ ] Show scheduled content on the same blog-local calendar day selected in the editor.
-- [ ] Ensure schedule changes reach Git whenever background publication relies on the remote repository.
-- [ ] Explain and recover from a schedule that was saved locally but could not be pushed.
+- [x] Keep genuine external-edit protection without false conflicts caused by Plumbago's own saves or refresh loop.
+- [x] Show scheduled content on the same blog-local calendar day selected in the editor.
+- [x] Ensure schedule changes reach Git whenever background publication relies on the remote repository.
+- [x] Explain and recover from a schedule that was saved locally but could not be pushed.
 
 Definition of done: editing and scheduling cannot silently lose work, drift a calendar day, or leave background publication dependent on an unsynchronized local change.
 
 ### 0.12.2 — Editorial safeguards and accessibility
 
-Status: planned
+Status: active
 
 - [ ] Make published posts read-only by default and provide an explicit revise flow.
 - [ ] Match Markdown heading hierarchy in the live preview.
@@ -159,4 +159,4 @@ Definition of done: a writer can install and meaningfully customize a supported 
 
 ## Current baseline
 
-Version `0.12.0` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, and a real editorial calendar with background scheduled publishing. The active 0.12.1 hotfix hardens that calendar and autosave baseline before the remaining roadmap continues.
+Version `0.12.1` provides GitHub connection, one-click deployment, external post refresh, guided Hugo management, human-readable history, local recovery points, recoverable deletion, a blog-wide media library, deterministic site review, and a hardened editorial calendar with reliable autosave and synchronized background schedules. Editorial safeguards and accessibility are the active next milestone.

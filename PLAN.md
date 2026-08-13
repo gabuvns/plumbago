@@ -143,7 +143,9 @@ Goal: a writer can see the publication plan, move posts to meaningful dates, and
 - [x] Create the release commit and `v0.12.0` tag.
 - [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.0) and verify every platform asset.
 
-## Active milestone: 0.12.1 — Editorial integrity hotfix
+## Completed milestone: 0.12.1 — Editorial integrity hotfix
+
+[v0.12.1](https://github.com/gabuvns/plumbago/releases/tag/v0.12.1) fixes autosave revision races, blog-local calendar drift, and unsynchronized background schedules with verified downloads for Windows, Linux, macOS Intel, and macOS Apple Silicon.
 
 Goal: scheduling and autosave remain trustworthy when files change externally, dates cross timezone boundaries, and background publication depends on repository state.
 
@@ -161,10 +163,10 @@ Goal: scheduling and autosave remain trustworthy when files change externally, d
 - [x] Browser QA covers a near-midnight schedule and a failed/retried schedule sync without console errors; focused state tests cover queued autosave.
 - [x] A relevant Electron package is built and inspected.
 - [x] Close `CHANGELOG.md` as 0.12.1 and bump package metadata.
-- [ ] Create the release commit and `v0.12.1` tag.
-- [ ] Publish the GitHub Release and verify every platform asset.
+- [x] Create the release commit and `v0.12.1` tag.
+- [x] Publish the [GitHub Release](https://github.com/gabuvns/plumbago/releases/tag/v0.12.1) and verify every platform asset.
 
-## Planned milestone: 0.12.2 — Editorial safeguards and accessibility
+## Active milestone: 0.12.2 — Editorial safeguards and accessibility
 
 - [ ] Make published posts read-only by default with a deliberate revise/unlock action.
 - [ ] Render Markdown `#`, `##`, and `###` with an accurate visual hierarchy in the live preview.
