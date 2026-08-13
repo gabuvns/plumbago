@@ -10,6 +10,7 @@ app.setName('Plumbago')
 let mainWindow
 let blogRoot = null
 let previewProcess = null
+let previewConfiguration = ''
 let githubToken = ''
 let githubTokenSource = ''
 let encryptedGitHubToken = ''
@@ -84,6 +85,7 @@ function rememberHugoRuntime(root, selection) {
 function stopPreview() {
   previewProcess?.kill()
   previewProcess = null
+  previewConfiguration = ''
 }
 
 async function setCloudflareToken(token) {
@@ -155,6 +157,24 @@ function registerIpc() {
   ipcMain.handle('plumbago:list-themes', () => service.listThemes())
   ipcMain.handle('plumbago:install-theme', (_event, slug) => service.installTheme(requireBlog(), slug))
   ipcMain.handle('plumbago:deactivate-theme', () => service.deactivateTheme(requireBlog()))
+  ipcMain.handle('plumbago:theme-configuration', () => service.themeConfiguration(requireBlog()))
+  ipcMain.handle('plumbago:theme-preview-configuration', (_event, input) => service.previewThemeConfiguration(requireBlog(), input))
+  ipcMain.handle('plumbago:theme-apply-configuration', async (_event, input) => {
+    stopPreview()
+    return service.applyThemeConfiguration(requireBlog(), input)
+  })
+  ipcMain.handle('plumbago:theme-save-preset', (_event, input) => service.saveThemePreset(requireBlog(), input))
+  ipcMain.handle('plumbago:theme-delete-preset', (_event, id) => service.deleteThemePreset(requireBlog(), id))
+  ipcMain.handle('plumbago:open-theme-preview', async (_event, previewId) => {
+    const root = requireBlog()
+    const launch = await service.themePreviewLaunch(root, previewId)
+    stopPreview()
+    previewProcess = service.spawnHugo(root, launch.args)
+    previewConfiguration = `theme:${previewId}`
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    await shell.openExternal(launch.url)
+    return true
+  })
   ipcMain.handle('plumbago:site-settings', () => service.siteSettings(requireBlog()))
   ipcMain.handle('plumbago:save-site-settings', (_event, input) => service.saveSiteSettings(requireBlog(), input))
   ipcMain.handle('plumbago:open-theme', async (_event, slug) => {
@@ -376,8 +396,10 @@ function registerIpc() {
   ipcMain.handle('plumbago:open-preview', async () => {
     const root = requireBlog()
     await service.ensureBundleLanguages(root)
+    if (previewConfiguration && previewConfiguration !== 'site') stopPreview()
     if (!previewProcess || previewProcess.exitCode !== null) {
       previewProcess = service.spawnHugo(root, ['server', '--buildDrafts', '--disableFastRender', '--port', '1313'])
+      previewConfiguration = 'site'
       await new Promise((resolve) => setTimeout(resolve, 900))
     }
     await shell.openExternal('http://localhost:1313')
